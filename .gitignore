@@ -1,0 +1,46 @@
+# General
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node / JavaScript / TypeScript
+node_modules/
+dist/
+build/
+coverage/
+.npm/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+
+# React
+frontend-react/build/
+frontend-react/dist/
+frontend-react/node_modules/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

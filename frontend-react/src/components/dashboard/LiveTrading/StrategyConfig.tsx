@@ -1,0 +1,380 @@
+import { useState, useEffect, useRef } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { X, Search, Upload, Plus, Loader2, ChevronDown, Trash2, Download } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { stockOptions, strategyOptions, timeframeOptions } from "@/data/mockData";
+import { cn } from "@/lib/utils";
+import { fetchJson } from "@/lib/api";
+import { toast } from "sonner";
+
+export interface ConfigData {
+  symbols: string[];
+  strategy: string;
+  interval: string;
+  startTime: string;
+  stopTime: string;
+  capital: string;
+}
+
+interface StrategyConfigProps {
+  config: ConfigData;
+  onConfigChange: (newConfig: ConfigData) => void;
+  disabled?: boolean;
+}
+
+export function StrategyConfig({ config, onConfigChange, disabled = false }: StrategyConfigProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [savedStocks, setSavedStocks] = useState<string[]>([]);
+  const [stocklistFilter, setStocklistFilter] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchJson('/symbols').then(res => setSavedStocks(res || [])).catch(console.error);
+  }, []);
+
+  // Debounced Search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchTerm.length >= 2) {
+        setIsSearching(true);
+        try {
+          const results = await fetchJson(`/search_scrip?q=${encodeURIComponent(searchTerm)}`);
+          if (Array.isArray(results)) {
+            setSearchResults(results.slice(0, 10)); // Limit to 10
+          }
+        } catch (e) {
+          console.error("Search failed", e);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSearchResults([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
+
+  const handleStockToggle = (stock: string) => {
+    if (config.symbols.includes(stock)) {
+      onConfigChange({ ...config, symbols: config.symbols.filter(s => s !== stock) });
+    } else {
+      onConfigChange({ ...config, symbols: [...config.symbols, stock] });
+    }
+  };
+
+  const removeStock = (stock: string) => {
+    onConfigChange({ ...config, symbols: config.symbols.filter(s => s !== stock) });
+  };
+
+  const handleAddSearchResult = (symbol: string) => {
+    // Backend search returns { symbol: 'TCS-EQ', token: '...', exchange: 'NSE' } usually
+    // But we just need symbol name if backend handles token lookup on start, OR we need to add token to backend too?
+    // app.py search_scrip returns list of dicts.
+    // let's assume we just add the symbol string.
+    // If backend requires token, we might need a separate 'add_token' call or LiveTrading handles it.
+    // app.py has /add_token. But /start just takes symbols list.
+    // Probably strat engine looks up token.
+
+    const cleanSymbol = symbol.replace('-EQ', ''); // Cleanup if needed or keep full
+    if (!config.symbols.includes(cleanSymbol)) {
+      onConfigChange({ ...config, symbols: [...config.symbols, cleanSymbol] });
+      setSearchTerm("");
+      setSearchResults([]);
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      // Parse CSV: split by new lines or commas, trim, filter empty
+      const symbols = text
+        .split(/[\n,]+/)
+        .map(s => s.trim().toUpperCase())
+        .filter(s => s && s.length > 2); // basic validation
+
+      if (symbols.length > 0) {
+        // Merge with existing unique
+        const newSymbols = Array.from(new Set([...config.symbols, ...symbols]));
+        onConfigChange({ ...config, symbols: newSymbols });
+        toast.success(`Imported ${symbols.length} symbols`);
+      } else {
+        toast.error("No valid symbols found in CSV");
+      }
+
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsText(file);
+  };
+
+  return (
+    <Card className="border-border bg-card">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-lg">Strategy Configuration</CardTitle>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-2"
+            onClick={() => {
+              const csvContent = "RELIANCE\nTCS\nINFY\nHDFCBANK";
+              const blob = new Blob([csvContent], { type: 'text/csv' });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = 'sample_stocks.csv';
+              a.click();
+              window.URL.revokeObjectURL(url);
+            }}
+            disabled={disabled}
+          >
+            <Download className="h-4 w-4" />
+            Sample CSV
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Stock Universe */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Stock Universe</Label>
+
+          {/* Search Bar */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search Stocks (e.g. RELIANCE)..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                disabled={disabled}
+              />
+              {isSearching && (
+                <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+              )}
+
+              {/* Search Results Dropdown */}
+              {searchResults.length > 0 && (
+                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-md">
+                  {searchResults.map((res: any, i) => (
+                    <div
+                      key={i}
+                      className="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => handleAddSearchResult(res.symbol)}
+                    >
+                      <span className="font-medium">{res.symbol}</span>
+                      <span className="text-xs text-muted-foreground">{res.exchange || 'NSE'}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={disabled}>
+                <Button variant="outline" className="min-w-[130px]">
+                  My Stocklist <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[250px]">
+                <div className="p-2 border-b">
+                  <Input
+                    placeholder="Filter list..."
+                    value={stocklistFilter}
+                    onChange={e => setStocklistFilter(e.target.value)}
+                    className="h-8 text-xs"
+                    onClick={e => e.stopPropagation()}
+                  />
+                </div>
+                <div className="max-h-[300px] overflow-y-auto">
+                  {savedStocks.length > 0 ? (
+                    savedStocks
+                      .filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase()))
+                      .slice(0, 50)
+                      .map(s => (
+                        <DropdownMenuItem key={s} onClick={() => {
+                          if (!config.symbols.includes(s)) {
+                            onConfigChange({ ...config, symbols: [...config.symbols, s] });
+                            setStocklistFilter("");
+                          }
+                        }} className="cursor-pointer text-xs">
+                          {s}
+                        </DropdownMenuItem>
+                      ))
+                  ) : (
+                    <div className="p-2 text-xs text-muted-foreground text-center">No saved stocks</div>
+                  )}
+                  {savedStocks.filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase())).length === 0 && savedStocks.length > 0 && (
+                    <div className="p-2 text-xs text-muted-foreground text-center">No matches found</div>
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Import CSV Button */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".csv,.txt"
+              onChange={handleFileUpload}
+              disabled={disabled}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+              title="Import CSV"
+            >
+              <Upload className="h-4 w-4" />
+            </Button>
+
+            {/* Clear All Button */}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-10 w-10 shrink-0 text-destructive hover:text-destructive"
+              onClick={() => onConfigChange({ ...config, symbols: [] })}
+              disabled={disabled || config.symbols.length === 0}
+              title="Clear All"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Selected Stocks Badge List */}
+          <div className="flex flex-wrap gap-2">
+            {config.symbols.map(stock => (
+              <Badge
+                key={stock}
+                variant="secondary"
+                className="gap-1 bg-primary/10 text-primary hover:bg-primary/20"
+              >
+                {stock}
+                {!disabled && (
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => removeStock(stock)}
+                  />
+                )}
+              </Badge>
+            ))}
+            {config.symbols.length === 0 && (
+              <span className="text-sm text-muted-foreground">No stocks selected</span>
+            )}
+          </div>
+
+
+        </div>
+
+        {/* Strategy Selector */}
+        <div className="space-y-3">
+          <Label className="text-sm font-medium">Strategy</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {strategyOptions.map(strategy => (
+              <button
+                key={strategy.value}
+                onClick={() => !disabled && onConfigChange({ ...config, strategy: strategy.value })}
+                disabled={disabled}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  config.strategy === strategy.value
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/50",
+                  disabled && "opacity-50 cursor-not-allowed hover:border-border"
+                )}
+              >
+                <p className="font-medium">{strategy.label}</p>
+                <p className="text-xs text-muted-foreground">{strategy.description}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Timeframe, Time Range, and Capital - All in One Row */}
+        <div className="grid grid-cols-4 gap-4">
+          {/* Timeframe */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Timeframe</Label>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild disabled={disabled}>
+                <Button variant="outline" className="w-full justify-between">
+                  {timeframeOptions.find(tf => tf.value === config.interval)?.label || 'Select'}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-[150px] z-[100]">
+                {timeframeOptions.map(tf => (
+                  <DropdownMenuItem
+                    key={tf.value}
+                    onClick={() => onConfigChange({ ...config, interval: tf.value })}
+                    className="cursor-pointer"
+                  >
+                    {tf.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Start Time */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Start Time</Label>
+            <Input
+              type="time"
+              value={config.startTime}
+              disabled={disabled}
+              onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
+            />
+          </div>
+
+          {/* End Time */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">End Time</Label>
+            <Input
+              type="time"
+              value={config.stopTime}
+              disabled={disabled}
+              onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
+            />
+          </div>
+
+          {/* Initial Capital */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Initial Capital</Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">₹</span>
+              <Input
+                type="text"
+                value={config.capital}
+                disabled={disabled}
+                onChange={(e) => onConfigChange({ ...config, capital: e.target.value })}
+                className="pl-7"
+              />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
