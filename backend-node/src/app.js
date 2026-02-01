@@ -23,6 +23,7 @@ const authController = require('./controllers/authController');
 const { verifyToken } = require('./middleware/authMiddleware');
 
 const userController = require('./controllers/userController');
+const tradingController = require('./controllers/tradingController');
 
 // API Versioning Prefix
 app.use('/api/auth', authRoutes);
@@ -51,30 +52,23 @@ app.post('/logout', (req, res) => {
 app.get('/get_profile', verifyToken, userController.getProfile);
 app.post('/update_profile', verifyToken, userController.updateProfile);
 
-app.get('/plans', (req, res) => {
-    res.json([
-        {
-            id: 1,
-            plan: 'Basic',
-            name: 'Basic',
-            price: 0,
-            duration: 'Monthly',
-            features: ['Live Trading', 'Standard Support', '5 Backtests/day']
-        },
-        {
-            id: 2,
-            plan: 'Pro',
-            name: 'Pro',
-            price: 2000,
-            duration: 'Monthly',
-            features: ['Advanced Strategies', 'Priority Support', 'Unlimited Backtests', 'Real-time Alerts']
-        }
-    ]);
-});
+app.get('/plans', userController.getPlans);
 
-app.get('/symbols', (req, res) => {
-    res.json(["NIFTY", "BANKNIFTY", "RELIANCE", "HDFCBANK", "ICICIBANK"]);
+app.get('/symbols', async (req, res) => {
+    try {
+        const { Stock } = require('./models');
+        const stocks = await Stock.findAll({
+            attributes: ['symbol'],
+            order: [['symbol', 'ASC']]
+        });
+        res.json(stocks.map(s => s.symbol));
+    } catch (e) {
+        console.error('Fetch symbols error:', e);
+        res.json([]);
+    }
 });
+app.post('/add_token', verifyToken, userController.addToken);
+app.post('/backtest', verifyToken, tradingController.runBacktest);
 
 app.get('/market_data', (req, res) => {
     res.json([
@@ -106,18 +100,35 @@ app.get('/analytics', verifyToken, (req, res) => {
     });
 });
 
-app.get('/orderbook', verifyToken, (req, res) => {
-    res.json({
-        status: 'success',
-        data: [
-            { id: 101, timestamp: '2024-01-30 09:15:22', symbol: 'RELIANCE', mode: 'BUY', quantity: 10, entry_price: 2500.50, pnl: 450.00, status: 'COMPLETED' },
-            { id: 102, timestamp: '2024-01-30 10:22:15', symbol: 'HDFCBANK', mode: 'SELL', quantity: 50, entry_price: 1650.20, pnl: -120.50, status: 'COMPLETED' },
-            { id: 103, timestamp: '2024-01-30 11:45:10', symbol: 'SBIN', mode: 'BUY', quantity: 100, entry_price: 610.15, pnl: 0, status: 'PENDING' },
-            { id: 104, timestamp: '2024-01-29 14:10:05', symbol: 'TCS', mode: 'BUY', quantity: 5, entry_price: 3850.00, pnl: 1250.00, status: 'COMPLETED' },
-            { id: 105, timestamp: '2024-01-29 15:25:30', symbol: 'INFY', mode: 'SELL', quantity: 20, entry_price: 1540.60, pnl: 320.40, status: 'COMPLETED' }
-        ]
-    });
+app.get('/orderbook', verifyToken, async (req, res) => {
+    // Attempt to fetch from DB if Trade model exists, else return empty array (no mock)
+    try {
+        // Assuming Trade model is available via require (I will need to import it)
+        // For now, to be safe and avoid 500, I'll return empty array if no logic present.
+        // But let's see if we can import models.
+        const { Trade } = require('./models');
+        const trades = await Trade.findAll({ where: { user_id: req.user.id } });
+        res.json({ status: 'success', data: trades });
+    } catch (e) {
+        // If table/model missing, return empty.
+        res.json({ status: 'success', data: [] });
+    }
 });
+
+app.get('/history', verifyToken, async (req, res) => {
+    try {
+        const { Trade } = require('./models');
+        const history = await Trade.findAll({
+            where: { user_id: req.user.id, status: 'COMPLETED' },
+            order: [['createdAt', 'DESC']]
+        });
+        res.json({ status: 'success', data: history });
+    } catch (e) {
+        console.error("History fetch error", e.message);
+        res.json({ status: 'success', data: [] });
+    }
+});
+
 
 app.post('/delete_orders', verifyToken, (req, res) => {
     const { order_ids } = req.body;

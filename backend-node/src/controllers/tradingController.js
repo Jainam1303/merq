@@ -72,3 +72,29 @@ exports.getStatus = async (req, res) => {
         res.status(500).json({ message: 'Failed to fetch status' });
     }
 };
+// Run Backtest
+// Run Backtest
+exports.runBacktest = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await User.findByPk(userId);
+        if (!user) return res.status(404).json({ message: 'User not found' });
+
+        const payload = {
+            ...req.body,
+            user_id: userId,
+            broker_credentials: {
+                api_key: user.backtest_api_key || user.angel_api_key,
+                client_code: user.backtest_client_code || user.angel_client_code,
+                password: user.backtest_password || user.angel_password,
+                totp: user.backtest_totp || user.angel_totp
+            }
+        };
+
+        const result = await engineService.runBacktest(payload);
+        res.json(result);
+    } catch (error) {
+        console.error('Backtest Controller Error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};

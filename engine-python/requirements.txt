@@ -16,3 +16,4 @@ numpy
 backtrader
 pyotp
 psycopg2-binary
+websocket-client

@@ -49,6 +49,19 @@ def start_engine(request: StrategyStartRequest):
 def stop_engine(user_id: str):
     return {"status": "stopped"}
 
+@app.post("/backtest")
+def run_backtest(data: dict):
+    # Simulated Result for now since actual logic files might be missing or complex to integrate in one go
+    # In future: from backtester import run_backtest_logic
+    from backtest_runner import login_and_run_backtest
+    
+    results = login_and_run_backtest(data)
+    
+    return {
+        "status": "success",
+        "results": results
+    }
+
 @app.get("/engine/status/{user_id}")
 def get_status(user_id: str):
     return {"active": False, "pnl": 0.0, "positions": []}

@@ -208,7 +208,7 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
                   {savedStocks.length > 0 ? (
                     savedStocks
                       .filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase()))
-                      .slice(0, 50)
+                      .slice(0, 8)
                       .map(s => (
                         <DropdownMenuItem key={s} onClick={() => {
                           if (!config.symbols.includes(s)) {

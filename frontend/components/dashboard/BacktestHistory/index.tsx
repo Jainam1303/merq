@@ -20,8 +20,17 @@ export function BacktestHistory() {
     const loadHistory = async () => {
         try {
             const data = await fetchJson('/history');
-            setHistory(data);
-        } catch (e) { console.error(e); } finally { setLoading(false); }
+            if (Array.isArray(data.data)) {
+                setHistory(data.data);
+            } else if (Array.isArray(data)) {
+                setHistory(data);
+            } else {
+                setHistory([]);
+            }
+        } catch (e) {
+            console.error(e);
+            setHistory([]);
+        } finally { setLoading(false); }
     };
 
     const handleDelete = async (id: number) => {

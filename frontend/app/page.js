@@ -192,11 +192,18 @@ const fetchJson = async (endpoint, options = {}) => {
     }
 
     if (!res.ok) {
+      if (res.status === 403 && (endpoint.includes('check_auth') || endpoint.includes('status'))) {
+        // Silent fail for auth checks if not logged in
+        return null;
+      }
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.message || `API Error ${res.status}`);
     }
     return await res.json();
   } catch (err) {
+    // Don't log expected auth check failures
+    if (endpoint.includes('check_auth') || endpoint.includes('status')) return null;
+
     console.error("Fetch JSON failed:", err);
     throw err;
   }
@@ -2219,30 +2226,24 @@ export default function Home() {
 
 
     // 3. Auth & Status
+    // 3. Auth & Status
     fetchJson('/check_auth')
       .then(data => {
-        if (data.authenticated) {
+        if (data && data.authenticated) {
           setUser(data.user);
-          // Auto-redirect removed to allow Landing Page access
-          // User can click "Dashboard" in header to go to /dashboard
-          /*
-          if (window.location.search.includes('old')) {
-            setCurrentPage('dashboard');
-          } else {
-            router.push('/dashboard');
-          }
-          */
           setShowProfile(false);
           // Fetch Credentials
           fetchJson('/get_profile').then(p => {
-            if (p.angel_api_key) setApiKey(p.angel_api_key);
-            if (p.angel_client_code) setClientCode(p.angel_client_code);
-            if (p.angel_password) setPassword(p.angel_password);
-            if (p.angel_totp) setTotp(p.angel_totp);
-            if (p.backtest_api_key) setBacktestKey(p.backtest_api_key);
-            if (p.backtest_client_code) setBtClientCode(p.backtest_client_code);
-            if (p.backtest_password) setBtPassword(p.backtest_password);
-            if (p.backtest_totp) setBtTotp(p.backtest_totp);
+            if (p) {
+              if (p.angel_api_key) setApiKey(p.angel_api_key);
+              if (p.angel_client_code) setClientCode(p.angel_client_code);
+              if (p.angel_password) setPassword(p.angel_password);
+              if (p.angel_totp) setTotp(p.angel_totp);
+              if (p.backtest_api_key) setBacktestKey(p.backtest_api_key);
+              if (p.backtest_client_code) setBtClientCode(p.backtest_client_code);
+              if (p.backtest_password) setBtPassword(p.backtest_password);
+              if (p.backtest_totp) setBtTotp(p.backtest_totp);
+            }
           }).catch(e => console.log("Profile Load Error", e));
         }
         setAuthLoading(false);
@@ -2252,13 +2253,15 @@ export default function Home() {
     fetchJson('/symbols').then(setAllSymbols).catch(console.error);
 
     fetchJson('/status').then(d => {
-      if (d.status === 'RUNNING') {
+      if (d && d.status === 'RUNNING') {
         setStatus("RUNNING");
         fetchJson('/config').then(cfg => {
-          if (cfg.symbols) setLiveSymbols(cfg.symbols);
-          if (cfg.interval) setLiveInterval(cfg.interval);
-          if (cfg.capital) setInitialCapital(String(cfg.capital));
-          if (cfg.simulated !== undefined) setIsSimulated(cfg.simulated);
+          if (cfg) {
+            if (cfg.symbols) setLiveSymbols(cfg.symbols);
+            if (cfg.interval) setLiveInterval(cfg.interval);
+            if (cfg.capital) setInitialCapital(String(cfg.capital));
+            if (cfg.simulated !== undefined) setIsSimulated(cfg.simulated);
+          }
         }).catch(console.error);
       }
     }).catch(console.error);
@@ -2580,11 +2583,14 @@ export default function Home() {
   // Socket.IO Real-time Updates
   useEffect(() => {
     let socket;
-    if (user && (activeTab === 'live' || (currentPage === 'dashboard' && activeTab === 'dashboard'))) {
-      console.log('[SOCKET] Connecting to Socket.IO...');
-      socket = io('http://localhost:5001', {
+    // Only connect if user is logged in AND Algo is RUNNING
+    if (user && status === 'RUNNING' && (activeTab === 'live' || (currentPage === 'dashboard' && activeTab === 'dashboard'))) {
+      console.log('[SOCKET] Connecting to Socket.IO (Algo Running)...');
+      // connect to same origin (localhost:3000), which proxies /socket.io to localhost:3001
+      socket = io({
+        path: '/socket.io',
         withCredentials: true,
-        transports: ['polling']  // Use only polling to avoid WebSocket frame header errors
+        transports: ['polling', 'websocket']
       });
 
       socket.on('connect', () => {
@@ -2653,6 +2659,7 @@ export default function Home() {
       });
 
       return () => {
+        console.log('[SOCKET] Disconnecting...');
         socket.disconnect();
 
       }

@@ -3,6 +3,7 @@ const User = require('./User');
 const Plan = require('./Plan');
 const Subscription = require('./Subscription');
 const StrategyConfig = require('./StrategyConfig');
+const Stock = require('./Stock');
 
 // User <-> Subscription
 User.hasOne(Subscription, { foreignKey: 'user_id' });
@@ -18,4 +19,5 @@ module.exports = {
     Plan,
     Subscription,
     StrategyConfig,
+    Stock
 };

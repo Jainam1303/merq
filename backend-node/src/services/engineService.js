@@ -9,7 +9,7 @@ class PythonEngineService {
     constructor() {
         this.client = axios.create({
             baseURL: PYTHON_SERVICE_URL,
-            timeout: 5000 // 5s timeout fail-safe
+            timeout: 60000 // 60s timeout for heavy backtests
         });
     }
 
@@ -72,6 +72,21 @@ class PythonEngineService {
         } catch (err) {
             // Return offline status if unreachable
             return { active: false, status: 'offline', error: err.message };
+        }
+    }
+    // 4. Run Backtest
+    async runBacktest(payload) {
+        try {
+            const res = await this.client.post('/backtest', payload, {
+                headers: this._getHeaders(payload)
+            });
+            return res.data;
+        } catch (err) {
+            console.error('Backtest Failed:', err.message);
+            if (err.code === 'ECONNREFUSED') {
+                throw new Error('Python Engine Offline (Port 5001). Please check if engine is running.');
+            }
+            throw new Error(err.response?.data?.detail || err.message || 'Backtest failed');
         }
     }
 }

@@ -33,8 +33,8 @@ export function Backtesting() {
         strategy: 'ORB',
         interval: '5',
         capital: 100000,
-        from_date: new Date().toISOString().split('T')[0],
-        to_date: new Date().toISOString().split('T')[0]
+        from_date: '2025-01-01',
+        to_date: '2025-03-01'
     });
     const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
     const [savedStocks, setSavedStocks] = useState<string[]>([]);

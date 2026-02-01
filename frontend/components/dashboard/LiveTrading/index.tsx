@@ -133,33 +133,44 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
   }, []);
 
   // Socket Connection with WebSocket transport for lower latency
+  // Socket Connection with WebSocket transport for lower latency
   useEffect(() => {
-    const socket = io('http://localhost:5001', {
-      withCredentials: true,
-      transports: ['websocket', 'polling'], // Allow WebSocket upgrade
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-    });
+    let socket: Socket | null = null;
 
-    socket.on('connect', () => {
-      console.log('Socket Connected');
-    });
+    // Only connect if system is active (Running)
+    if (isSystemActive) {
+      // Connect to same origin (proxied to backend)
+      socket = io({
+        path: '/socket.io',
+        withCredentials: true,
+        transports: ['websocket', 'polling'], // Allow WebSocket upgrade
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+      });
 
-    socket.on('tick_update', (data: any) => {
-      if (data.pnl !== undefined) {
-        setPnl(data.pnl);
-      }
-      if (data.trades) {
-        setPositions(mapBackendTradesToPositions(data.trades));
-      }
-    });
+      socket.on('connect', () => {
+        console.log('Socket Connected');
+      });
 
-    socketRef.current = socket;
+      socket.on('tick_update', (data: any) => {
+        if (data.pnl !== undefined) {
+          setPnl(data.pnl);
+        }
+        if (data.trades) {
+          setPositions(mapBackendTradesToPositions(data.trades));
+        }
+      });
+
+      socketRef.current = socket;
+    }
 
     return () => {
-      socket.disconnect();
+      if (socket) {
+        socket.disconnect();
+      }
+      socketRef.current = null;
     };
-  }, []);
+  }, [isSystemActive]);
 
   // Fallback Polling for P&L (every 1s) to ensure data appears instantly if socket lags
   useEffect(() => {
