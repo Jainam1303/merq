@@ -1,16 +1,16 @@
-# General
+# OS files
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
 
-# Node / JavaScript / TypeScript
+# Node.js
 node_modules/
 dist/
 build/
-coverage/
-.npm/
+.npm
 *.log
+package-lock.json
 
 # Python
 __pycache__/
@@ -33,14 +33,24 @@ coverage.xml
 *.log
 .pytest_cache/
 
-# React
-frontend-react/build/
-frontend-react/dist/
-frontend-react/node_modules/
-
 # Environment Variables
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Frontend (Next.js/React)
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/node_modules/
+
+# Backend (Express/Node)
+backend-node/node_modules/
+backend-node/dist/
+
+# Engine (Python)
+engine-python/venv/
+engine-python/.venv/
+engine-python/__pycache__/

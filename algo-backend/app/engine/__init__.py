@@ -1,1 +1,0 @@
-"""Strategy engine runtime."""

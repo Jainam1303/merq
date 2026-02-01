@@ -1,0 +1,18 @@
+
+# FastAPI for Internal API
+fastapi
+uvicorn
+requests
+pydantic
+python-dotenv
+
+# Legacy Dependencies (from Analysis)
+flask
+flask-socketio
+sqlalchemy
+smartapi-python
+pandas
+numpy
+backtrader
+pyotp
+psycopg2-binary
