@@ -28,7 +28,7 @@ This guide provides a detailed, click-by-click walkthrough for creating your clo
    - *Keep this default.*
 3. **Credentials Management**: Select **Self managed**.
 4. **Master password**:
-   - Create a strong password (e.g., `MerQTrading2026!Strong`).
+   - Create a strong password (e.g., `Jainam0911').
    - **WRITE THIS DOWN**. You cannot recover it easily if lost.
 
 ## Step 4: Instance Configuration
