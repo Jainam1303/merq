@@ -17,3 +17,6 @@ backtrader
 pyotp
 psycopg2-binary
 websocket-client
+gunicorn
+uvloop
+httptools
