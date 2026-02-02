@@ -10,7 +10,7 @@ const seedStocks = async () => {
         await Stock.sync({ force: true }); // Reset table
         console.log('Stock table reset.');
 
-        const filePath = 'd:/Jainam/MerQ/token -symbol.txt';
+        const filePath = path.join(__dirname, 'token -symbol.txt');
         if (!fs.existsSync(filePath)) {
             console.error(`File not found: ${filePath}`);
             process.exit(1);

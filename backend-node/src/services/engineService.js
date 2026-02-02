@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const axios = require('axios');
 
-const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:5001';
+const PYTHON_SERVICE_URL = process.env.PYTHON_SERVICE_URL || 'http://localhost:5002';
 const INTERNAL_SECRET = process.env.INTERNAL_SECRET || 'shared_secret_key_must_match_python';
 
 class PythonEngineService {

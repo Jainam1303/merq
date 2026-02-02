@@ -67,4 +67,4 @@ def get_status(user_id: str):
     return {"active": False, "pnl": 0.0, "positions": []}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5001)
+    uvicorn.run(app, host="0.0.0.0", port=5002)

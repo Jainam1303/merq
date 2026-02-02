@@ -3,7 +3,7 @@ const { connectDB } = require('./src/config/db');
 const { initSocket } = require('./src/services/socketService');
 const http = require('http');
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 const startServer = async () => {
     await connectDB();
