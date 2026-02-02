@@ -15,17 +15,20 @@ def backtest(df):
 
     df['date'] = df['timestamp'].dt.date
     
+    # Calculate Global Indicators (to avoid NaN at start of days)
+    # Angel-algo calculates this on the full dataset
+    df['avg_volume'] = df['volume'].rolling(20).mean()
+
     for date, day_df in df.groupby('date'):
         day_df = day_df.set_index('timestamp')
         day_df = day_df.between_time("09:15", "15:15")
         if day_df.empty: continue
 
-        # Indicators
+        # Intraday Indicators
         day_df["cum_vol"] = day_df["volume"].cumsum()
         day_df["cum_vol_price"] = (day_df["close"] * day_df["volume"]).cumsum()
         day_df["vwap"] = day_df["cum_vol_price"] / day_df["cum_vol"]
-        day_df['avg_volume'] = day_df['volume'].rolling(20).mean()
-
+        
         opening_range = day_df.between_time(OR_START, OR_END)
         if opening_range.empty: continue
         
@@ -65,6 +68,9 @@ def backtest(df):
             # ENTRY
             if position is None and trade_count < TRADE_LIMIT_DAILY:
                 qty = int(INITIAL_CAPITAL / row["close"]) if row["close"] > 0 else 0
+                
+                # Check Signals
+                # Note: We access global columns (avg_volume) which are preserved in day_df slice
                 if (row["close"] > OR_high and row["close"] > row["vwap"] and row["volume"] > 1.5 * row.get('avg_volume', 0)):
                     position = {"type": "BUY", "entry": row["close"], "sl": OR_mid, "target": row["close"]*(1+TARGET_PCT), "qty": qty}
                 elif (row["close"] < OR_low and row["close"] < row["vwap"] and row["volume"] > 1.5 * row.get('avg_volume', 0)):

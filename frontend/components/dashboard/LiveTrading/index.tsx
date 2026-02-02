@@ -17,6 +17,7 @@ interface LiveTradingProps {
 
 export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: LiveTradingProps) {
   const [isSystemActive, setIsSystemActive] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // Loading state for toggle
   const [pnl, setPnl] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -58,12 +59,13 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // 1. Get Status
+        // 1. Get Status - backend returns { active: boolean, pnl, positions, logs }
         const statusData = await fetchJson('/status');
-        setIsSystemActive(statusData.status === 'RUNNING');
+        const isRunning = statusData.active === true;
+        setIsSystemActive(isRunning);
 
         // 2. Get Config (if running, this might differ from local defaults)
-        if (statusData.status === 'RUNNING') {
+        if (isRunning) {
           const remoteConfig = await fetchJson('/config');
           if (remoteConfig && Object.keys(remoteConfig).length > 0) {
             const intervalMapRev: Record<string, string> = {
@@ -110,27 +112,27 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
 
     fetchData();
 
-    // Polling for Logs (every 2s)
-    const logInterval = setInterval(async () => {
+    // Polling for Status & Logs (every 3s)
+    const pollInterval = setInterval(async () => {
       try {
-        const logData = await fetchJson('/logs');
-        // logData is array of strings usually in original? No, fetchJson('/logs') in page.js implies it returns array of strings called 'data.reverse()'?
-        // page.js: const data = await fetchJson('/logs'); let logsToSet = data.reverse();
-        // and SystemLogs expect LogEntry objects. 
-        // We need to map string logs to objects if backend returns strings.
-        // Assuming backend returns strings like "10:00:00 - INFO - Message"
+        // Check engine status to keep UI in sync
+        const statusData = await fetchJson('/status');
+        const isRunning = statusData.active === true;
 
-        // Let's inspect page.js parsing logic again if needed.
-        // It mostly just filtered by time.
-        // New SystemLogs expects {id, timestamp, type, message}.
-        // I will map it here.
+        // Only update if not currently in a loading state (user initiated action)
+        if (!isLoading) {
+          setIsSystemActive(isRunning);
+        }
+
+        // Parse and set logs
+        const logData = statusData.logs || [];
         const parsedLogs = (Array.isArray(logData) ? logData : []).slice(0, 50).map((l: string, i: number) => parseLogLine(l, i));
         setLogs(parsedLogs);
       } catch (e) { }
-    }, 2000);
+    }, 3000);
 
-    return () => clearInterval(logInterval);
-  }, []);
+    return () => clearInterval(pollInterval);
+  }, [isLoading]);
 
   // Socket Connection with WebSocket transport for lower latency
   // Socket Connection with WebSocket transport for lower latency
@@ -138,9 +140,10 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
     let socket: Socket | null = null;
 
     // Only connect if system is active (Running)
+    // Only connect if system is active (Running)
     if (isSystemActive) {
-      // Connect to same origin (proxied to backend)
-      socket = io({
+      // Connect DIRECTLY to backend to avoid Next.js proxy WS issues
+      socket = io('http://localhost:3001', {
         path: '/socket.io',
         withCredentials: true,
         transports: ['websocket', 'polling'], // Allow WebSocket upgrade
@@ -196,17 +199,19 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
 
   // Map Backend Trade object to Frontend Position
   const mapBackendTradesToPositions = (backendTrades: any[]): Position[] => {
-    return backendTrades.map(t => ({
-      id: t.entry_order_id,
-      time: t.timestamp ? t.timestamp.split(' ')[1] : '--:--',
-      symbol: t.symbol,
-      type: t.mode, // 'BUY' or 'SELL'
-      qty: t.quantity,
-      entry: parseFloat(t.entry_price || 0),
-      tp: parseFloat(t.tp || 0),
-      sl: parseFloat(t.sl || 0),
-      currentPrice: 0, // Backend doesn't send current CMP always in this payload, maybe calculated?
-      pnl: parseFloat(t.pnl || 0)
+    if (!Array.isArray(backendTrades)) return [];
+
+    return backendTrades.map((t, idx) => ({
+      id: String(t.id ?? t.entry_order_id ?? idx), // Python sends "id" as int
+      time: t.time || (t.timestamp ? t.timestamp.split(' ')[1] : '--:--'),
+      symbol: t.symbol || '',
+      type: t.type || t.mode || 'BUY', // Python sends "type"
+      qty: Number(t.qty ?? t.quantity ?? 0),
+      entry: parseFloat(t.entry ?? t.entry_price ?? 0),
+      tp: parseFloat(t.tp ?? 0),
+      sl: parseFloat(t.sl ?? 0),
+      currentPrice: parseFloat(t.currentPrice ?? t.entry ?? 0),
+      pnl: parseFloat(t.pnl ?? 0)
     }));
   };
 
@@ -231,14 +236,20 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
   };
 
   const handleToggleSystem = async () => {
+    if (isLoading) return; // Prevent double-click
+
     if (isSystemActive) {
       // Stop
+      setIsLoading(true);
+      setIsSystemActive(false); // Optimistic
       try {
         await fetchJson('/stop', { method: 'POST' });
-        setIsSystemActive(false);
         toast.success("Trading Engine Stopped");
       } catch (e) {
+        setIsSystemActive(true); // Revert on failure
         toast.error("Failed to stop engine");
+      } finally {
+        setIsLoading(false);
       }
     } else {
       // Start
@@ -266,51 +277,64 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
         password: credentials.password,
         totp: credentials.totp,
         simulated: tradingMode === 'PAPER',
-        strategy: config.strategy.toLowerCase() // 'orb', 'ema' etc.
+        strategy: config.strategy.toLowerCase()
       };
+
+      // OPTIMISTIC UPDATE: Turn ON immediately
+      setIsLoading(true);
+      setIsSystemActive(true);
+      toast.info(`Starting in ${tradingMode} mode...`);
 
       try {
         const res = await fetchJson('/start', { method: 'POST', body: JSON.stringify(payload) });
         if (res.status === 'success') {
-          setIsSystemActive(true);
-          toast.success(`Started in ${tradingMode} mode`);
+          toast.success(`Engine Started Successfully`);
         } else {
+          // API returned non-success
+          setIsSystemActive(false); // Revert
           toast.error(res.message || "Failed to start");
         }
       } catch (e: any) {
-        toast.error(e.message || "Failed to call start endpoint");
+        // Network/server error
+        setIsSystemActive(false); // Revert
+        toast.error(e.message || "Failed to start engine");
+      } finally {
+        setIsLoading(false);
       }
     }
   };
 
   const handleSquareOffAll = async () => {
     // Logic for global square off
-    // Since backend doesn't have bulk, loop trades
     if (positions.length === 0) return;
 
-    const promises = positions.map(p => fetchJson('/exit_trade', { method: 'POST', body: JSON.stringify({ trade_id: p.id }) }));
+    const promises = positions.map(p => fetchJson('/exit-position', {
+      method: 'POST',
+      body: JSON.stringify({ positionId: p.id })
+    }));
     await Promise.all(promises);
     toast.success("Square off command sent for all positions");
   };
 
   const handleExitPosition = async (id: string) => {
     try {
-      await fetchJson('/exit_trade', { method: 'POST', body: JSON.stringify({ trade_id: id }) });
+      await fetchJson('/exit-position', { method: 'POST', body: JSON.stringify({ positionId: id }) });
       toast.success("Exit command sent");
+      // Remove from local state
+      setPositions(prev => prev.filter(p => p.id !== id));
     } catch (e) {
       toast.error("Failed to exit position");
     }
   };
 
   const handleUpdatePosition = async (id: string, tp: number, sl: number) => {
-    // Backend expects /update_trade with trade_id, tp, and sl
     try {
-      const res = await fetchJson('/update_trade', {
+      const res = await fetchJson('/update-position', {
         method: 'POST',
-        body: JSON.stringify({ trade_id: id, tp: tp, sl: sl })
+        body: JSON.stringify({ positionId: id, tp: tp, sl: sl })
       });
-      if (res.status === 'success') {
-        toast.success(res.message || "Orders updated");
+      if (res.status === 'updated') {
+        toast.success("TP/SL updated successfully");
         // Update local state
         setPositions(prev => prev.map(p =>
           p.id === id ? { ...p, tp, sl } : p
@@ -329,6 +353,7 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
       <div className="grid gap-6 md:grid-cols-3">
         <SystemStatus
           isActive={isSystemActive}
+          isLoading={isLoading}
           onToggle={handleToggleSystem}
         />
         <LivePnLCard pnl={pnl} percentChange={0} />

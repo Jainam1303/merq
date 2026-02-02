@@ -89,6 +89,34 @@ class PythonEngineService {
             throw new Error(err.response?.data?.detail || err.message || 'Backtest failed');
         }
     }
+
+    // 5. Update Position TP/SL
+    async updatePosition(userId, positionId, tp, sl) {
+        try {
+            const payload = { user_id: userId, position_id: positionId, tp, sl };
+            const res = await this.client.post('/engine/update_position', payload, {
+                headers: this._getHeaders(payload)
+            });
+            return res.data;
+        } catch (err) {
+            console.error('Update Position Failed:', err.message);
+            return { status: 'error', message: err.message };
+        }
+    }
+
+    // 6. Exit Position
+    async exitPosition(userId, positionId) {
+        try {
+            const payload = { user_id: userId, position_id: positionId };
+            const res = await this.client.post('/engine/exit_position', payload, {
+                headers: this._getHeaders(payload)
+            });
+            return res.data;
+        } catch (err) {
+            console.error('Exit Position Failed:', err.message);
+            return { status: 'error', message: err.message };
+        }
+    }
 }
 
 module.exports = new PythonEngineService();

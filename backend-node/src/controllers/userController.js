@@ -186,3 +186,91 @@ exports.addToken = async (req, res) => {
         res.status(500).json({ message: 'Failed to add token' });
     }
 };
+
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
+
+exports.createOrder = async (req, res) => {
+    try {
+        const { plan_id } = req.body;
+        const plan = await Plan.findByPk(plan_id);
+        if (!plan) return res.status(404).json({ status: 'error', message: 'Plan not found' });
+
+        const instance = new Razorpay({
+            key_id: process.env.RAZORPAY_KEY_ID,
+            key_secret: process.env.RAZORPAY_KEY_SECRET
+        });
+
+        const options = {
+            amount: Math.round(plan.price * 100), // amount in smallest currency unit
+            currency: "INR",
+            receipt: `order_rcptid_${Date.now()}_${req.user.id}`
+        };
+
+        const order = await instance.orders.create(options);
+
+        // Fetch user for prefill
+        const user = await User.findByPk(req.user.id);
+
+        res.json({
+            status: 'success',
+            key: process.env.RAZORPAY_KEY_ID,
+            amount: order.amount,
+            currency: order.currency,
+            order_id: order.id,
+            prefill: {
+                name: user.username,
+                email: user.email,
+                contact: user.phone
+            }
+        });
+
+    } catch (error) {
+        console.error('Create Order Error:', error);
+        res.status(500).json({ status: 'error', message: 'Payment initiation failed. Check Keys.' });
+    }
+};
+
+exports.verifyPayment = async (req, res) => {
+    try {
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, plan_id } = req.body;
+
+        const generated_signature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(razorpay_order_id + "|" + razorpay_payment_id)
+            .digest('hex');
+
+        console.log(`[VerifyPayment] Order: ${razorpay_order_id}, Payment: ${razorpay_payment_id}`);
+        console.log(`[VerifyPayment] Recv Sig: ${razorpay_signature}`);
+        console.log(`[VerifyPayment] Gen Sig: ${generated_signature}`);
+
+        if (generated_signature !== razorpay_signature) {
+            console.error('[VerifyPayment] Signature Mismatch');
+            return res.json({ status: 'error', message: 'Invalid Signature' });
+        }
+
+        // Payment Successful - Update Subscription
+        const plan = await Plan.findByPk(plan_id);
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + plan.duration_days);
+
+        // Deactivate old plans
+        await Subscription.update({ status: 'expired' }, { where: { user_id: req.user.id, status: 'active' } });
+
+        // Activate new plan
+        await Subscription.create({
+            user_id: req.user.id,
+            plan_id: plan.id,
+            start_date: startDate,
+            end_date: endDate,
+            status: 'active'
+        });
+
+        res.json({ status: 'success', message: 'Subscription Activated' });
+
+    } catch (error) {
+        console.error('Verify Payment Error:', error);
+        res.status(500).json({ status: 'error', message: 'Verification failed' });
+    }
+};

@@ -141,27 +141,42 @@ def login_and_run_backtest(data):
                 df = pd.DataFrame(data_list)
             
             # RUN STRATEGY
-            strat_module = None
-            if "ema" in strategy_name:
-                 strat_module = importlib.import_module("strategies.ema_crossover")
-            else:
-                 strat_module = importlib.import_module("strategies.orb")
-            
-            trades = strat_module.backtest(df)
-            
-            # AGGREGATE RESULTS
-            total_pnl = sum(t['pnl'] for t in trades)
-            win_count = len([t for t in trades if t['result'] == 'TARGET' or t['result'] == 'SIGNAL_EXIT' and t['pnl'] > 0])
-            total_trades = len(trades)
-            win_rate = (win_count / total_trades * 100) if total_trades > 0 else 0
-            
-            summary_results.append({
-                "Symbol": symbol,
-                "Total Trades": total_trades,
-                "Win Rate %": f"{win_rate:.2f}%",
-                "Total P&L": f"{total_pnl:.2f}",
-                "Final Capital": f"{100000 + total_pnl:.2f}"
-            })
+            try:
+                strat_module = None
+                if "ema" in strategy_name:
+                     strat_module = importlib.import_module("strategies.ema_crossover")
+                else:
+                     strat_module = importlib.import_module("strategies.orb")
+                
+                # Check for reload if module was already imported? 
+                # importlib.reload(strat_module) # Optional but good for development
+                importlib.reload(strat_module)
+
+                trades = strat_module.backtest(df)
+                
+                # AGGREGATE RESULTS
+                total_pnl = sum(t['pnl'] for t in trades)
+                win_count = len([t for t in trades if t['result'] == 'TARGET' or t['result'] == 'SIGNAL_EXIT' or (t['result'] == 'SL' and t['pnl'] > 0)])
+                total_trades = len(trades)
+                win_rate = (win_count / total_trades * 100) if total_trades > 0 else 0
+                
+                summary_results.append({
+                    "Symbol": symbol,
+                    "Total Trades": total_trades,
+                    "Win Rate %": f"{win_rate:.2f}%",
+                    "Total P&L": f"{total_pnl:.2f}",
+                    "Final Capital": f"{100000 + total_pnl:.2f}"
+                })
+            except Exception as e:
+                logger.exception(f"Strategy Execution Failed for {symbol}: {e}")
+                summary_results.append({
+                    "Symbol": symbol,
+                    "Total Trades": 0,
+                    "Win Rate %": "0.00%",
+                    "Total P&L": "0.00",
+                    "Final Capital": "0.00",
+                    "Error": str(e) # Helper for debugging
+                })
             
         return summary_results
 

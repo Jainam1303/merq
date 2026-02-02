@@ -19,11 +19,9 @@ export function BacktestHistory() {
 
     const loadHistory = async () => {
         try {
-            const data = await fetchJson('/history');
-            if (Array.isArray(data.data)) {
-                setHistory(data.data);
-            } else if (Array.isArray(data)) {
-                setHistory(data);
+            const res = await fetchJson('/backtest_history');
+            if (res.status === 'success' && Array.isArray(res.data)) {
+                setHistory(res.data);
             } else {
                 setHistory([]);
             }
@@ -34,9 +32,10 @@ export function BacktestHistory() {
     };
 
     const handleDelete = async (id: number) => {
-        await fetchJson(`/history/${id}`, { method: 'DELETE' });
-        setHistory(prev => prev.filter(h => h.id !== id));
-        toast.success("Record deleted");
+        // Warning: Delete not implemented in backend yet for backtest history
+        // await fetchJson(`/backtest_history/${id}`, { method: 'DELETE' });
+        // setHistory(prev => prev.filter(h => h.id !== id));
+        toast.error("Delete not supported yet");
     };
 
     const totalItems = history.length;
@@ -51,7 +50,7 @@ export function BacktestHistory() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Date</TableHead>
-                            <TableHead>Symbol</TableHead>
+                            <TableHead>Interval</TableHead>
                             <TableHead>Strategy</TableHead>
                             <TableHead className="text-right">Trades</TableHead>
                             <TableHead className="text-right">Win Rate</TableHead>
@@ -62,13 +61,13 @@ export function BacktestHistory() {
                     <TableBody>
                         {paginatedHistory.map((h) => (
                             <TableRow key={h.id}>
-                                <TableCell>{new Date(h.date).toLocaleDateString()}</TableCell>
-                                <TableCell>{h.symbol}</TableCell>
+                                <TableCell>{new Date(h.createdAt).toLocaleDateString()}</TableCell>
+                                <TableCell>{h.interval}</TableCell>
                                 <TableCell>{h.strategy || 'N/A'}</TableCell>
-                                <TableCell className="text-right">{h.total_trades}</TableCell>
-                                <TableCell className="text-right">{h.win_rate.toFixed(1)}%</TableCell>
-                                <TableCell className={`text-right font-bold ${h.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {h.pnl >= 0 ? '+' : ''}₹{h.pnl.toLocaleString()}
+                                <TableCell className="text-right">{h.summary?.totalTrades || 0}</TableCell>
+                                <TableCell className="text-right">{parseFloat(h.summary?.winRate || 0).toFixed(1)}%</TableCell>
+                                <TableCell className={`text-right font-bold ${(h.summary?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {(h.summary?.totalPnL || 0) >= 0 ? '+' : ''}₹{parseFloat(h.summary?.totalPnL || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => handleDelete(h.id)}>

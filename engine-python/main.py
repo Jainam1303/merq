@@ -37,26 +37,38 @@ def validate_hmac(x_internal_sig: str = Header(None), x_timestamp: str = Header(
 def health_check():
     return {"status": "active", "engine": "python-v1"}
 
+import session_manager
+
 @app.post("/engine/start")
 def start_engine(request: StrategyStartRequest):
-    # This is where we will hook into the Legacy Logic
-    # user_id = request.user_id
-    # creds = request.broker_credentials
-    # Start Thread...
-    return {"status": "started", "session_id": "simulated_session_123"}
+    try:
+        session = session_manager.create_session(
+            request.user_id, 
+            request.strategy_config, 
+            request.broker_credentials
+        )
+        session.start()
+        return {"status": "started", "session_id": request.user_id, "mode": session.mode}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/engine/stop")
-def stop_engine(user_id: str):
-    return {"status": "stopped"}
+def stop_engine(data: dict):
+    user_id = data.get("user_id")
+    if not user_id:
+        # Try to find from body if key is just 'user_id' string? No, standard is dict
+        pass
+        
+    session = session_manager.get_session(user_id)
+    if session:
+        session.stop()
+        return {"status": "stopped"}
+    return {"status": "not_found"}
 
 @app.post("/backtest")
 def run_backtest(data: dict):
-    # Simulated Result for now since actual logic files might be missing or complex to integrate in one go
-    # In future: from backtester import run_backtest_logic
     from backtest_runner import login_and_run_backtest
-    
     results = login_and_run_backtest(data)
-    
     return {
         "status": "success",
         "results": results
@@ -64,7 +76,42 @@ def run_backtest(data: dict):
 
 @app.get("/engine/status/{user_id}")
 def get_status(user_id: str):
-    return {"active": False, "pnl": 0.0, "positions": []}
+    session = session_manager.get_session(user_id)
+    if session:
+        return session.get_state()
+    
+    # Return empty/stopped state if no session exists
+    return {
+        "active": False, 
+        "pnl": 0.0, 
+        "positions": [], 
+        "trades_history": [],
+        "logs": []
+    }
+
+@app.post("/engine/update_position")
+def update_position(data: dict):
+    user_id = data.get("user_id")
+    position_id = data.get("position_id")
+    tp = data.get("tp")
+    sl = data.get("sl")
+    
+    session = session_manager.get_session(user_id)
+    if session:
+        success = session.update_position(position_id, tp, sl)
+        return {"status": "updated" if success else "not_found"}
+    return {"status": "no_session"}
+
+@app.post("/engine/exit_position")
+def exit_position(data: dict):
+    user_id = data.get("user_id")
+    position_id = data.get("position_id")
+    
+    session = session_manager.get_session(user_id)
+    if session:
+        success = session.exit_position(position_id)
+        return {"status": "exited" if success else "not_found"}
+    return {"status": "no_session"}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5002)

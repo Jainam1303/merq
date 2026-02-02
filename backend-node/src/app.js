@@ -10,14 +10,18 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors());
-app.use(helmet());
+app.use(cors({
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true
+}));
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(morgan('dev'));
 
 // Routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
-const webhookRoutes = require('./routes/webhookRoutes');
 const tradingRoutes = require('./routes/tradingRoutes');
 const authController = require('./controllers/authController');
 const { verifyToken } = require('./middleware/authMiddleware');
@@ -28,7 +32,6 @@ const tradingController = require('./controllers/tradingController');
 // API Versioning Prefix
 app.use('/api/auth', authRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
-app.use('/api/internal', webhookRoutes); // Internal Python Events
 
 // --- LEGACY ALIASES (For Frontend Proxy Support) ---
 // Note: Next.js proxies /api/:path* to /:path* on this server
@@ -69,6 +72,11 @@ app.get('/symbols', async (req, res) => {
 });
 app.post('/add_token', verifyToken, userController.addToken);
 app.post('/backtest', verifyToken, tradingController.runBacktest);
+app.post('/save_backtest', verifyToken, tradingController.saveBacktestResult);
+app.get('/backtest_history', verifyToken, tradingController.getBacktestHistory);
+app.post('/update_safety_guard', verifyToken, tradingController.updateSafetyGuard);
+app.post('/create_order', verifyToken, userController.createOrder);
+app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
 app.get('/market_data', (req, res) => {
     res.json([
@@ -77,40 +85,126 @@ app.get('/market_data', (req, res) => {
     ]);
 });
 
-app.get('/analytics', verifyToken, (req, res) => {
-    res.json({
-        total_trades: 42,
-        win_rate: 64.5,
-        avg_profit_per_trade: 1250,
-        profit_factor: 1.85,
-        best_day: { pnl: 15400, date: '2024-01-25' },
-        worst_day: { pnl: -6200, date: '2024-01-18' },
-        max_drawdown: 12.4,
-        winning_trades: 27,
-        losing_trades: 15,
-        daily_pnl: [
-            { day: 'Mon', pnl: 4500 },
-            { day: 'Tue', pnl: -2100 },
-            { day: 'Wed', pnl: 8900 },
-            { day: 'Thu', pnl: 3400 },
-            { day: 'Fri', pnl: -1200 },
-            { day: 'Sat', pnl: 0 },
-            { day: 'Sun', pnl: 0 }
-        ]
-    });
+app.get('/analytics', verifyToken, async (req, res) => {
+    try {
+        const engineService = require('./services/engineService');
+        const userId = String(req.user.id);
+
+        // Get all trades from Python session
+        const engineStatus = await engineService.getStatus(userId);
+        const trades = engineStatus.trades_history || [];
+
+        // Also try DB trades
+        let dbTrades = [];
+        try {
+            const { Trade } = require('./models');
+            dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
+            dbTrades = dbTrades.map(t => ({ pnl: t.pnl || 0, date: t.createdAt }));
+        } catch (e) { }
+
+        const allTrades = [...trades, ...dbTrades];
+
+        if (allTrades.length === 0) {
+            return res.json({
+                total_trades: 0,
+                win_rate: 0,
+                avg_profit_per_trade: 0,
+                profit_factor: 0,
+                best_day: { pnl: 0, date: '-' },
+                worst_day: { pnl: 0, date: '-' },
+                max_drawdown: 0,
+                winning_trades: 0,
+                losing_trades: 0,
+                daily_pnl: []
+            });
+        }
+
+        // Calculate statistics
+        const winningTrades = allTrades.filter(t => (t.pnl || 0) > 0);
+        const losingTrades = allTrades.filter(t => (t.pnl || 0) < 0);
+
+        const totalPnL = allTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+        const winRate = (winningTrades.length / allTrades.length) * 100;
+        const avgProfit = totalPnL / allTrades.length;
+
+        const totalProfit = winningTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+        const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl || 0), 0));
+        const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
+
+        // Group by day
+        const dailyMap = {};
+        allTrades.forEach(t => {
+            const day = t.date || 'Unknown';
+            if (!dailyMap[day]) dailyMap[day] = 0;
+            dailyMap[day] += t.pnl || 0;
+        });
+
+        const dailyPnL = Object.entries(dailyMap).map(([day, pnl]) => ({ day, pnl }));
+
+        let bestDay = { pnl: 0, date: '-' };
+        let worstDay = { pnl: 0, date: '-' };
+
+        dailyPnL.forEach(d => {
+            if (d.pnl > bestDay.pnl) bestDay = { pnl: d.pnl, date: d.day };
+            if (d.pnl < worstDay.pnl) worstDay = { pnl: d.pnl, date: d.day };
+        });
+
+        res.json({
+            total_trades: allTrades.length,
+            win_rate: Math.round(winRate * 10) / 10,
+            avg_profit_per_trade: Math.round(avgProfit * 100) / 100,
+            profit_factor: Math.round(profitFactor * 100) / 100,
+            best_day: bestDay,
+            worst_day: worstDay,
+            max_drawdown: 0, // Would need more complex calculation
+            winning_trades: winningTrades.length,
+            losing_trades: losingTrades.length,
+            daily_pnl: dailyPnL.slice(-7) // Last 7 days
+        });
+    } catch (e) {
+        console.error('Analytics error:', e);
+        res.json({ status: 'error', message: e.message });
+    }
 });
 
 app.get('/orderbook', verifyToken, async (req, res) => {
-    // Attempt to fetch from DB if Trade model exists, else return empty array (no mock)
     try {
-        // Assuming Trade model is available via require (I will need to import it)
-        // For now, to be safe and avoid 500, I'll return empty array if no logic present.
-        // But let's see if we can import models.
-        const { Trade } = require('./models');
-        const trades = await Trade.findAll({ where: { user_id: req.user.id } });
-        res.json({ status: 'success', data: trades });
+        const engineService = require('./services/engineService');
+        const userId = String(req.user.id);
+
+        // Get live trades from Python session
+        const engineStatus = await engineService.getStatus(userId);
+        const liveTradesRaw = engineStatus.trades_history || [];
+
+        // Map Python trades to expected format
+        const liveTrades = liveTradesRaw.map(t => ({
+            id: t.id,
+            timestamp: `${t.date || ''} ${t.time || ''}`.trim(),
+            symbol: t.symbol,
+            mode: t.type,
+            quantity: t.qty,
+            entry_price: t.entry,
+            pnl: t.pnl || 0,
+            status: t.status,
+            trade_mode: t.mode  // PAPER or LIVE
+        }));
+
+        // Also try to get DB trades
+        let dbTrades = [];
+        try {
+            const { Trade } = require('./models');
+            dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
+            dbTrades = dbTrades.map(t => t.toJSON());
+        } catch (e) {
+            // DB/model might not exist, that's ok
+        }
+
+        // Combine (live first, then DB)
+        const allTrades = [...liveTrades, ...dbTrades];
+
+        res.json({ status: 'success', data: allTrades });
     } catch (e) {
-        // If table/model missing, return empty.
+        console.error("Orderbook fetch error:", e.message);
         res.json({ status: 'success', data: [] });
     }
 });
@@ -135,29 +229,9 @@ app.post('/delete_orders', verifyToken, (req, res) => {
     res.json({ status: 'success', message: `Deleted ${order_ids?.length || 0} orders` });
 });
 
-app.get('/pnl', verifyToken, (req, res) => {
-    res.json({ pnl: 2450.75 });
-});
-
-app.get('/trades', verifyToken, (req, res) => {
-    res.json({
-        status: 'success',
-        data: [
-            { entry_order_id: 'ORD001', timestamp: '2024-01-30 09:15:22', symbol: 'RELIANCE', mode: 'BUY', quantity: 10, entry_price: 2500.50, tp: 2550, sl: 2480, pnl: 450.00 },
-            { entry_order_id: 'ORD002', timestamp: '2024-01-30 10:22:15', symbol: 'HDFCBANK', mode: 'SELL', quantity: 50, entry_price: 1650.20, tp: 1600, sl: 1670, pnl: -120.50 }
-        ]
-    });
-});
-
-app.get('/logs', verifyToken, (req, res) => {
-    res.json([
-        '09:15:00 - SUCCESS - System Startup Complete',
-        '09:15:22 - INFO - [RELIANCE] Entry Condition Met - BUY 10 qty @ 2500.50',
-        '10:22:15 - INFO - [HDFCBANK] Entry Condition Met - SELL 50 qty @ 1650.20',
-        '11:45:10 - WARNING - Connection latency detected: 250ms',
-        '12:30:00 - INFO - Running strategy heartbeat...'
-    ]);
-});
+app.get('/pnl', verifyToken, tradingController.getPnL);
+app.get('/trades', verifyToken, tradingController.getTrades);
+app.get('/logs', verifyToken, tradingController.getLogs);
 
 app.post('/exit_trade', verifyToken, (req, res) => {
     res.json({ status: 'success', message: 'Exit order placed' });
@@ -167,16 +241,7 @@ app.post('/update_trade', verifyToken, (req, res) => {
     res.json({ status: 'success', message: 'Order updated successfully' });
 });
 
-app.get('/config', verifyToken, (req, res) => {
-    res.json({
-        symbols: ['RELIANCE', 'TCS'],
-        strategy: 'orb',
-        interval: 'FIFTEEN_MINUTE',
-        startTime: '09:15',
-        stopTime: '15:15',
-        capital: '100000'
-    });
-});
+
 
 app.use('/', tradingRoutes); // Handles /start, /stop, /status
 

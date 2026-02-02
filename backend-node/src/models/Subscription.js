@@ -3,9 +3,25 @@ const { sequelize } = require('../config/db');
 
 const Subscription = sequelize.define('Subscription', {
     id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
         primaryKey: true,
+    },
+    user_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'user',
+            key: 'id'
+        }
+    },
+    plan_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'plans',
+            key: 'id'
+        }
     },
     status: {
         type: DataTypes.STRING(20),
