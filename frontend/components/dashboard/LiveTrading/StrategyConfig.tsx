@@ -166,8 +166,11 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
                 placeholder="Search Stocks (e.g. RELIANCE)..."
                 className="pl-9 min-h-[44px]"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => setShowDropdown(true)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  if (e.target.value.trim().length > 0) setShowDropdown(true);
+                }}
+                onFocus={() => { if (searchTerm.trim().length > 0) setShowDropdown(true); }}
                 onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                 disabled={disabled}
               />

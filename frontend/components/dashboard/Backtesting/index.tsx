@@ -242,8 +242,13 @@ export function Backtesting() {
                                 <Input
                                     placeholder="Search stocks (e.g. RELIANCE, TCS)..."
                                     value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    onFocus={() => setShowDropdown(true)}
+                                    onChange={e => {
+                                        setSearchQuery(e.target.value);
+                                        if (e.target.value.trim().length > 0) setShowDropdown(true);
+                                    }}
+                                    onFocus={() => {
+                                        if (searchQuery.trim().length > 0) setShowDropdown(true);
+                                    }}
                                     onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                                     className="pl-9 min-h-[44px]"
                                 />
