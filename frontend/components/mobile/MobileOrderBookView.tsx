@@ -209,7 +209,7 @@ export function MobileOrderBookView({
                                         "text-sm font-bold",
                                         order.pnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                                     )}>
-                                        {order.pnl >= 0 ? '+' : ''}₹{order.pnl.toFixed(2)}
+                                        {(order.pnl ?? 0).toFixed(2)}
                                     </span>
                                 </div>
 
