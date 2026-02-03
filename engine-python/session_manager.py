@@ -110,7 +110,7 @@ class TradingSession:
                 clean = sym.upper().replace("-EQ", "")
                 
                 # Search using Angel One API
-                time.sleep(0.5) # Rate limit protection
+                time.sleep(1.0) # Increased Rate limit protection
                 search = self.smartApi.searchScrip("NSE", clean)
                 
                 if search and search.get('status') and search.get('data'):
@@ -169,7 +169,7 @@ class TradingSession:
                     "todate": to_date
                 }
                 
-                time.sleep(0.5) # Rate limit protection
+                time.sleep(1.0) # Increased Rate limit protection
                 res = self.smartApi.getCandleData(params)
                 
                 if not res:
@@ -177,8 +177,10 @@ class TradingSession:
                     continue
                 
                 if not res.get('status'):
+                    # Detailed Debug Log
                     error_msg = res.get('message', 'Unknown error')
-                    self.log(f"API Error for {symbol}: {error_msg}", "WARNING")
+                    error_code = res.get('errorcode', 'N/A')
+                    self.log(f"API Error {symbol}: {error_msg} (Code: {error_code})", "WARNING")
                     continue
                     
                 if not res.get('data'):
