@@ -110,6 +110,7 @@ class TradingSession:
                 clean = sym.upper().replace("-EQ", "")
                 
                 # Search using Angel One API
+                time.sleep(0.5) # Rate limit protection
                 search = self.smartApi.searchScrip("NSE", clean)
                 
                 if search and search.get('status') and search.get('data'):
@@ -168,6 +169,7 @@ class TradingSession:
                     "todate": to_date
                 }
                 
+                time.sleep(0.5) # Rate limit protection
                 res = self.smartApi.getCandleData(params)
                 
                 if not res:
