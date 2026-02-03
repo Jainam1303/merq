@@ -91,12 +91,28 @@ def login_and_run_backtest(data):
             "SBIN-EQ": "3045", "5PAISA-EQ": "445", "BANKNIFTY": "99992000"
         }
         
-        for symbol in selected_symbols:
-            # Clean symbol
-            sym = symbol.replace("-EQ", "") + "-EQ"
-            market_token = token_map.get(sym, "2885") # Default to Reliance if unknown
-            # If front-end passes object with token use that, but here we only have list of strings likely?
-            # Based on previous logs, selectedStocks is string[]
+        for symbol_data in selected_symbols:
+            # Determine if input is object (new) or string (old)
+            symbol_name = ""
+            market_token = "2885" # Default fallback
+            
+            if isinstance(symbol_data, dict):
+                symbol_name = symbol_data.get("symbol", "")
+                # If token is explicitly provided, use it!
+                if symbol_data.get("token"):
+                    market_token = str(symbol_data.get("token"))
+                else:
+                    # Fallback if object has no token (e.g. from local save or CSV w/o lookup)
+                    clean_sym = symbol_name.replace("-EQ", "") + "-EQ"
+                    market_token = token_map.get(clean_sym, "2885")
+            else:
+                # String case
+                symbol_name = str(symbol_data)
+                clean_sym = symbol_name.replace("-EQ", "") + "-EQ"
+                market_token = token_map.get(clean_sym, "2885")
+            
+            # Use the resolved symbol name for logging and results
+            symbol = symbol_name
             
             df = pd.DataFrame()
 

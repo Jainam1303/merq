@@ -36,7 +36,7 @@ export function Backtesting() {
         from_date: '2025-01-01',
         to_date: '2025-03-01'
     });
-    const [selectedStocks, setSelectedStocks] = useState<string[]>([]);
+    const [selectedStocks, setSelectedStocks] = useState<any[]>([]);
     const [savedStocks, setSavedStocks] = useState<string[]>([]);
     const [stocklistFilter, setStocklistFilter] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
@@ -54,14 +54,22 @@ export function Backtesting() {
             const text = event.target?.result as string;
             if (!text) return;
 
+            // Simple string parse from CSV - we won't have tokens for these unfortunately
+            // Unless we lookup? For now, we'll store as string and let backend fallback or fail.
+            // Better: Store as partial object { symbol: "..." }
             const symbols = text
                 .split(/[\n,]+/)
                 .map(s => s.trim().toUpperCase())
                 .filter(s => s && s.length > 2);
 
             if (symbols.length > 0) {
-                const newSymbols = Array.from(new Set([...selectedStocks, ...symbols]));
-                setSelectedStocks(newSymbols);
+                // Filter out duplicates based on symbol
+                const existing = new Set(selectedStocks.map(s => s.symbol));
+                const newItems = symbols
+                    .filter(s => !existing.has(s))
+                    .map(s => ({ symbol: s, token: null, exchange: 'NSE' })); // Token null indicates backend must lookup
+
+                setSelectedStocks([...selectedStocks, ...newItems]);
                 toast.success(`Imported ${symbols.length} symbols`);
             } else {
                 toast.error("No valid symbols found in CSV");
@@ -98,11 +106,16 @@ export function Backtesting() {
     }, [searchQuery]);
 
     const addStock = async (stock: any) => {
-        if (!selectedStocks.includes(stock.symbol)) {
-            setSelectedStocks([...selectedStocks, stock.symbol]);
+        if (!selectedStocks.some(s => s.symbol === stock.symbol)) {
+            // Ensure we store the token!
+            setSelectedStocks([...selectedStocks, {
+                symbol: stock.symbol,
+                token: stock.token,
+                exchange: stock.exchange || 'NSE'
+            }]);
         }
 
-        // Add to My Stocklist (DB)
+        // Add to My Stocklist (DB) - API expects object
         try {
             await fetchJson('/add_token', { method: 'POST', body: JSON.stringify(stock) });
             toast.success("Added to My Stocklist");
@@ -114,7 +127,7 @@ export function Backtesting() {
     };
 
     const removeStock = (symbol: string) => {
-        setSelectedStocks(selectedStocks.filter(s => s !== symbol));
+        setSelectedStocks(selectedStocks.filter(s => s.symbol !== symbol));
     };
 
     useEffect(() => {
@@ -136,7 +149,7 @@ export function Backtesting() {
         try {
             const payload = {
                 ...formData,
-                symbols: selectedStocks // Send Array of Symbols
+                symbols: selectedStocks // Now sends Array of Objects { symbol, token, ... }
             };
             console.log('[Backtest] Sending payload:', payload);
             const res = await fetchJson('/backtest', { method: 'POST', body: JSON.stringify(payload) });
@@ -279,7 +292,13 @@ export function Backtesting() {
                                                                 <div
                                                                     key={`local-${s}`}
                                                                     onClick={() => {
-                                                                        addStock({ symbol: s });
+                                                                        // Local saved list is just string[] for now (simple cache)
+                                                                        // But to get Token, we usually need the full object.
+                                                                        // ISSUE: 'savedStocks' is string[] so we don't have tokens for these unless we lookup.
+                                                                        // If the user clicks a "Saved" stock, we must treat it as having unknown token unless we re-fetch.
+                                                                        // For now, pass null token, backend will fallback.
+                                                                        // Ideally, savedStocks should be objects too.
+                                                                        addStock({ symbol: s, token: null, exchange: 'NSE' });
                                                                     }}
                                                                     className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
                                                                 >
@@ -344,12 +363,12 @@ export function Backtesting() {
 
                         {/* Selected Stocks Chips */}
                         <div className="flex flex-wrap gap-2">
-                            {selectedStocks.map(symbol => (
-                                <Badge key={symbol} variant="secondary" className="pl-2 pr-1 py-1 gap-1 text-sm">
-                                    {symbol}
+                            {selectedStocks.map(stock => (
+                                <Badge key={stock.symbol} variant="secondary" className="pl-2 pr-1 py-1 gap-1 text-sm">
+                                    {stock.symbol}
                                     <X
                                         className="h-3 w-3 hover:text-destructive cursor-pointer"
-                                        onClick={() => removeStock(symbol)}
+                                        onClick={() => removeStock(stock.symbol)}
                                     />
                                 </Badge>
                             ))}
