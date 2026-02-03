@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Download, Upload, Trash2, Search, Filter, ChevronLeft, ChevronRight, Calendar, FileUp, FileDown } from "lucide-react";
+import { Download, Upload, Trash2, Search, Filter, ChevronLeft, ChevronRight, Calendar as CalendarIcon, FileUp, FileDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 import { fetchJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -55,9 +58,8 @@ export function OrderBook() {
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
 
   // Pagination State
@@ -181,8 +183,8 @@ export function OrderBook() {
     try {
       // Build query parameters
       const params = new URLSearchParams();
-      if (startDate) params.append('startDate', startDate);
-      if (endDate) params.append('endDate', endDate);
+      if (startDate) params.append('startDate', format(startDate, 'yyyy-MM-dd'));
+      if (endDate) params.append('endDate', format(endDate, 'yyyy-MM-dd'));
 
       const url = `/orderbook${params.toString() ? `?${params.toString()}` : ''}`;
       const res = await fetchJson(url);
@@ -227,14 +229,13 @@ export function OrderBook() {
   const filteredTrades = trades.filter(trade => {
     const matchesSearch = trade.symbol.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === 'all' || trade.type === typeFilter;
-    const matchesStatus = statusFilter === 'all' || trade.status === statusFilter;
-    return matchesSearch && matchesType && matchesStatus;
+    return matchesSearch && matchesType;
   });
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, typeFilter, statusFilter, startDate, endDate]);
+  }, [searchQuery, typeFilter, startDate, endDate]);
 
   // Pagination Logic
   const totalItems = filteredTrades.length;
@@ -327,39 +328,57 @@ export function OrderBook() {
                 </SelectContent>
               </Select>
 
-              {/* Status Filter */}
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
+              {/* Date Filters */}
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
 
-              {/* Date Range Filters */}
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-40"
-                placeholder="Start Date"
-              />
-
-
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-40"
-                placeholder="End Date"
-              />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : <span>End Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
-            {/* Actions */}
+            {/* Delete Actions */}
             <div className="flex items-center gap-2">
               {selectedTrades.length > 0 && (
                 <AlertDialog>
@@ -384,44 +403,6 @@ export function OrderBook() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-
-              {/* Hidden file input for CSV import */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                accept=".csv"
-                onChange={handleImportCSV}
-                className="hidden"
-              />
-
-              {/* Sample Template Download */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={downloadSampleCSV}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <FileDown className="mr-2 h-4 w-4" />
-                Sample
-              </Button>
-
-              {/* Import CSV Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="border-primary/50 hover:border-primary hover:bg-primary/10"
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {isUploading ? 'Importing...' : 'Import CSV'}
-              </Button>
-
-              {/* Export CSV Button */}
-              <Button variant="outline" size="sm" onClick={exportToCSV}>
-                <Download className="mr-2 h-4 w-4" />
-                Export CSV
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -429,8 +410,47 @@ export function OrderBook() {
 
       {/* Trade Table */}
       <Card className="border-border bg-card">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between py-4">
           <CardTitle className="text-lg">Trade History</CardTitle>
+          <div className="flex items-center gap-2">
+            {/* Hidden file input for CSV import */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept=".csv"
+              onChange={handleImportCSV}
+              className="hidden"
+            />
+
+            {/* Sample Template Download */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={downloadSampleCSV}
+              className="text-muted-foreground hover:text-foreground gap-2"
+            >
+              <FileDown className="h-4 w-4" />
+              Sample
+            </Button>
+
+            {/* Import CSV Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              {isUploading ? 'Importing...' : 'Import CSV'}
+            </Button>
+
+            {/* Export CSV Button */}
+            <Button variant="outline" size="sm" onClick={exportToCSV} className="gap-2">
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
