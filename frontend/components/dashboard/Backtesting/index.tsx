@@ -105,20 +105,48 @@ export function Backtesting() {
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery]);
 
+    // Helper to resolve token if missing
+    const resolveToken = async (symbol: string): Promise<any> => {
+        try {
+            // Quick search to get token
+            const res = await fetchJson(`/search_scrip?q=${symbol}`); // Matches exact or starts with
+            // Find exact match preferred
+            const match = res.find((r: any) => r.symbol === symbol) || res[0];
+            return match ? { symbol: match.symbol, token: match.token, exchange: match.exchange } : null;
+        } catch (e) {
+            console.error("Token resolution failed for", symbol, e);
+            return null;
+        }
+    };
+
     const addStock = async (stock: any) => {
-        if (!selectedStocks.some(s => s.symbol === stock.symbol)) {
-            // Ensure we store the token!
-            setSelectedStocks([...selectedStocks, {
-                symbol: stock.symbol,
-                token: stock.token,
-                exchange: stock.exchange || 'NSE'
+        // Normalize input
+        let stockObj = stock;
+
+        // If it's just a symbol (from Saved List or CSV) or object without token, try to resolve it
+        if (!stockObj.token) {
+            const sym = stockObj.symbol || stockObj;
+            const resolved = await resolveToken(sym);
+            if (resolved) {
+                stockObj = resolved;
+            } else {
+                // Fallback: Use object with null token, backend might still fail if not in map
+                stockObj = { symbol: sym, token: null, exchange: 'NSE' };
+            }
+        }
+
+        if (!selectedStocks.some(s => s.symbol === stockObj.symbol)) {
+            setSelectedStocks(prev => [...prev, {
+                symbol: stockObj.symbol,
+                token: stockObj.token,
+                exchange: stockObj.exchange || 'NSE'
             }]);
         }
 
         // Add to My Stocklist (DB) - API expects object
         try {
-            await fetchJson('/add_token', { method: 'POST', body: JSON.stringify(stock) });
-            toast.success("Added to My Stocklist");
+            await fetchJson('/add_token', { method: 'POST', body: JSON.stringify(stockObj) });
+            // toast.success("Added to My Stocklist"); // Optional toast
             loadSavedStocks();
         } catch (e) { console.error(e); }
 
