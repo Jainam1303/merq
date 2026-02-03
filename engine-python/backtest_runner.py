@@ -104,12 +104,12 @@ def login_and_run_backtest(data):
                 else:
                     # Fallback if object has no token (e.g. from local save or CSV w/o lookup)
                     clean_sym = symbol_name.replace("-EQ", "") + "-EQ"
-                    market_token = token_map.get(clean_sym, "2885")
+                    market_token = token_map.get(clean_sym, None) # No default to avoid Reliance duplicates
             else:
                 # String case
                 symbol_name = str(symbol_data)
                 clean_sym = symbol_name.replace("-EQ", "") + "-EQ"
-                market_token = token_map.get(clean_sym, "2885")
+                market_token = token_map.get(clean_sym, None) # No default
             
             # Use the resolved symbol name for logging and results
             symbol = symbol_name
@@ -117,7 +117,7 @@ def login_and_run_backtest(data):
             df = pd.DataFrame()
 
             # REAL DATA FETCH
-            if smartApi:
+            if smartApi and market_token: # Only fetch if we have a valid token
                 try:
                     # Fetch
                     res = fetch_historical_data(smartApi, "NSE", market_token, interval, start_date, end_date)
