@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import Link from 'next/link';
-import { TrendingUp, Power, LogOut, Moon, Sun, User } from 'lucide-react';
+import { TrendingUp, Power, LogOut, Moon, Sun, User, MoreVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MobileHeaderProps {
@@ -9,16 +9,18 @@ interface MobileHeaderProps {
     tradingMode: 'PAPER' | 'LIVE';
     user?: any;
     onLogout: () => void;
+    onToggleTradingMode?: () => void;
 }
 
 export function MobileHeader({
     isSystemActive,
     tradingMode,
     user,
-    onLogout
+    onLogout,
+    onToggleTradingMode
 }: MobileHeaderProps) {
     const [isDarkMode, setIsDarkMode] = React.useState(true);
-    const [showUserMenu, setShowUserMenu] = React.useState(false);
+    const [showMenu, setShowMenu] = React.useState(false);
 
     const toggleTheme = () => {
         setIsDarkMode(!isDarkMode);
@@ -54,15 +56,20 @@ export function MobileHeader({
                         {isSystemActive ? 'ON' : 'OFF'}
                     </div>
 
-                    {/* Mode Badge */}
-                    <div className={cn(
-                        "px-2.5 py-1.5 rounded-full text-xs font-bold",
-                        tradingMode === 'LIVE'
-                            ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
-                    )}>
+                    {/* PAPER/LIVE Mode Toggle Button */}
+                    <button
+                        onClick={onToggleTradingMode}
+                        disabled={isSystemActive}
+                        className={cn(
+                            "px-2.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95",
+                            isSystemActive && "opacity-50 cursor-not-allowed",
+                            tradingMode === 'LIVE'
+                                ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+                                : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                        )}
+                    >
                         {tradingMode}
-                    </div>
+                    </button>
 
                     {/* Theme Toggle */}
                     <button
@@ -72,33 +79,36 @@ export function MobileHeader({
                         {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
                     </button>
 
-                    {/* User Menu */}
+                    {/* 3-Dot Menu */}
                     <div className="relative">
                         <button
-                            onClick={() => setShowUserMenu(!showUserMenu)}
-                            className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30"
+                            onClick={() => setShowMenu(!showMenu)}
+                            className="flex h-9 w-9 items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800"
                         >
-                            <User className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                            <MoreVertical className="h-5 w-5 text-zinc-600 dark:text-zinc-400" />
                         </button>
 
-                        {showUserMenu && (
+                        {showMenu && (
                             <>
                                 {/* Backdrop */}
                                 <div
                                     className="fixed inset-0 z-40"
-                                    onClick={() => setShowUserMenu(false)}
+                                    onClick={() => setShowMenu(false)}
                                 />
                                 {/* Menu */}
-                                <div className="absolute right-0 top-full mt-2 w-48 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl z-50 overflow-hidden">
+                                <div className="absolute right-0 top-full mt-2 w-56 rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl z-50 overflow-hidden">
+                                    {/* User Info */}
                                     <div className="px-4 py-3 border-b border-zinc-100 dark:border-zinc-800">
-                                        <p className="text-sm font-medium text-zinc-900 dark:text-white truncate">
+                                        <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">
                                             {user?.username || 'Trader'}
                                         </p>
                                         <p className="text-xs text-zinc-500 truncate">{user?.email || ''}</p>
                                     </div>
+
+                                    {/* Logout Button */}
                                     <button
                                         onClick={() => {
-                                            setShowUserMenu(false);
+                                            setShowMenu(false);
                                             onLogout();
                                         }}
                                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"

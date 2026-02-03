@@ -244,7 +244,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
             // Start
             if (config.symbols.length === 0) {
                 toast.error("Please select at least one stock");
-                setActiveTab('settings');
+                setActiveTab('status');
                 return;
             }
 
@@ -361,6 +361,12 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                         onToggleSystem={handleToggleSystem}
                         onStopBot={handleStopBot}
                         onViewTrades={() => setActiveTab('trades')}
+                        config={config}
+                        onConfigChange={setConfig}
+                        maxLoss={maxLoss}
+                        onMaxLossChange={setMaxLoss}
+                        isSafetyGuardOn={isSafetyGuardOn}
+                        onSafetyGuardToggle={setIsSafetyGuardOn}
                     />
                 );
             case 'trades':
@@ -375,18 +381,6 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 );
             case 'logs':
                 return <MobileLogsView logs={logs} />;
-            case 'settings':
-                return (
-                    <MobileSettingsView
-                        config={config}
-                        onConfigChange={setConfig}
-                        isSystemActive={isSystemActive}
-                        maxLoss={maxLoss}
-                        onMaxLossChange={setMaxLoss}
-                        isSafetyGuardOn={isSafetyGuardOn}
-                        onSafetyGuardToggle={setIsSafetyGuardOn}
-                    />
-                );
             default:
                 return null;
         }
@@ -402,14 +396,27 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         }
     };
 
+    const [currentMode, setCurrentMode] = useState<'PAPER' | 'LIVE'>(tradingMode);
+
+    const handleToggleTradingMode = () => {
+        if (isSystemActive) {
+            toast.error("Stop the bot before changing mode");
+            return;
+        }
+        const newMode = currentMode === 'PAPER' ? 'LIVE' : 'PAPER';
+        setCurrentMode(newMode);
+        toast.success(`Switched to ${newMode} mode`);
+    };
+
     return (
         <div className="lg:hidden min-h-screen bg-zinc-50 dark:bg-zinc-950">
             {/* Mobile Header */}
             <MobileHeader
                 isSystemActive={isSystemActive}
-                tradingMode={tradingMode}
+                tradingMode={currentMode}
                 user={user}
                 onLogout={handleLogout}
+                onToggleTradingMode={handleToggleTradingMode}
             />
 
             {/* Content */}
