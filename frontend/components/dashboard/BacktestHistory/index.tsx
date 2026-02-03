@@ -32,10 +32,13 @@ export function BacktestHistory() {
     };
 
     const handleDelete = async (id: number) => {
-        // Warning: Delete not implemented in backend yet for backtest history
-        // await fetchJson(`/backtest_history/${id}`, { method: 'DELETE' });
-        // setHistory(prev => prev.filter(h => h.id !== id));
-        toast.error("Delete not supported yet");
+        try {
+            await fetchJson(`/backtest_history/${id}`, { method: 'DELETE' });
+            setHistory(prev => prev.filter(h => h.id !== id));
+            toast.success("Result deleted");
+        } catch (e) {
+            toast.error("Failed to delete result");
+        }
     };
 
     const totalItems = history.length;

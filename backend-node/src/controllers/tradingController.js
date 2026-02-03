@@ -284,3 +284,24 @@ exports.getBacktestHistory = async (req, res) => {
         res.status(500).json({ status: 'error', message: 'Failed to fetch backtest history' });
     }
 };
+
+exports.deleteBacktestResult = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const resultId = req.params.id;
+
+        const result = await BacktestResult.findOne({
+            where: { id: resultId, user_id: userId }
+        });
+
+        if (!result) {
+            return res.status(404).json({ status: 'error', message: 'Backtest result not found' });
+        }
+
+        await result.destroy();
+        res.json({ status: 'success', message: 'Backtest result deleted' });
+    } catch (error) {
+        console.error('Delete Backtest Error:', error);
+        res.status(500).json({ status: 'error', message: 'Failed to delete backtest result' });
+    }
+};

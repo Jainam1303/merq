@@ -87,6 +87,7 @@ app.post('/add_token', verifyToken, userController.addToken);
 app.post('/backtest', verifyToken, tradingController.runBacktest);
 app.post('/save_backtest', verifyToken, tradingController.saveBacktestResult);
 app.get('/backtest_history', verifyToken, tradingController.getBacktestHistory);
+app.delete('/backtest_history/:id', verifyToken, tradingController.deleteBacktestResult);
 app.post('/update_safety_guard', verifyToken, tradingController.updateSafetyGuard);
 app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
