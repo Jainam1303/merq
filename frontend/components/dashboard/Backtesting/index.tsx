@@ -54,18 +54,22 @@ export function Backtesting() {
             const text = event.target?.result as string;
             if (!text) return;
 
+            // Parse CSV: split by new lines or commas, trim, filter empty
             const symbols = text
                 .split(/[\n,]+/)
                 .map(s => s.trim().toUpperCase())
-                .filter(s => s && s.length > 2);
+                .filter(s => s && s.length > 2); // basic validation
 
             if (symbols.length > 0) {
+                // Merge with existing unique
                 const newSymbols = Array.from(new Set([...selectedStocks, ...symbols]));
                 setSelectedStocks(newSymbols);
                 toast.success(`Imported ${symbols.length} symbols`);
             } else {
                 toast.error("No valid symbols found in CSV");
             }
+
+            // Reset input
             if (fileInputRef.current) fileInputRef.current.value = "";
         };
         reader.readAsText(file);
@@ -315,28 +319,82 @@ export function Backtesting() {
 
                             {/* Action Buttons */}
                             <div className="flex gap-2">
+
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="min-w-[120px]">
+                                            My Stocklist <ChevronDown className="ml-2 h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-[250px]">
+                                        <div className="p-2 border-b">
+                                            <Input
+                                                placeholder="Filter list..."
+                                                value={stocklistFilter}
+                                                onChange={e => setStocklistFilter(e.target.value)}
+                                                className="h-8 text-xs"
+                                                onClick={e => e.stopPropagation()}
+                                            />
+                                        </div>
+                                        <div className="max-h-[300px] overflow-y-auto">
+                                            {savedStocks.length > 0 ? (
+                                                savedStocks
+                                                    .filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase()))
+                                                    .slice(0, 50)
+                                                    .map(s => (
+                                                        <DropdownMenuItem key={s} onClick={() => {
+                                                            if (!selectedStocks.includes(s)) {
+                                                                setSelectedStocks([...selectedStocks, s]);
+                                                                setStocklistFilter("");
+                                                            }
+                                                        }} className="cursor-pointer text-xs">
+                                                            {s}
+                                                        </DropdownMenuItem>
+                                                    ))
+                                            ) : (
+                                                <div className="p-2 text-xs text-muted-foreground text-center">No saved stocks</div>
+                                            )}
+                                            {savedStocks.filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase())).length === 0 && savedStocks.length > 0 && (
+                                                <div className="p-2 text-xs text-muted-foreground text-center">No matches found</div>
+                                            )}
+                                        </div>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+
+                                {/* Import CSV Button */}
                                 <input
                                     type="file"
                                     ref={fileInputRef}
                                     className="hidden"
                                     accept=".csv,.txt"
                                     onChange={handleFileUpload}
+                                    disabled={running}
                                 />
                                 <Button
                                     variant="outline"
-                                    className="h-11 gap-2"
+                                    size="icon"
+                                    className="h-10 w-10 shrink-0"
                                     onClick={() => fileInputRef.current?.click()}
+                                    disabled={running}
                                     title="Import CSV"
                                 >
                                     <Upload className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Import CSV</span>
                                 </Button>
 
+                                {/* Clear All Button */}
                                 <Button
-                                    onClick={handleRunBacktest}
+                                    variant="outline"
+                                    size="icon"
+                                    className="h-10 w-10 shrink-0 text-destructive hover:text-destructive"
+                                    onClick={() => setSelectedStocks([])}
                                     disabled={running || selectedStocks.length === 0}
-                                    className="h-11 min-w-[130px]"
+                                    title="Clear All"
                                 >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+
+                                <Button onClick={handleRunBacktest} disabled={running || selectedStocks.length === 0} className="min-w-[130px]">
                                     {running ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running...</> : <><Play className="mr-2 h-4 w-4" /> Run Backtest</>}
                                 </Button>
                             </div>
