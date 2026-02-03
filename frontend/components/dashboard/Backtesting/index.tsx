@@ -377,7 +377,7 @@ export function Backtesting() {
                                     className="h-11 w-11 shrink-0"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={running}
-                                    title="Import CSV"
+                                    title="Import Stocks from CSV"
                                 >
                                     <Upload className="h-4 w-4" />
                                 </Button>
@@ -389,7 +389,7 @@ export function Backtesting() {
                                     className="h-11 w-11 shrink-0 text-destructive hover:text-destructive"
                                     onClick={() => setSelectedStocks([])}
                                     disabled={running || selectedStocks.length === 0}
-                                    title="Clear All"
+                                    title="Clear Selected Stocks"
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
