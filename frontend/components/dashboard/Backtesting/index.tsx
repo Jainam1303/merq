@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchJson } from "@/lib/api";
-import { Play, Loader2, Save, Trash2, ChevronLeft, ChevronRight, Search, X, ChevronDown } from "lucide-react";
+import { Play, Loader2, Save, Trash2, ChevronLeft, ChevronRight, Search, X, ChevronDown, Upload, Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,24 +42,59 @@ export function Backtesting() {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            if (!text) return;
+
+            const symbols = text
+                .split(/[\n,]+/)
+                .map(s => s.trim().toUpperCase())
+                .filter(s => s && s.length > 2);
+
+            if (symbols.length > 0) {
+                const newSymbols = Array.from(new Set([...selectedStocks, ...symbols]));
+                setSelectedStocks(newSymbols);
+                toast.success(`Imported ${symbols.length} symbols`);
+            } else {
+                toast.error("No valid symbols found in CSV");
+            }
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        };
+        reader.readAsText(file);
+    };
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    const handleSearch = async () => {
-        if (!searchQuery) return;
-        setSearching(true);
-        try {
-            const res = await fetchJson(`/search_scrip?q=${searchQuery}`);
-            setSearchResults(res || []);
-        } catch (e) {
-            console.error(e);
-            setSearchResults([]);
-        } finally {
-            setSearching(false);
-        }
-    };
+    // Debounced Search Effect
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (searchQuery.length >= 2) {
+                setSearching(true);
+                try {
+                    const res = await fetchJson(`/search_scrip?q=${searchQuery}`);
+                    setSearchResults(res || []);
+                } catch (e) {
+                    console.error(e);
+                    setSearchResults([]);
+                } finally {
+                    setSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
 
     const addStock = async (stock: any) => {
         if (!selectedStocks.includes(stock.symbol)) {
@@ -151,7 +186,27 @@ export function Backtesting() {
         <div className="space-y-6">
             {/* Configuration Card */}
             <Card>
-                <CardHeader><CardTitle>Backtest Configuration</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between pb-3">
+                    <CardTitle>Backtest Configuration</CardTitle>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-2 text-muted-foreground"
+                        onClick={() => {
+                            const csvContent = "RELIANCE\nTCS\nINFY\nHDFCBANK";
+                            const blob = new Blob([csvContent], { type: 'text/csv' });
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'sample_backtest_stocks.csv';
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                        }}
+                    >
+                        <Download className="h-4 w-4" />
+                        Sample CSV
+                    </Button>
+                </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                         <div className="space-y-1">
@@ -180,78 +235,110 @@ export function Backtesting() {
 
                     <div className="space-y-2">
                         <Label>Stock Selection (Multi-Select)</Label>
-                        <div className="relative">
-                            <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     placeholder="Search stocks (e.g. RELIANCE, TCS)..."
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                                    className="flex-1"
+                                    onFocus={() => {
+                                        if (!searchQuery) {
+                                            setSearching(false); // Just triggers re-render if needed
+                                        }
+                                    }}
+                                    className="pl-9 min-h-[44px]"
                                 />
-                                <Button variant="secondary" onClick={handleSearch} disabled={searching}>
-                                    {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+
+                                {/* Unified Dropdown */}
+                                {(searchQuery.length >= 0 || searchResults.length > 0) && (
+                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground"
+                                        hidden={searchQuery.length < 2 && savedStocks.length === 0}
+                                    >
+                                        {(() => {
+                                            const localMatches = savedStocks.filter(s =>
+                                                !searchQuery || s.toLowerCase().includes(searchQuery.toLowerCase())
+                                            );
+                                            const showLocal = localMatches.length > 0;
+                                            const localSet = new Set(localMatches.map(s => s));
+                                            const uniqueApiResults = searchResults.filter(r => !localSet.has(r.symbol));
+
+                                            if (!showLocal && uniqueApiResults.length === 0 && searchQuery.length >= 2 && !searching) {
+                                                return <div className="p-3 text-sm text-center text-muted-foreground">No stocks found</div>;
+                                            }
+
+                                            return (
+                                                <>
+                                                    {/* Local Matches */}
+                                                    {showLocal && (
+                                                        <div className="mb-1">
+                                                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">My Stocklist</div>
+                                                            {localMatches.slice(0, 50).map(s => (
+                                                                <div
+                                                                    key={`local-${s}`}
+                                                                    onClick={() => {
+                                                                        addStock({ symbol: s });
+                                                                    }}
+                                                                    className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
+                                                                >
+                                                                    <span className="font-medium">{s}</span>
+                                                                    <span className="text-xs text-muted-foreground">Saved</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* API Results */}
+                                                    {uniqueApiResults.length > 0 && (
+                                                        <div>
+                                                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">Global Search</div>
+                                                            {uniqueApiResults.map(s => (
+                                                                <div
+                                                                    key={`api-${s.token || s.symbol}`}
+                                                                    onClick={() => addStock(s)}
+                                                                    className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
+                                                                >
+                                                                    <span className="font-bold">{s.symbol}</span>
+                                                                    <span className="text-xs text-muted-foreground">{s.exchange || 'NSE'}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            );
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept=".csv,.txt"
+                                    onChange={handleFileUpload}
+                                />
+                                <Button
+                                    variant="outline"
+                                    className="h-11 gap-2"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    title="Import CSV"
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Import CSV</span>
                                 </Button>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" className="min-w-[120px]">
-                                            My Stocklist <ChevronDown className="ml-2 h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-[250px]">
-                                        <div className="p-2 border-b">
-                                            <Input
-                                                placeholder="Filter list..."
-                                                value={stocklistFilter}
-                                                onChange={e => setStocklistFilter(e.target.value)}
-                                                className="h-8 text-xs"
-                                                onClick={e => e.stopPropagation()}
-                                            />
-                                        </div>
-                                        <div className="max-h-[300px] overflow-y-auto">
-                                            {savedStocks.length > 0 ? (
-                                                savedStocks
-                                                    .filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase()))
-                                                    .slice(0, 50)
-                                                    .map(s => (
-                                                        <DropdownMenuItem key={s} onClick={() => {
-                                                            if (!selectedStocks.includes(s)) {
-                                                                setSelectedStocks([...selectedStocks, s]);
-                                                                setStocklistFilter("");
-                                                            }
-                                                        }} className="cursor-pointer text-xs">
-                                                            {s}
-                                                        </DropdownMenuItem>
-                                                    ))
-                                            ) : (
-                                                <div className="p-2 text-xs text-muted-foreground text-center">No saved stocks</div>
-                                            )}
-                                            {savedStocks.filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase())).length === 0 && savedStocks.length > 0 && (
-                                                <div className="p-2 text-xs text-muted-foreground text-center">No matches found</div>
-                                            )}
-                                        </div>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                <Button onClick={handleRunBacktest} disabled={running || selectedStocks.length === 0} className="min-w-[130px]">
+
+                                <Button
+                                    onClick={handleRunBacktest}
+                                    disabled={running || selectedStocks.length === 0}
+                                    className="h-11 min-w-[130px]"
+                                >
                                     {running ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running...</> : <><Play className="mr-2 h-4 w-4" /> Run Backtest</>}
                                 </Button>
                             </div>
-
-                            {/* Search Results Dropdown */}
-                            {searchResults.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground">
-                                    {searchResults.map((s) => (
-                                        <div
-                                            key={s.token}
-                                            onClick={() => addStock(s)}
-                                            className="flex items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground cursor-pointer text-sm"
-                                        >
-                                            <span className="font-bold">{s.symbol}</span>
-                                            <span className="text-xs text-muted-foreground">{s.exchange}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </div>
 
                         {/* Selected Stocks Chips */}

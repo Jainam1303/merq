@@ -157,6 +157,7 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
           <Label className="text-sm font-medium">Stock Universe</Label>
 
           {/* Search Bar + Actions */}
+          {/* Search Bar + Actions */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -165,73 +166,95 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
                 className="pl-9 min-h-[44px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => {
+                  if (!searchTerm) {
+                    // Show all saved stocks on focus if empty
+                    setIsSearching(false);
+                  }
+                }}
                 disabled={disabled}
               />
               {isSearching && (
                 <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
               )}
 
-              {/* Search Results Dropdown */}
-              {searchResults.length > 0 && (
-                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-md">
-                  {searchResults.map((res: any, i) => (
-                    <div
-                      key={i}
-                      className="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2.5 text-sm hover:bg-accent hover:text-accent-foreground min-h-[44px]"
-                      onClick={() => handleAddSearchResult(res.symbol)}
-                    >
-                      <span className="font-medium">{res.symbol}</span>
-                      <span className="text-xs text-muted-foreground">{res.exchange || 'NSE'}</span>
-                    </div>
-                  ))}
+              {/* Unified Search Results Dropdown */}
+              {((searchTerm.length >= 0 || searchResults.length > 0)) && (
+                // Show dropdown if we have search text OR we have results OR we are focused (handled by simple presence of savedStocks check logic below)
+                // Actually simplest is: if (searchTerm || isFocused) -> show. But for now let's rely on content existence.
+                // We need to filter savedStocks based on searchTerm
+                <div className="absolute z-50 mt-1 max-h-80 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-md"
+                  // Only show if we have something to show
+                  hidden={searchTerm.length < 2 && savedStocks.length === 0}
+                >
+                  {/* Local/Saved Matches */}
+                  {(() => {
+                    const localMatches = savedStocks.filter(s =>
+                      !searchTerm || s.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+
+                    // Combine logic:
+                    // If searchTerm is empty, show all saved (limit 20?)
+                    // If searchTerm exists, show local matches + API matches
+
+                    const showLocal = localMatches.length > 0;
+                    const showApi = searchResults.length > 0;
+
+                    if (!showLocal && !showApi && searchTerm.length >= 2 && !isSearching) {
+                      return <div className="p-3 text-sm text-center text-muted-foreground">No stocks found</div>;
+                    }
+
+                    // Remove duplicates from API if they exist in Local
+                    const localSet = new Set(localMatches.map(s => s));
+                    const uniqueApiResults = searchResults.filter(r => !localSet.has(r.symbol));
+
+                    return (
+                      <>
+                        {/* My Stocklist Section */}
+                        {showLocal && (
+                          <div className="mb-1">
+                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">My Stocklist</div>
+                            {localMatches.slice(0, 50).map((stock) => (
+                              <div
+                                key={`local-${stock}`}
+                                className="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                                onClick={() => {
+                                  handleAddSearchResult(stock);
+                                }}
+                              >
+                                <span className="font-medium">{stock}</span>
+                                <span className="text-xs text-muted-foreground">Saved</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Global Search Section */}
+                        {uniqueApiResults.length > 0 && (
+                          <div>
+                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">Global Search</div>
+                            {uniqueApiResults.map((res: any, i) => (
+                              <div
+                                key={`api-${i}`}
+                                className="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                                onClick={() => handleAddSearchResult(res.symbol)}
+                              >
+                                <span className="font-medium">{res.symbol}</span>
+                                <span className="text-xs text-muted-foreground">{res.exchange || 'NSE'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               )}
             </div>
 
             {/* Action Buttons Row */}
             <div className="flex gap-2 shrink-0">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild disabled={disabled}>
-                  <Button variant="outline" className="min-w-[100px] sm:min-w-[130px] min-h-[44px]">
-                    <span className="hidden sm:inline">My Stocklist</span>
-                    <span className="sm:hidden">Stocks</span>
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-[250px]">
-                  <div className="p-2 border-b">
-                    <Input
-                      placeholder="Filter list..."
-                      value={stocklistFilter}
-                      onChange={e => setStocklistFilter(e.target.value)}
-                      className="h-8 text-xs"
-                      onClick={e => e.stopPropagation()}
-                    />
-                  </div>
-                  <div className="max-h-[300px] overflow-y-auto">
-                    {savedStocks.length > 0 ? (
-                      savedStocks
-                        .filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase()))
-                        .slice(0, 8)
-                        .map(s => (
-                          <DropdownMenuItem key={s} onClick={() => {
-                            if (!config.symbols.includes(s)) {
-                              onConfigChange({ ...config, symbols: [...config.symbols, s] });
-                              setStocklistFilter("");
-                            }
-                          }} className="cursor-pointer text-xs min-h-[44px]">
-                            {s}
-                          </DropdownMenuItem>
-                        ))
-                    ) : (
-                      <div className="p-2 text-xs text-muted-foreground text-center">No saved stocks</div>
-                    )}
-                    {savedStocks.filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase())).length === 0 && savedStocks.length > 0 && (
-                      <div className="p-2 text-xs text-muted-foreground text-center">No matches found</div>
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Stocklist Button REMOVED - merged into search */}
 
               {/* Import CSV Button */}
               <input
@@ -244,13 +267,13 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
               />
               <Button
                 variant="outline"
-                size="icon"
-                className="h-11 w-11 shrink-0"
+                className="h-11 gap-2"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled}
                 title="Import CSV"
               >
                 <Upload className="h-4 w-4" />
+                <span className="hidden sm:inline">Import CSV</span>
               </Button>
 
               {/* Clear All Button */}
