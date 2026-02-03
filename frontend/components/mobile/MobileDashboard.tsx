@@ -356,7 +356,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                         isSystemActive={isSystemActive}
                         isLoading={isLoading}
                         pnl={pnl}
-                        mode={tradingMode}
+                        mode={currentMode}
                         positionsCount={positions.length}
                         onToggleSystem={handleToggleSystem}
                         onStopBot={handleStopBot}
@@ -381,6 +381,23 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 );
             case 'logs':
                 return <MobileLogsView logs={logs} />;
+            case 'backtest':
+            case 'analytics':
+            case 'orderbook':
+            case 'plans':
+                return (
+                    <div className="min-h-[calc(100vh-180px)] flex items-center justify-center p-4">
+                        <div className="text-center">
+                            <div className="text-4xl mb-4">🚧</div>
+                            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
+                                {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                            </h3>
+                            <p className="text-zinc-500 dark:text-zinc-400">
+                                Mobile view coming soon. Please use desktop for now.
+                            </p>
+                        </div>
+                    </div>
+                );
             default:
                 return null;
         }

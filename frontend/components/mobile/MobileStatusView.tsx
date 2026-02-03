@@ -119,7 +119,7 @@ export function MobileStatusView({
     );
 
     return (
-        <div className="min-h-[calc(100vh-180px)] flex flex-col p-4 space-y-4">
+        <div className="min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] overflow-y-auto flex flex-col p-4 space-y-4 pb-24">
             {/* Primary Status Card - PnL Hero */}
             <div className={cn(
                 "rounded-2xl p-6 text-center transition-all duration-300",

@@ -71,13 +71,7 @@ export function MobileHeader({
                         {tradingMode}
                     </button>
 
-                    {/* Theme Toggle */}
-                    <button
-                        onClick={toggleTheme}
-                        className="p-2 rounded-lg text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                    >
-                        {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-                    </button>
+
 
                     {/* 3-Dot Menu */}
                     <div className="relative">
@@ -105,13 +99,25 @@ export function MobileHeader({
                                         <p className="text-xs text-zinc-500 truncate">{user?.email || ''}</p>
                                     </div>
 
+                                    {/* Theme Toggle */}
+                                    <button
+                                        onClick={() => {
+                                            toggleTheme();
+                                            setShowMenu(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                    >
+                                        {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+                                        {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+                                    </button>
+
                                     {/* Logout Button */}
                                     <button
                                         onClick={() => {
                                             setShowMenu(false);
                                             onLogout();
                                         }}
-                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border-t border-zinc-100 dark:border-zinc-800"
                                     >
                                         <LogOut size={16} />
                                         Logout
