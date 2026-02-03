@@ -1,4 +1,4 @@
-const { sequelize, User, Plan, Subscription, Stock, StrategyConfig } = require('./src/models');
+const { sequelize, User, Plan, Subscription, Stock, StrategyConfig, Trade, BacktestResult } = require('./src/models');
 
 async function syncDatabase() {
     try {

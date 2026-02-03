@@ -242,9 +242,154 @@ app.post('/delete_orders', verifyToken, (req, res) => {
     res.json({ status: 'success', message: `Deleted ${order_ids?.length || 0} orders` });
 });
 
+// Import Order Book from CSV
+app.post('/import_orderbook', verifyToken, async (req, res) => {
+    try {
+        const { trades } = req.body;
+
+        if (!trades || !Array.isArray(trades) || trades.length === 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'No trades provided for import'
+            });
+        }
+
+        const { Trade } = require('./models');
+        const userId = req.user.id;
+
+        let imported = 0;
+        let failed = 0;
+
+        for (const trade of trades) {
+            try {
+                // Validate required fields
+                if (!trade.symbol) {
+                    failed++;
+                    continue;
+                }
+
+                // Calculate PnL if exit price is provided but PnL is not
+                let pnl = trade.pnl || 0;
+                if (trade.exit && trade.entry && !trade.pnl) {
+                    const qty = trade.qty || 1;
+                    if (trade.type === 'BUY') {
+                        pnl = (trade.exit - trade.entry) * qty;
+                    } else {
+                        pnl = (trade.entry - trade.exit) * qty;
+                    }
+                }
+
+                // Create trade record
+                await Trade.create({
+                    user_id: userId,
+                    symbol: trade.symbol,
+                    mode: trade.type || 'BUY',
+                    quantity: trade.qty || 1,
+                    entry_price: trade.entry || 0,
+                    exit_price: trade.exit || 0,
+                    pnl: pnl,
+                    status: trade.status || 'COMPLETED',
+                    timestamp: trade.date && trade.time
+                        ? `${trade.date} ${trade.time}`
+                        : new Date().toISOString(),
+                    is_simulated: false,
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                });
+                imported++;
+            } catch (e) {
+                console.error('Failed to import trade:', e.message);
+                failed++;
+            }
+        }
+
+        res.json({
+            status: 'success',
+            message: `Successfully imported ${imported} trades${failed > 0 ? `, ${failed} failed` : ''}`,
+            imported,
+            failed
+        });
+    } catch (e) {
+        console.error('Import orderbook error:', e.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to import trades: ' + e.message
+        });
+    }
+});
+
 app.get('/pnl', verifyToken, tradingController.getPnL);
 app.get('/trades', verifyToken, tradingController.getTrades);
 app.get('/logs', verifyToken, tradingController.getLogs);
+
+// Export Order Book as CSV (server-side generation)
+app.get('/export_orderbook', verifyToken, async (req, res) => {
+    try {
+        const { Trade } = require('./models');
+        const userId = req.user.id;
+
+        // Get all trades for the user
+        const trades = await Trade.findAll({
+            where: { user_id: userId },
+            order: [['createdAt', 'DESC']]
+        });
+
+        // Also get live trades from engine
+        let engineTrades = [];
+        try {
+            const engineService = require('./services/engineService');
+            const engineStatus = await engineService.getStatus(String(userId));
+            engineTrades = (engineStatus.trades_history || []).map(t => ({
+                date: t.date || '',
+                time: t.time || '',
+                symbol: t.symbol,
+                type: t.type,
+                qty: t.qty,
+                entry: t.entry,
+                exit: 0,
+                pnl: t.pnl || 0,
+                status: t.status
+            }));
+        } catch (e) {
+            // Engine might not be running
+        }
+
+        // Map DB trades
+        const dbTrades = trades.map(t => ({
+            date: t.timestamp ? t.timestamp.split(' ')[0] : t.createdAt.toISOString().split('T')[0],
+            time: t.timestamp ? t.timestamp.split(' ')[1] : t.createdAt.toISOString().split('T')[1].split('.')[0],
+            symbol: t.symbol,
+            type: t.mode,
+            qty: t.quantity,
+            entry: parseFloat(t.entry_price) || 0,
+            exit: parseFloat(t.exit_price) || 0,
+            pnl: parseFloat(t.pnl) || 0,
+            status: t.status
+        }));
+
+        // Combine all trades
+        const allTrades = [...engineTrades, ...dbTrades];
+
+        // Generate CSV content
+        const headers = 'Date,Time,Symbol,Type,Qty,Entry,Exit,PnL,Status';
+        const rows = allTrades.map(t =>
+            `${t.date},${t.time},"${t.symbol}",${t.type},${t.qty},${t.entry},${t.exit},${t.pnl},${t.status}`
+        );
+
+        const csvContent = [headers, ...rows].join('\n');
+
+        // Set response headers for file download
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="orderbook_${new Date().toISOString().split('T')[0]}.csv"`);
+        res.send(csvContent);
+    } catch (e) {
+        console.error('Export orderbook error:', e.message);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to export trades: ' + e.message
+        });
+    }
+});
 
 app.post('/exit_trade', verifyToken, (req, res) => {
     res.json({ status: 'success', message: 'Exit order placed' });

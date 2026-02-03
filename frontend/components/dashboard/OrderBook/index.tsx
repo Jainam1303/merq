@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Download, Trash2, Search, Filter, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Download, Upload, Trash2, Search, Filter, ChevronLeft, ChevronRight, Calendar, FileUp, FileDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +63,118 @@ export function OrderBook() {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  // File Upload State
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Handle CSV Import/Upload
+  const handleImportCSV = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      toast.error("Please upload a CSV file");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim());
+
+      if (lines.length < 2) {
+        toast.error("CSV file is empty or has no data rows");
+        return;
+      }
+
+      // Parse header to find column indices
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+
+      // Expected columns (case-insensitive)
+      const dateIdx = headers.findIndex(h => h.includes('date'));
+      const timeIdx = headers.findIndex(h => h.includes('time'));
+      const symbolIdx = headers.findIndex(h => h.includes('symbol'));
+      const typeIdx = headers.findIndex(h => h.includes('type') || h.includes('mode'));
+      const qtyIdx = headers.findIndex(h => h.includes('qty') || h.includes('quantity'));
+      const entryIdx = headers.findIndex(h => h.includes('entry') || h.includes('price'));
+      const exitIdx = headers.findIndex(h => h.includes('exit'));
+      const pnlIdx = headers.findIndex(h => h.includes('pnl') || h.includes('p&l'));
+      const statusIdx = headers.findIndex(h => h.includes('status'));
+
+      // Validate required columns
+      if (symbolIdx === -1) {
+        toast.error("CSV must contain a 'Symbol' column");
+        return;
+      }
+
+      // Parse data rows
+      const trades = [];
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length < 2) continue;
+
+        trades.push({
+          date: dateIdx !== -1 ? values[dateIdx] : new Date().toISOString().split('T')[0],
+          time: timeIdx !== -1 ? values[timeIdx] : new Date().toTimeString().split(' ')[0],
+          symbol: values[symbolIdx],
+          type: typeIdx !== -1 ? values[typeIdx].toUpperCase() : 'BUY',
+          qty: qtyIdx !== -1 ? parseInt(values[qtyIdx]) || 1 : 1,
+          entry: entryIdx !== -1 ? parseFloat(values[entryIdx]) || 0 : 0,
+          exit: exitIdx !== -1 ? parseFloat(values[exitIdx]) || 0 : 0,
+          pnl: pnlIdx !== -1 ? parseFloat(values[pnlIdx]) || 0 : 0,
+          status: statusIdx !== -1 ? values[statusIdx] : 'Completed'
+        });
+      }
+
+      if (trades.length === 0) {
+        toast.error("No valid trades found in CSV");
+        return;
+      }
+
+      // Send to backend
+      const res = await fetchJson('/import_orderbook', {
+        method: 'POST',
+        body: JSON.stringify({ trades })
+      });
+
+      if (res.status === 'success') {
+        toast.success(`Successfully imported ${res.imported || trades.length} trades`);
+        fetchOrders(); // Refresh the order book
+      } else {
+        toast.error(res.message || "Failed to import trades");
+      }
+    } catch (e) {
+      console.error("Import CSV error:", e);
+      toast.error("Failed to parse CSV file");
+    } finally {
+      setIsUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Download sample CSV template
+  const downloadSampleCSV = () => {
+    const headers = 'Date,Time,Symbol,Type,Qty,Entry,Exit,PnL,Status';
+    const sampleData = [
+      '2024-01-15,09:30:00,RELIANCE-EQ,BUY,10,2450.50,2475.25,247.50,Completed',
+      '2024-01-15,10:15:00,SBIN-EQ,SELL,20,625.00,618.50,130.00,Completed',
+      '2024-01-16,09:45:00,INFY-EQ,BUY,15,1550.00,1545.00,-75.00,Completed'
+    ];
+
+    const csvContent = [headers, ...sampleData].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'orderbook_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Sample CSV template downloaded");
+  };
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -164,9 +276,14 @@ export function OrderBook() {
   };
 
   const exportToCSV = () => {
+    if (filteredTrades.length === 0) {
+      toast.error("No trades to export");
+      return;
+    }
+
     const headers = ['Date', 'Time', 'Symbol', 'Type', 'Qty', 'Entry', 'Exit', 'P&L', 'Status'];
     const rows = filteredTrades.map(t => [
-      t.date, t.time, t.symbol, t.type, t.qty, t.entry, t.exit, t.pnl, t.status
+      t.date, t.time, `"${t.symbol}"`, t.type, t.qty, t.entry, t.exit, t.pnl, t.status
     ]);
 
     const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -174,8 +291,10 @@ export function OrderBook() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'order_book.csv';
+    a.download = `orderbook_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${filteredTrades.length} trades to CSV`);
   };
 
   return (
@@ -265,6 +384,40 @@ export function OrderBook() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
+
+              {/* Hidden file input for CSV import */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
+
+              {/* Sample Template Download */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={downloadSampleCSV}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <FileDown className="mr-2 h-4 w-4" />
+                Sample
+              </Button>
+
+              {/* Import CSV Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="border-primary/50 hover:border-primary hover:bg-primary/10"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {isUploading ? 'Importing...' : 'Import CSV'}
+              </Button>
+
+              {/* Export CSV Button */}
               <Button variant="outline" size="sm" onClick={exportToCSV}>
                 <Download className="mr-2 h-4 w-4" />
                 Export CSV

@@ -4,7 +4,7 @@ const Plan = require('./Plan');
 const Subscription = require('./Subscription');
 const StrategyConfig = require('./StrategyConfig');
 const Stock = require('./Stock');
-
+const Trade = require('./Trade');
 const BacktestResult = require('./BacktestResult');
 
 // User <-> Subscription
@@ -19,6 +19,10 @@ Subscription.belongsTo(Plan, { foreignKey: 'plan_id' });
 User.hasMany(BacktestResult, { foreignKey: 'user_id' });
 BacktestResult.belongsTo(User, { foreignKey: 'user_id' });
 
+// User <-> Trade
+User.hasMany(Trade, { foreignKey: 'user_id' });
+Trade.belongsTo(User, { foreignKey: 'user_id' });
+
 module.exports = {
     sequelize,
     User,
@@ -26,5 +30,6 @@ module.exports = {
     Subscription,
     StrategyConfig,
     Stock,
+    Trade,
     BacktestResult
 };
