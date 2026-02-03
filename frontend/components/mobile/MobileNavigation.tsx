@@ -39,7 +39,7 @@ export function MobileNavigation({
                     "text-sm font-bold tabular-nums",
                     pnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                 )}>
-                    {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
+                    {pnl >= 0 ? '+' : ''}₹{Number(pnl || 0).toFixed(2)}
                 </div>
             </div>
 

@@ -24,7 +24,7 @@ export function MobileAnalyticsView({
     const stats = [
         {
             label: 'Total P&L',
-            value: `₹${pnl.toFixed(2)}`,
+            value: `₹${Number(pnl || 0).toFixed(2)}`,
             icon: pnl >= 0 ? TrendingUp : TrendingDown,
             color: pnl >= 0 ? 'emerald' : 'red',
             bgColor: pnl >= 0 ? 'from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-950/30' : 'from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-950/30',
@@ -32,7 +32,7 @@ export function MobileAnalyticsView({
         },
         {
             label: 'Win Rate',
-            value: `${winRate.toFixed(1)}%`,
+            value: `${Number(winRate || 0).toFixed(1)}%`,
             icon: Target,
             color: winRate >= 50 ? 'blue' : 'orange',
             bgColor: 'from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-950/30',
@@ -120,7 +120,7 @@ export function MobileAnalyticsView({
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-xs font-bold text-zinc-900 dark:text-white">
-                            {winRate.toFixed(1)}% Win Rate
+                            {Number(winRate || 0).toFixed(1)}% Win Rate
                         </span>
                     </div>
                 </div>
@@ -141,7 +141,7 @@ export function MobileAnalyticsView({
                         </span>
                     </div>
                     <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        +₹{Math.abs(avgProfit).toFixed(2)}
+                        +₹{Math.abs(Number(avgProfit || 0)).toFixed(2)}
                     </div>
                 </div>
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
@@ -152,7 +152,7 @@ export function MobileAnalyticsView({
                         </span>
                     </div>
                     <div className="text-xl font-bold text-red-600 dark:text-red-400 tabular-nums">
-                        -₹{Math.abs(avgLoss).toFixed(2)}
+                        -₹{Math.abs(Number(avgLoss || 0)).toFixed(2)}
                     </div>
                 </div>
             </div>

@@ -84,7 +84,7 @@ function TradeCard({
                         </span>
                     </div>
                     <div className="text-xs text-zinc-500 mt-0.5">
-                        {trade.qty} @ ₹{trade.entry.toFixed(2)} • {trade.time}
+                        {trade.qty} @ ₹{Number(trade.entry || 0).toFixed(2)} • {trade.time}
                     </div>
                 </div>
 
@@ -94,7 +94,7 @@ function TradeCard({
                         "text-lg font-bold tabular-nums",
                         isProfitable ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                     )}>
-                        {isProfitable ? '+' : ''}₹{trade.pnl.toFixed(2)}
+                        {isProfitable ? '+' : ''}₹{Number(trade.pnl || 0).toFixed(2)}
                     </div>
                     <div className="flex items-center justify-end gap-1 text-zinc-400">
                         {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -150,11 +150,11 @@ function TradeCard({
                             <div className="flex-1 grid grid-cols-2 gap-2 text-sm">
                                 <div className="px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-900/10">
                                     <div className="text-[10px] text-zinc-500 uppercase">TP</div>
-                                    <div className="font-mono text-emerald-600 dark:text-emerald-400">₹{trade.tp.toFixed(2)}</div>
+                                    <div className="font-mono text-emerald-600 dark:text-emerald-400">₹{Number(trade.tp || 0).toFixed(2)}</div>
                                 </div>
                                 <div className="px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/10">
                                     <div className="text-[10px] text-zinc-500 uppercase">SL</div>
-                                    <div className="font-mono text-red-600 dark:text-red-400">₹{trade.sl.toFixed(2)}</div>
+                                    <div className="font-mono text-red-600 dark:text-red-400">₹{Number(trade.sl || 0).toFixed(2)}</div>
                                 </div>
                             </div>
                             <button
@@ -230,7 +230,7 @@ export function MobileTradesView({
                             "text-xl font-bold tabular-nums",
                             totalPnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                         )}>
-                            {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toFixed(2)}
+                            {totalPnl >= 0 ? '+' : ''}₹{Number(totalPnl || 0).toFixed(2)}
                         </div>
                     </div>
                     {trades.length > 0 && (
