@@ -39,7 +39,6 @@ import { format } from "date-fns";
 import { fetchJson } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-// Define Trade interface locally or import if available
 interface Trade {
   id: string;
   date: string;
@@ -48,6 +47,8 @@ interface Trade {
   type: string;
   qty: number;
   entry: number;
+  tp: number;
+  sl: number;
   exit: number;
   pnl: number;
   status: string;
@@ -100,6 +101,8 @@ export function OrderBook() {
       const typeIdx = headers.findIndex(h => h.includes('type') || h.includes('mode'));
       const qtyIdx = headers.findIndex(h => h.includes('qty') || h.includes('quantity'));
       const entryIdx = headers.findIndex(h => h.includes('entry') || h.includes('price'));
+      const tpIdx = headers.findIndex(h => h.includes('tp') || h.includes('target'));
+      const slIdx = headers.findIndex(h => h.includes('sl') || h.includes('stop'));
       const exitIdx = headers.findIndex(h => h.includes('exit'));
       const pnlIdx = headers.findIndex(h => h.includes('pnl') || h.includes('p&l'));
       const statusIdx = headers.findIndex(h => h.includes('status'));
@@ -123,6 +126,8 @@ export function OrderBook() {
           type: typeIdx !== -1 ? values[typeIdx].toUpperCase() : 'BUY',
           qty: qtyIdx !== -1 ? parseInt(values[qtyIdx]) || 1 : 1,
           entry: entryIdx !== -1 ? parseFloat(values[entryIdx]) || 0 : 0,
+          tp: tpIdx !== -1 ? parseFloat(values[tpIdx]) || 0 : 0,
+          sl: slIdx !== -1 ? parseFloat(values[slIdx]) || 0 : 0,
           exit: exitIdx !== -1 ? parseFloat(values[exitIdx]) || 0 : 0,
           pnl: pnlIdx !== -1 ? parseFloat(values[pnlIdx]) || 0 : 0,
           status: statusIdx !== -1 ? values[statusIdx] : 'Completed'
@@ -160,11 +165,10 @@ export function OrderBook() {
 
   // Download sample CSV template
   const downloadSampleCSV = () => {
-    const headers = 'Date,Time,Symbol,Type,Qty,Entry,Exit,PnL,Status';
+    const headers = 'Date,Time,Symbol,Type,Qty,Entry,TP,SL,Exit,PnL,Status';
     const sampleData = [
-      '2024-01-15,09:30:00,RELIANCE-EQ,BUY,10,2450.50,2475.25,247.50,Completed',
-      '2024-01-15,10:15:00,SBIN-EQ,SELL,20,625.00,618.50,130.00,Completed',
-      '2024-01-16,09:45:00,INFY-EQ,BUY,15,1550.00,1545.00,-75.00,Completed'
+      '2024-01-15,09:30:00,RELIANCE-EQ,BUY,10,2450.50,2480.00,2440.00,2475.25,247.50,Completed',
+      '2024-01-15,10:15:00,SBIN-EQ,SELL,20,625.00,615.00,630.00,618.50,130.00,Completed',
     ];
 
     const csvContent = [headers, ...sampleData].join('\n');
@@ -193,20 +197,33 @@ export function OrderBook() {
           let exitPrice = 0;
           if (t.status === 'COMPLETED' || t.pnl !== 0) {
             const pnl = parseFloat(t.pnl || 0);
-            const qty = parseInt(t.quantity || 1);
-            const entry = parseFloat(t.entry_price || 0);
-            if (t.mode === 'BUY') exitPrice = entry + (pnl / qty);
+            const qty = parseInt(t.quantity || t.qty || 1);
+            const entry = parseFloat(t.entry_price || t.entry || 0);
+            if (t.mode === 'BUY' || t.type === 'BUY') exitPrice = entry + (pnl / qty);
             else exitPrice = entry - (pnl / qty);
+          } else if (t.exit) {
+            exitPrice = parseFloat(t.exit);
           }
+
+          // Handle Date/Time (Backend sends date/time separately or timestamp)
+          let dateStr = '';
+          let timeStr = '';
+          if (t.date) dateStr = t.date;
+          else if (t.timestamp) dateStr = t.timestamp.split(' ')[0];
+
+          if (t.time) timeStr = t.time;
+          else if (t.timestamp) timeStr = t.timestamp.split(' ')[1] || '';
 
           return {
             id: String(t.id),
-            date: t.timestamp ? t.timestamp.split(' ')[0] : '',
-            time: t.timestamp ? t.timestamp.split(' ')[1] : '',
+            date: dateStr,
+            time: timeStr,
             symbol: t.symbol,
-            type: t.mode,
-            qty: t.quantity,
-            entry: parseFloat(t.entry_price || 0),
+            type: t.mode || t.type,
+            qty: parseInt(t.quantity || t.qty || 0),
+            entry: parseFloat(t.entry_price || t.entry || 0),
+            tp: parseFloat(t.tp || 0),
+            sl: parseFloat(t.sl || 0),
             exit: exitPrice,
             pnl: parseFloat(t.pnl || 0),
             status: t.status === 'COMPLETED' ? 'Completed' : t.status === 'CANCELLED' ? 'Cancelled' : t.status
@@ -282,9 +299,9 @@ export function OrderBook() {
       return;
     }
 
-    const headers = ['Date', 'Time', 'Symbol', 'Type', 'Qty', 'Entry', 'Exit', 'P&L', 'Status'];
+    const headers = ['Date', 'Time', 'Symbol', 'Type', 'Qty', 'Entry', 'TP', 'SL', 'Exit', 'P&L', 'Status'];
     const rows = filteredTrades.map(t => [
-      t.date, t.time, `"${t.symbol}"`, t.type, t.qty, t.entry, t.exit, t.pnl, t.status
+      t.date, t.time, `"${t.symbol}"`, t.type, t.qty, t.entry, t.tp, t.sl, t.exit, t.pnl, t.status
     ]);
 
     const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -469,6 +486,8 @@ export function OrderBook() {
                   <TableHead className="text-muted-foreground">Type</TableHead>
                   <TableHead className="text-right text-muted-foreground">Qty</TableHead>
                   <TableHead className="text-right text-muted-foreground">Entry</TableHead>
+                  <TableHead className="text-right text-muted-foreground">TP</TableHead>
+                  <TableHead className="text-right text-muted-foreground">SL</TableHead>
                   <TableHead className="text-right text-muted-foreground">Exit</TableHead>
                   <TableHead className="text-right text-muted-foreground">P&L</TableHead>
                   <TableHead className="text-muted-foreground">Status</TableHead>
@@ -477,11 +496,11 @@ export function OrderBook() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">Loading...</TableCell>
+                    <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">Loading...</TableCell>
                   </TableRow>
                 ) : paginatedTrades.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
                       No trades found
                     </TableCell>
                   </TableRow>
@@ -511,6 +530,8 @@ export function OrderBook() {
                       </TableCell>
                       <TableCell className="text-right">{trade.qty}</TableCell>
                       <TableCell className="text-right font-mono">₹{trade.entry.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono text-profit">₹{trade.tp.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono text-loss">₹{trade.sl.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-mono">
                         {trade.exit > 0 ? `₹${trade.exit.toFixed(2)}` : '-'}
                       </TableCell>
