@@ -1,0 +1,260 @@
+"use client";
+import React, { useState } from 'react';
+import { ChevronRight, Plus, X, Clock, Target, Shield } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface ConfigData {
+    symbols: string[];
+    strategy: string;
+    interval: string;
+    startTime: string;
+    stopTime: string;
+    capital: string;
+}
+
+interface MobileSettingsViewProps {
+    config: ConfigData;
+    onConfigChange: (config: ConfigData) => void;
+    isSystemActive: boolean;
+    maxLoss: string;
+    onMaxLossChange: (value: string) => void;
+    isSafetyGuardOn: boolean;
+    onSafetyGuardToggle: (value: boolean) => void;
+}
+
+export function MobileSettingsView({
+    config,
+    onConfigChange,
+    isSystemActive,
+    maxLoss,
+    onMaxLossChange,
+    isSafetyGuardOn,
+    onSafetyGuardToggle,
+}: MobileSettingsViewProps) {
+    const [expandedSection, setExpandedSection] = useState<string | null>('strategy');
+    const [newSymbol, setNewSymbol] = useState('');
+
+    const handleAddSymbol = () => {
+        if (newSymbol.trim() && !config.symbols.includes(newSymbol.trim().toUpperCase())) {
+            onConfigChange({
+                ...config,
+                symbols: [...config.symbols, newSymbol.trim().toUpperCase() + '-EQ']
+            });
+            setNewSymbol('');
+        }
+    };
+
+    const handleRemoveSymbol = (symbol: string) => {
+        onConfigChange({
+            ...config,
+            symbols: config.symbols.filter(s => s !== symbol)
+        });
+    };
+
+    const Section = ({
+        id,
+        title,
+        icon: Icon,
+        children
+    }: {
+        id: string;
+        title: string;
+        icon: typeof Target;
+        children: React.ReactNode
+    }) => (
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+            <button
+                onClick={() => setExpandedSection(expandedSection === id ? null : id)}
+                className="w-full p-4 flex items-center gap-3 text-left"
+                disabled={isSystemActive}
+            >
+                <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                </div>
+                <div className="flex-1">
+                    <div className="font-bold text-zinc-900 dark:text-white">{title}</div>
+                </div>
+                <ChevronRight className={cn(
+                    "w-5 h-5 text-zinc-400 transition-transform",
+                    expandedSection === id && "rotate-90"
+                )} />
+            </button>
+            {expandedSection === id && (
+                <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    {isSystemActive ? (
+                        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
+                            Stop the bot to modify settings
+                        </div>
+                    ) : (
+                        children
+                    )}
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="min-h-[calc(100vh-180px)] p-4 space-y-3 pb-8">
+            {/* Strategy Selection */}
+            <Section id="strategy" title="Strategy" icon={Target}>
+                <div className="space-y-3">
+                    {[
+                        { id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' },
+                        { id: 'ema', name: 'EMA Crossover', desc: '8/30 EMA Strategy' },
+                    ].map((strategy) => (
+                        <button
+                            key={strategy.id}
+                            onClick={() => onConfigChange({ ...config, strategy: strategy.id.toUpperCase() })}
+                            className={cn(
+                                "w-full p-3 rounded-xl text-left transition-all",
+                                config.strategy.toUpperCase() === strategy.id.toUpperCase()
+                                    ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500"
+                                    : "bg-zinc-50 dark:bg-zinc-800 border-2 border-transparent"
+                            )}
+                        >
+                            <div className="font-bold text-zinc-900 dark:text-white">{strategy.name}</div>
+                            <div className="text-xs text-zinc-500">{strategy.desc}</div>
+                        </button>
+                    ))}
+                </div>
+            </Section>
+
+            {/* Symbols */}
+            <Section id="symbols" title="Stock Universe" icon={Plus}>
+                <div className="space-y-3">
+                    {/* Add Symbol Input */}
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={newSymbol}
+                            onChange={(e) => setNewSymbol(e.target.value)}
+                            placeholder="Enter symbol (e.g. RELIANCE)"
+                            className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm"
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddSymbol()}
+                        />
+                        <button
+                            onClick={handleAddSymbol}
+                            className="px-4 py-2 rounded-lg bg-blue-500 text-white font-medium text-sm min-h-[44px]"
+                        >
+                            Add
+                        </button>
+                    </div>
+
+                    {/* Symbol Tags */}
+                    <div className="flex flex-wrap gap-2">
+                        {config.symbols.map((symbol) => (
+                            <span
+                                key={symbol}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                            >
+                                {symbol}
+                                <button
+                                    onClick={() => handleRemoveSymbol(symbol)}
+                                    className="w-4 h-4 rounded-full bg-zinc-300 dark:bg-zinc-600 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                                >
+                                    <X size={10} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                    {config.symbols.length === 0 && (
+                        <div className="text-sm text-zinc-500 text-center py-4">
+                            No symbols selected. Add at least one stock.
+                        </div>
+                    )}
+                </div>
+            </Section>
+
+            {/* Timing */}
+            <Section id="timing" title="Trading Hours" icon={Clock}>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs text-zinc-500 mb-1 block">Start Time</label>
+                            <input
+                                type="time"
+                                value={config.startTime}
+                                onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs text-zinc-500 mb-1 block">End Time</label>
+                            <input
+                                type="time"
+                                value={config.stopTime}
+                                onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
+                            />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-xs text-zinc-500 mb-1 block">Timeframe</label>
+                        <select
+                            value={config.interval}
+                            onChange={(e) => onConfigChange({ ...config, interval: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
+                        >
+                            <option value="5">5 Minutes</option>
+                            <option value="15">15 Minutes</option>
+                            <option value="30">30 Minutes</option>
+                            <option value="60">1 Hour</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="text-xs text-zinc-500 mb-1 block">Initial Capital (₹)</label>
+                        <input
+                            type="number"
+                            value={config.capital}
+                            onChange={(e) => onConfigChange({ ...config, capital: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
+                            placeholder="100000"
+                        />
+                    </div>
+                </div>
+            </Section>
+
+            {/* Safety Guard */}
+            <Section id="safety" title="Safety Guard" icon={Shield}>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
+                        <div>
+                            <div className="font-medium text-zinc-900 dark:text-white">Enable Safety Guard</div>
+                            <div className="text-xs text-zinc-500">Auto-stop on max loss</div>
+                        </div>
+                        <button
+                            onClick={() => onSafetyGuardToggle(!isSafetyGuardOn)}
+                            className={cn(
+                                "relative w-12 h-7 rounded-full transition-colors",
+                                isSafetyGuardOn ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
+                            )}
+                        >
+                            <div className={cn(
+                                "absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform",
+                                isSafetyGuardOn ? "left-5.5 translate-x-0" : "left-0.5"
+                            )} style={{ left: isSafetyGuardOn ? '22px' : '2px' }} />
+                        </button>
+                    </div>
+
+                    {isSafetyGuardOn && (
+                        <div>
+                            <label className="text-xs text-zinc-500 mb-1 block">Max Daily Loss (₹)</label>
+                            <input
+                                type="number"
+                                value={maxLoss}
+                                onChange={(e) => onMaxLossChange(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm min-h-[44px] text-red-700 dark:text-red-400 font-mono"
+                                placeholder="5000"
+                            />
+                            <p className="text-xs text-zinc-500 mt-2">
+                                Bot will automatically stop and exit all positions if P&L drops below -₹{maxLoss || '0'}
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </Section>
+        </div>
+    );
+}
