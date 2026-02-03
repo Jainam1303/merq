@@ -431,6 +431,15 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 user={user}
                 onLogout={handleLogout}
                 onToggleTradingMode={handleToggleTradingMode}
+                onNavigateToOrderBook={() => {
+                    toast.info("Order Book - Coming soon on mobile");
+                }}
+                onNavigateToPlans={() => {
+                    toast.info("Plans - Coming soon on mobile");
+                }}
+                onNavigateToSettings={() => {
+                    toast.info("Settings are available in the Home tab");
+                }}
             />
 
             {/* Content */}

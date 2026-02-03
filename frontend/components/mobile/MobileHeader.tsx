@@ -10,6 +10,9 @@ interface MobileHeaderProps {
     user?: any;
     onLogout: () => void;
     onToggleTradingMode?: () => void;
+    onNavigateToOrderBook?: () => void;
+    onNavigateToPlans?: () => void;
+    onNavigateToSettings?: () => void;
 }
 
 export function MobileHeader({
@@ -17,7 +20,10 @@ export function MobileHeader({
     tradingMode,
     user,
     onLogout,
-    onToggleTradingMode
+    onToggleTradingMode,
+    onNavigateToOrderBook,
+    onNavigateToPlans,
+    onNavigateToSettings
 }: MobileHeaderProps) {
     const [isDarkMode, setIsDarkMode] = React.useState(true);
     const [showMenu, setShowMenu] = React.useState(false);
@@ -103,7 +109,7 @@ export function MobileHeader({
                                     <button
                                         onClick={() => {
                                             setShowMenu(false);
-                                            // Navigate to order book - will be handled by parent
+                                            onNavigateToOrderBook?.();
                                         }}
                                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     >
@@ -115,7 +121,7 @@ export function MobileHeader({
                                     <button
                                         onClick={() => {
                                             setShowMenu(false);
-                                            // Navigate to plans - will be handled by parent
+                                            onNavigateToPlans?.();
                                         }}
                                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     >
@@ -127,7 +133,7 @@ export function MobileHeader({
                                     <button
                                         onClick={() => {
                                             setShowMenu(false);
-                                            // Navigate to settings - will be handled by parent
+                                            onNavigateToSettings?.();
                                         }}
                                         className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     >

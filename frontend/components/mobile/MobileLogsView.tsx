@@ -58,9 +58,9 @@ export function MobileLogsView({ logs, onClear }: MobileLogsViewProps) {
     }
 
     return (
-        <div className="min-h-[calc(100vh-180px)] flex flex-col">
+        <div className="min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] flex flex-col">
             {/* Header */}
-            <div className="sticky top-16 z-10 bg-zinc-50/95 dark:bg-zinc-950/95 backdrop-blur-sm px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <div className="sticky top-0 z-10 bg-zinc-50/95 dark:bg-zinc-950/95 backdrop-blur-sm px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
                 <div>
                     <div className="font-bold text-zinc-900 dark:text-white">System Logs</div>
                     <div className="text-xs text-zinc-500">{logs.length} entries</div>
@@ -78,7 +78,7 @@ export function MobileLogsView({ logs, onClear }: MobileLogsViewProps) {
             {/* Logs List */}
             <div
                 ref={scrollRef}
-                className="flex-1 overflow-y-auto p-4 space-y-2"
+                className="flex-1 overflow-y-auto p-4 space-y-2 pb-24"
             >
                 {logs.map((log) => (
                     <div
