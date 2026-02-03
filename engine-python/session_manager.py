@@ -101,17 +101,40 @@ class TradingSession:
             time.sleep(1)
 
     def _load_symbol_tokens(self):
-        """Map symbol names to Angel One tokens using searchScrip API"""
+        """Map symbol names to Angel One tokens using searchScrip API with retry logic"""
         symbols = self.config.get('symbols', [])
+        failed_lookups = []
         
         for sym in symbols:
             try:
                 # Clean symbol name (remove -EQ suffix if present)
                 clean = sym.upper().replace("-EQ", "")
                 
-                # Search using Angel One API
-                time.sleep(1.0) # Increased Rate limit protection
-                search = self.smartApi.searchScrip("NSE", clean)
+                # Retry logic for API calls
+                max_retries = 3
+                search = None
+                
+                for attempt in range(max_retries):
+                    delay = 1.0 + (attempt * 0.5)  # 1s, 1.5s, 2s
+                    time.sleep(delay)
+                    
+                    try:
+                        search = self.smartApi.searchScrip("NSE", clean)
+                        
+                        if search and search.get('status') and search.get('data'):
+                            break  # Success
+                        
+                        # Check for rate limit
+                        error_code = search.get('errorcode', '') if search else ''
+                        if error_code == 'AB1004' and attempt < max_retries - 1:
+                            time.sleep(2)  # Extra delay
+                            continue
+                        break
+                        
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            continue
+                        break
                 
                 if search and search.get('status') and search.get('data'):
                     # Find exact match or first result
@@ -123,15 +146,18 @@ class TradingSession:
                         # Use first result if no exact match
                         self.symbol_tokens[sym] = search['data'][0]['symboltoken']
                 else:
-                    self.log(f"Could not find token for {sym}", "WARNING")
+                    failed_lookups.append(sym)
                     
             except Exception as e:
                 self.log(f"Token lookup error for {sym}: {e}", "WARNING")
+                failed_lookups.append(sym)
         
         self.log(f"Loaded tokens for {len(self.symbol_tokens)} symbols")
+        if failed_lookups:
+            self.log(f"Could not find tokens for: {', '.join(failed_lookups[:5])}{'...' if len(failed_lookups) > 5 else ''}", "WARNING")
 
     def _calculate_orb_levels(self):
-        """Fetch 09:15-09:30 candles and calculate ORB High/Low"""
+        """Fetch 09:15-09:30 candles and calculate ORB High/Low with retry logic"""
         symbols = self.config.get('symbols', [])
         
         # Angel One interval format mapping
@@ -148,6 +174,9 @@ class TradingSession:
             '60': 'ONE_HOUR'
         }
         interval = interval_map.get(interval_input, 'FIVE_MINUTE')
+        
+        failed_symbols = []
+        success_count = 0
         
         for symbol in symbols:
             try:
@@ -169,22 +198,53 @@ class TradingSession:
                     "todate": to_date
                 }
                 
-                time.sleep(1.0) # Increased Rate limit protection
-                res = self.smartApi.getCandleData(params)
+                # Retry logic with exponential backoff
+                max_retries = 3
+                res = None
+                
+                for attempt in range(max_retries):
+                    # Increased delay between API calls (Angel One rate limit)
+                    delay = 1.5 + (attempt * 1.5)  # 1.5s, 3s, 4.5s
+                    time.sleep(delay)
+                    
+                    try:
+                        res = self.smartApi.getCandleData(params)
+                        
+                        if res and res.get('status'):
+                            break  # Success, exit retry loop
+                        
+                        # Check for rate limit error
+                        error_code = res.get('errorcode', '') if res else ''
+                        if error_code == 'AB1004':
+                            if attempt < max_retries - 1:
+                                self.log(f"Rate limited on {symbol}, retrying in {delay + 2}s...", "WARNING")
+                                time.sleep(2)  # Extra delay for rate limit
+                                continue
+                        else:
+                            break  # Other error, don't retry
+                            
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            self.log(f"API call failed for {symbol}, retrying... ({e})", "WARNING")
+                            continue
+                        break
                 
                 if not res:
-                    self.log(f"No response for {symbol}", "WARNING")
+                    failed_symbols.append(symbol)
                     continue
                 
                 if not res.get('status'):
-                    # Detailed Debug Log
                     error_msg = res.get('message', 'Unknown error')
                     error_code = res.get('errorcode', 'N/A')
-                    self.log(f"API Error {symbol}: {error_msg} (Code: {error_code})", "WARNING")
+                    # Only log if it's not a rate limit error (already logged above)
+                    if error_code != 'AB1004':
+                        self.log(f"API Error {symbol}: {error_msg} (Code: {error_code})", "WARNING")
+                    failed_symbols.append(symbol)
                     continue
                     
                 if not res.get('data'):
                     self.log(f"Empty data for {symbol} (token: {token})", "WARNING")
+                    failed_symbols.append(symbol)
                     continue
                 
                 df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
@@ -201,6 +261,7 @@ class TradingSession:
                         self.log(f"Using first 3 candles for ORB of {symbol}", "INFO")
                     else:
                         self.log(f"Not enough data for {symbol} ORB", "WARNING")
+                        failed_symbols.append(symbol)
                         continue
                 
                 or_high = float(or_df['high'].max())
@@ -212,10 +273,18 @@ class TradingSession:
                     'or_mid': (or_high + or_low) / 2
                 }
                 
+                success_count += 1
                 self.log(f"ORB {symbol}: High={or_high:.2f}, Low={or_low:.2f}")
                 
             except Exception as e:
                 self.log(f"ORB Calc Error {symbol}: {e}", "ERROR")
+                failed_symbols.append(symbol)
+        
+        # Summary log
+        if success_count > 0:
+            self.log(f"Successfully calculated ORB for {success_count}/{len(symbols)} symbols", "SUCCESS")
+        if failed_symbols:
+            self.log(f"Failed to get data for {len(failed_symbols)} symbols: {', '.join(failed_symbols[:5])}{'...' if len(failed_symbols) > 5 else ''}", "WARNING")
 
     def _start_websocket(self):
         """Initialize and connect Angel One WebSocket for live data"""
