@@ -1,18 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     async rewrites() {
+        const apiUrl = process.env.API_URL || 'http://localhost:3001';
+        console.log(`[Next.js] Rewriting API calls to: ${apiUrl}`);
         return [
             {
                 source: '/api/:path*',
-                destination: 'http://localhost:3002/:path*',
+                destination: `${apiUrl}/:path*`, // Proxy to Backend
             },
             {
                 source: '/socket.io',
-                destination: 'http://localhost:3002/socket.io',
+                destination: `${apiUrl}/socket.io`,
             },
             {
                 source: '/socket.io/:path*',
-                destination: 'http://localhost:3002/socket.io/:path*',
+                destination: `${apiUrl}/socket.io/:path*`,
             },
         ];
     },
