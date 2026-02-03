@@ -101,21 +101,25 @@ class TradingSession:
             time.sleep(1)
 
     def _load_symbol_tokens(self):
-        """Map symbol names to Angel One tokens using searchScrip API with retry logic"""
+        """Map symbol names to Angel One tokens using searchScrip API with optimized rate limiting"""
         symbols = self.config.get('symbols', [])
         failed_lookups = []
         
-        for sym in symbols:
+        # Process in batches with controlled timing
+        batch_size = 5  # Process 5 symbols, then pause
+        
+        for idx, sym in enumerate(symbols):
             try:
                 # Clean symbol name (remove -EQ suffix if present)
                 clean = sym.upper().replace("-EQ", "")
                 
                 # Retry logic for API calls
-                max_retries = 3
+                max_retries = 2  # Reduced from 3
                 search = None
                 
                 for attempt in range(max_retries):
-                    delay = 1.0 + (attempt * 0.5)  # 1s, 1.5s, 2s
+                    # Shorter base delay: 0.5s between calls
+                    delay = 0.5 + (attempt * 0.3)  # 0.5s, 0.8s
                     time.sleep(delay)
                     
                     try:
@@ -127,7 +131,7 @@ class TradingSession:
                         # Check for rate limit
                         error_code = search.get('errorcode', '') if search else ''
                         if error_code == 'AB1004' and attempt < max_retries - 1:
-                            time.sleep(2)  # Extra delay
+                            time.sleep(1.5)  # Reduced from 2s
                             continue
                         break
                         
@@ -147,6 +151,10 @@ class TradingSession:
                         self.symbol_tokens[sym] = search['data'][0]['symboltoken']
                 else:
                     failed_lookups.append(sym)
+                
+                # Batch pause: after every batch_size symbols, pause longer
+                if (idx + 1) % batch_size == 0 and idx < len(symbols) - 1:
+                    time.sleep(2)  # 2s pause between batches
                     
             except Exception as e:
                 self.log(f"Token lookup error for {sym}: {e}", "WARNING")
@@ -157,7 +165,7 @@ class TradingSession:
             self.log(f"Could not find tokens for: {', '.join(failed_lookups[:5])}{'...' if len(failed_lookups) > 5 else ''}", "WARNING")
 
     def _calculate_orb_levels(self):
-        """Fetch 09:15-09:30 candles and calculate ORB High/Low with retry logic"""
+        """Fetch 09:15-09:30 candles and calculate ORB High/Low with optimized rate limiting"""
         symbols = self.config.get('symbols', [])
         
         # Angel One interval format mapping
@@ -177,12 +185,14 @@ class TradingSession:
         
         failed_symbols = []
         success_count = 0
+        batch_size = 5  # Process 5 symbols, then pause
         
-        for symbol in symbols:
+        for idx, symbol in enumerate(symbols):
             try:
                 token = self.symbol_tokens.get(symbol)
                 if not token:
                     self.log(f"No token for {symbol}, skipping ORB calc", "WARNING")
+                    failed_symbols.append(symbol)
                     continue
                 
                 # Fetch today's data - use correct datetime format
@@ -198,13 +208,13 @@ class TradingSession:
                     "todate": to_date
                 }
                 
-                # Retry logic with exponential backoff
-                max_retries = 3
+                # Retry logic with faster timing
+                max_retries = 2  # Reduced from 3
                 res = None
                 
                 for attempt in range(max_retries):
-                    # Increased delay between API calls (Angel One rate limit)
-                    delay = 1.5 + (attempt * 1.5)  # 1.5s, 3s, 4.5s
+                    # Faster base delay: 0.8s between calls
+                    delay = 0.8 + (attempt * 0.5)  # 0.8s, 1.3s
                     time.sleep(delay)
                     
                     try:
@@ -217,8 +227,8 @@ class TradingSession:
                         error_code = res.get('errorcode', '') if res else ''
                         if error_code == 'AB1004':
                             if attempt < max_retries - 1:
-                                self.log(f"Rate limited on {symbol}, retrying in {delay + 2}s...", "WARNING")
-                                time.sleep(2)  # Extra delay for rate limit
+                                self.log(f"Rate limited on {symbol}, retrying in {delay + 1.5}s...", "WARNING")
+                                time.sleep(1.5)  # Reduced from 2s
                                 continue
                         else:
                             break  # Other error, don't retry
@@ -276,15 +286,23 @@ class TradingSession:
                 success_count += 1
                 self.log(f"ORB {symbol}: High={or_high:.2f}, Low={or_low:.2f}")
                 
+                # Batch pause: after every batch_size symbols, pause longer
+                if (idx + 1) % batch_size == 0 and idx < len(symbols) - 1:
+                    time.sleep(2)  # 2s pause between batches
+                
             except Exception as e:
                 self.log(f"ORB Calc Error {symbol}: {e}", "ERROR")
                 failed_symbols.append(symbol)
         
         # Summary log
         if success_count > 0:
-            self.log(f"Successfully calculated ORB for {success_count}/{len(symbols)} symbols", "SUCCESS")
+            self.log(f"✓ Successfully calculated ORB for {success_count}/{len(symbols)} symbols", "SUCCESS")
         if failed_symbols:
-            self.log(f"Failed to get data for {len(failed_symbols)} symbols: {', '.join(failed_symbols[:5])}{'...' if len(failed_symbols) > 5 else ''}", "WARNING")
+            self.log(f"⚠ Failed to get data for {len(failed_symbols)} symbols: {', '.join(failed_symbols[:5])}{'...' if len(failed_symbols) > 5 else ''}", "WARNING")
+        
+        # If we have at least some symbols ready, continue to WebSocket
+        if success_count > 0:
+            self.log(f"Proceeding with {success_count} symbols. WebSocket will provide real-time data.", "INFO")
 
     def _start_websocket(self):
         """Initialize and connect Angel One WebSocket for live data"""
