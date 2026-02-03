@@ -274,7 +274,7 @@ export function Profile() {
                                     <div className="flex gap-2">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" className="w-[130px] justify-between">
+                                                <Button variant="outline" className="w-[130px] justify-between bg-transparent hover:bg-transparent hover:text-foreground">
                                                     <span className="flex items-center gap-2">
                                                         <span className="text-lg">{getSelectedCountry().flag}</span>
                                                         <span className="text-sm">{getSelectedCountry().dial}</span>
