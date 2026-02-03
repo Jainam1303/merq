@@ -162,11 +162,17 @@ app.get('/analytics', verifyToken, async (req, res) => {
             if (d.pnl < worstDay.pnl) worstDay = { pnl: d.pnl, date: d.day };
         });
 
+        // Helper to ensure value is a valid number (not NaN or Infinity)
+        const safeNum = (val, fallback = 0) => {
+            if (typeof val !== 'number' || isNaN(val) || !isFinite(val)) return fallback;
+            return val;
+        };
+
         res.json({
             total_trades: allTrades.length,
-            win_rate: Math.round(winRate * 10) / 10,
-            avg_profit_per_trade: Math.round(avgProfit * 100) / 100,
-            profit_factor: Math.round(profitFactor * 100) / 100,
+            win_rate: safeNum(Math.round(winRate * 10) / 10),
+            avg_profit_per_trade: safeNum(Math.round(avgProfit * 100) / 100),
+            profit_factor: safeNum(Math.round(profitFactor * 100) / 100),
             best_day: bestDay,
             worst_day: worstDay,
             max_drawdown: 0, // Would need more complex calculation
@@ -176,7 +182,19 @@ app.get('/analytics', verifyToken, async (req, res) => {
         });
     } catch (e) {
         console.error('Analytics error:', e);
-        res.json({ status: 'error', message: e.message });
+        // Return safe default values on error
+        res.json({
+            total_trades: 0,
+            win_rate: 0,
+            avg_profit_per_trade: 0,
+            profit_factor: 0,
+            best_day: { pnl: 0, date: '-' },
+            worst_day: { pnl: 0, date: '-' },
+            max_drawdown: 0,
+            winning_trades: 0,
+            losing_trades: 0,
+            daily_pnl: []
+        });
     }
 });
 

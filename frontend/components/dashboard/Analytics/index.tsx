@@ -59,9 +59,21 @@ export function Analytics() {
         );
     }
 
+    // Safely extract data with fallbacks
+    const totalTrades = data.total_trades ?? 0;
+    const winRate = data.win_rate ?? 0;
+    const avgProfitPerTrade = data.avg_profit_per_trade ?? 0;
+    const profitFactor = data.profit_factor ?? 0;
+    const winningTrades = data.winning_trades ?? 0;
+    const losingTrades = data.losing_trades ?? 0;
+    const bestDay = data.best_day ?? { pnl: 0, date: 'N/A' };
+    const worstDay = data.worst_day ?? { pnl: 0, date: 'N/A' };
+    const maxDrawdown = data.max_drawdown ?? 0;
+    const dailyPnl = data.daily_pnl ?? [];
+
     const winLossData = [
-        { name: 'Winning', value: data.winning_trades, color: '#22c55e' }, // green-500
-        { name: 'Losing', value: data.losing_trades, color: '#ef4444' }, // red-500
+        { name: 'Winning', value: winningTrades, color: '#22c55e' }, // green-500
+        { name: 'Losing', value: losingTrades, color: '#ef4444' }, // red-500
     ];
 
     return (
@@ -72,7 +84,7 @@ export function Analytics() {
                     <CardContent className="p-6 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">Total Trades</p>
-                            <p className="text-2xl font-bold">{data.total_trades}</p>
+                            <p className="text-2xl font-bold">{totalTrades}</p>
                         </div>
                         <div className="h-10 w-10 flex items-center justify-center rounded bg-primary/10 text-primary">
                             <Activity className="h-5 w-5" />
@@ -83,7 +95,7 @@ export function Analytics() {
                     <CardContent className="p-6 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">Win Rate</p>
-                            <p className="text-2xl font-bold text-green-500">{data.win_rate.toFixed(1)}%</p>
+                            <p className="text-2xl font-bold text-green-500">{winRate.toFixed(1)}%</p>
                         </div>
                         <div className="h-10 w-10 flex items-center justify-center rounded bg-green-500/10 text-green-500">
                             <Target className="h-5 w-5" />
@@ -94,8 +106,8 @@ export function Analytics() {
                     <CardContent className="p-6 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">Avg Profit/Trade</p>
-                            <p className={`text-2xl font-bold ${data.avg_profit_per_trade >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                ₹{data.avg_profit_per_trade.toFixed(0)}
+                            <p className={`text-2xl font-bold ${avgProfitPerTrade >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                ₹{avgProfitPerTrade.toFixed(0)}
                             </p>
                         </div>
                         <div className="h-10 w-10 flex items-center justify-center rounded bg-blue-500/10 text-blue-500">
@@ -107,7 +119,7 @@ export function Analytics() {
                     <CardContent className="p-6 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">Profit Factor</p>
-                            <p className="text-2xl font-bold">{data.profit_factor.toFixed(2)}</p>
+                            <p className="text-2xl font-bold">{profitFactor.toFixed(2)}</p>
                         </div>
                         <div className="h-10 w-10 flex items-center justify-center rounded bg-orange-500/10 text-orange-500">
                             <Activity className="h-5 w-5" />
@@ -125,8 +137,8 @@ export function Analytics() {
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">Best Day</p>
-                            <p className="font-bold text-green-500 text-lg">+₹{data.best_day.pnl.toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">{data.best_day.date || 'N/A'}</p>
+                            <p className="font-bold text-green-500 text-lg">+₹{(bestDay.pnl ?? 0).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">{bestDay.date || 'N/A'}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -137,8 +149,8 @@ export function Analytics() {
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">Worst Day</p>
-                            <p className="font-bold text-red-500 text-lg">₹{data.worst_day.pnl.toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">{data.worst_day.date || 'N/A'}</p>
+                            <p className="font-bold text-red-500 text-lg">₹{(worstDay.pnl ?? 0).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">{worstDay.date || 'N/A'}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -149,7 +161,7 @@ export function Analytics() {
                         </div>
                         <div>
                             <p className="text-sm text-muted-foreground">Max Drawdown</p>
-                            <p className="font-bold text-yellow-500 text-lg">{data.max_drawdown}%</p>
+                            <p className="font-bold text-yellow-500 text-lg">{maxDrawdown}%</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -162,7 +174,7 @@ export function Analytics() {
                     <CardContent>
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={data.daily_pnl || []}>
+                                <BarChart data={dailyPnl}>
                                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
                                     <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={12} />
                                     <YAxis axisLine={false} tickLine={false} fontSize={12} tickFormatter={(val) => `₹${val / 1000}k`} />
@@ -171,8 +183,8 @@ export function Analytics() {
                                         contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
                                     />
                                     <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                                        {data.daily_pnl?.map((entry: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={entry.pnl >= 0 ? '#22c55e' : '#ef4444'} />
+                                        {dailyPnl.map((entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fill={(entry.pnl ?? 0) >= 0 ? '#22c55e' : '#ef4444'} />
                                         ))}
                                     </Bar>
                                 </BarChart>
@@ -202,7 +214,7 @@ export function Analytics() {
                                 </PieChart>
                             </ResponsiveContainer>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-3xl font-bold">{data.win_rate.toFixed(0)}%</span>
+                                <span className="text-3xl font-bold">{winRate.toFixed(0)}%</span>
                                 <span className="text-xs text-muted-foreground">Win Rate</span>
                             </div>
                         </div>
@@ -210,11 +222,11 @@ export function Analytics() {
                         <div className="flex justify-center gap-6 mt-4">
                             <div className="flex items-center gap-2">
                                 <div className="h-3 w-3 rounded-full bg-green-500" />
-                                <span className="text-sm text-muted-foreground">Winning ({data.winning_trades})</span>
+                                <span className="text-sm text-muted-foreground">Winning ({winningTrades})</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="h-3 w-3 rounded-full bg-red-500" />
-                                <span className="text-sm text-muted-foreground">Losing ({data.losing_trades})</span>
+                                <span className="text-sm text-muted-foreground">Losing ({losingTrades})</span>
                             </div>
                         </div>
                     </CardContent>
