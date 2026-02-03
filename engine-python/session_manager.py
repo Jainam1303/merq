@@ -184,7 +184,7 @@ class TradingSession:
                 if symbol in self.symbol_tokens:
                     self.orb_levels[symbol] = {
                         'or_high': 0,
-                        'or_low': float('inf'),
+                        'or_low': 999999999,  # Large number (not inf, for JSON)
                         'or_mid': 0,
                         'collecting': True,  # Flag to collect data
                         'candles': []  # Store ticks for ORB calculation
@@ -231,7 +231,7 @@ class TradingSession:
                         # Failed - will use dynamic ORB from WebSocket
                         self.orb_levels[symbol] = {
                             'or_high': 0,
-                            'or_low': float('inf'),
+                            'or_low': 999999999,  # Large number (not inf, for JSON)
                             'or_mid': 0,
                             'collecting': True
                         }
@@ -239,7 +239,7 @@ class TradingSession:
                     # Failed - will use dynamic ORB from WebSocket
                     self.orb_levels[symbol] = {
                         'or_high': 0,
-                        'or_low': float('inf'),
+                        'or_low': 999999999,  # Large number (not inf, for JSON)
                         'or_mid': 0,
                         'collecting': True
                     }
@@ -338,7 +338,7 @@ class TradingSession:
                         # Update high/low from live ticks
                         if ltp > orb.get('or_high', 0):
                             orb['or_high'] = ltp
-                        if ltp < orb.get('or_low', float('inf')):
+                        if ltp < orb.get('or_low', 999999999):
                             orb['or_low'] = ltp
                         orb['or_mid'] = (orb['or_high'] + orb['or_low']) / 2
                     
