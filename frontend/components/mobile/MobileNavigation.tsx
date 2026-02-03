@@ -37,9 +37,9 @@ export function MobileNavigation({
                 </div>
                 <div className={cn(
                     "text-sm font-bold tabular-nums",
-                    pnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                    parseFloat(String(pnl ?? 0)) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                 )}>
-                    {pnl >= 0 ? '+' : ''}₹{pnl.toFixed(2)}
+                    {parseFloat(String(pnl ?? 0)) >= 0 ? '+' : ''}₹{parseFloat(String(pnl ?? 0)).toFixed(2)}
                 </div>
             </div>
 
