@@ -37,6 +37,7 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
   const [isSearching, setIsSearching] = useState(false);
   const [savedStocks, setSavedStocks] = useState<string[]>([]);
   const [stocklistFilter, setStocklistFilter] = useState("");
+  const [showDropdown, setShowDropdown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -166,12 +167,8 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
                 className="pl-9 min-h-[44px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                onFocus={() => {
-                  if (!searchTerm) {
-                    // Show all saved stocks on focus if empty
-                    setIsSearching(false);
-                  }
-                }}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                 disabled={disabled}
               />
               {isSearching && (
@@ -179,23 +176,13 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
               )}
 
               {/* Unified Search Results Dropdown */}
-              {((searchTerm.length >= 0 || searchResults.length > 0)) && (
-                // Show dropdown if we have search text OR we have results OR we are focused (handled by simple presence of savedStocks check logic below)
-                // Actually simplest is: if (searchTerm || isFocused) -> show. But for now let's rely on content existence.
-                // We need to filter savedStocks based on searchTerm
-                <div className="absolute z-50 mt-1 max-h-80 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-md"
-                  // Only show if we have something to show
-                  hidden={searchTerm.length < 2 && savedStocks.length === 0}
-                >
+              {showDropdown && (searchTerm.length >= 0 || searchResults.length > 0) && (
+                <div className="absolute z-50 mt-1 max-h-80 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-md">
                   {/* Local/Saved Matches */}
                   {(() => {
                     const localMatches = savedStocks.filter(s =>
                       !searchTerm || s.toLowerCase().includes(searchTerm.toLowerCase())
                     );
-
-                    // Combine logic:
-                    // If searchTerm is empty, show all saved (limit 20?)
-                    // If searchTerm exists, show local matches + API matches
 
                     const showLocal = localMatches.length > 0;
                     const showApi = searchResults.length > 0;

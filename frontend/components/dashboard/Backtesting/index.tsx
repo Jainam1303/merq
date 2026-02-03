@@ -42,6 +42,7 @@ export function Backtesting() {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [searching, setSearching] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -242,20 +243,15 @@ export function Backtesting() {
                                     placeholder="Search stocks (e.g. RELIANCE, TCS)..."
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    onFocus={() => {
-                                        if (!searchQuery) {
-                                            setSearching(false); // Just triggers re-render if needed
-                                        }
-                                    }}
+                                    onFocus={() => setShowDropdown(true)}
+                                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
                                     className="pl-9 min-h-[44px]"
                                 />
                                 {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
 
                                 {/* Unified Dropdown */}
-                                {(searchQuery.length >= 0 || searchResults.length > 0) && (
-                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground"
-                                        hidden={searchQuery.length < 2 && savedStocks.length === 0}
-                                    >
+                                {showDropdown && (searchQuery.length >= 0 || searchResults.length > 0) && (
+                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground">
                                         {(() => {
                                             const localMatches = savedStocks.filter(s =>
                                                 !searchQuery || s.toLowerCase().includes(searchQuery.toLowerCase())
