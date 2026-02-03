@@ -167,6 +167,12 @@ class TradingSession:
             missing = [s for s in symbols if s not in self.symbol_tokens]
             self.log(f"Missing: {', '.join(missing[:5])}", "WARNING")
 
+    def _get_ist_time(self):
+        """Get current time in Indian Standard Time (UTC+5:30)"""
+        utc_now = datetime.datetime.utcnow()
+        ist_now = utc_now + datetime.timedelta(hours=5, minutes=30)
+        return ist_now
+
     def _calculate_orb_levels(self):
         """
         NEW APPROACH: Skip REST API calls entirely!
@@ -174,7 +180,12 @@ class TradingSession:
         This eliminates all rate limiting issues.
         """
         symbols = self.config.get('symbols', [])
-        current_time = datetime.datetime.now().time()
+        
+        # FIX: Use IST Time, not Server Time (UTC)
+        ist_now = self._get_ist_time()
+        current_time = ist_now.time()
+        
+        self.log(f"🕒 Current Time (IST): {current_time.strftime('%H:%M:%S')}", "INFO")
         
         # Check if we're before 9:30 (ORB period not complete)
         if current_time < datetime.time(9, 30):
@@ -184,7 +195,7 @@ class TradingSession:
                 if symbol in self.symbol_tokens:
                     self.orb_levels[symbol] = {
                         'or_high': 0,
-                        'or_low': 999999999,  # Large number (not inf, for JSON)
+                        'or_low': 999999999,
                         'or_mid': 0,
                         'collecting': True,  # Flag to collect data
                         'candles': []  # Store ticks for ORB calculation
@@ -200,7 +211,8 @@ class TradingSession:
                     continue
                     
                 token = self.symbol_tokens.get(symbol)
-                today = datetime.date.today()
+                # Use IST for date
+                today = ist_now.date() 
                 
                 try:
                     # Single quick attempt - no retries
@@ -228,28 +240,27 @@ class TradingSession:
                         }
                         success_count += 1
                     else:
-                        # Failed - will use dynamic ORB from WebSocket
+                        # Failed to get history - we are blind for ORB
+                        # We cannot magically guess ORB from current price
+                        self.log(f"Could not fetch ORB for {symbol}", "WARNING")
+                        # Mark as NOT collecting, because we missed the window
+                        # Initialize with 0 so no trades are taken (safety)
                         self.orb_levels[symbol] = {
                             'or_high': 0,
-                            'or_low': 999999999,  # Large number (not inf, for JSON)
+                            'or_low': 0,
                             'or_mid': 0,
-                            'collecting': True
+                            'collecting': False
                         }
                 except Exception as e:
-                    # Failed - will use dynamic ORB from WebSocket
                     self.orb_levels[symbol] = {
                         'or_high': 0,
-                        'or_low': 999999999,  # Large number (not inf, for JSON)
+                        'or_low': 0,
                         'or_mid': 0,
-                        'collecting': True
+                        'collecting': False
                     }
-            
-            dynamic_count = len([s for s in self.orb_levels.values() if s.get('collecting')])
             
             if success_count > 0:
                 self.log(f"✓ Got ORB data for {success_count} symbols from API", "SUCCESS")
-            if dynamic_count > 0:
-                self.log(f"📊 Using dynamic ORB for {dynamic_count} symbols (from WebSocket ticks)", "INFO")
         
         self.log(f"🚀 Ready! Starting WebSocket for real-time trading.", "SUCCESS")
 
@@ -330,7 +341,8 @@ class TradingSession:
             # DYNAMIC ORB: Update ORB levels from WebSocket if we're collecting
             if symbol in self.orb_levels:
                 orb = self.orb_levels[symbol]
-                current_time = datetime.datetime.now().time()
+                ist_now = self._get_ist_time()
+                current_time = ist_now.time()
                 
                 # If collecting ORB data (9:15-9:30)
                 if orb.get('collecting', False):
