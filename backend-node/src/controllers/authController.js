@@ -1,10 +1,9 @@
-const { User } = require('../models');
+const { User, Subscription, Plan } = require('../models');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_do_not_use_in_prod';
 
-// Register User
 // Register User
 exports.register = async (req, res) => {
     try {
@@ -38,6 +37,30 @@ exports.register = async (req, res) => {
             email,
             password: password_hash // Field name is now 'password'
         });
+
+        // Assign Default "Free" Plan
+        try {
+            const freePlan = await Plan.findOne({ where: { name: 'Free' } });
+            if (freePlan) {
+                const startDate = new Date();
+                const endDate = new Date();
+                endDate.setDate(endDate.getDate() + freePlan.duration_days);
+
+                await Subscription.create({
+                    user_id: newUser.id,
+                    plan_id: freePlan.id,
+                    start_date: startDate,
+                    end_date: endDate,
+                    status: 'active'
+                });
+                console.log(`Assigned Free plan to user ${newUser.username}`);
+            } else {
+                console.warn("Free plan not found in database. User created without subscription.");
+            }
+        } catch (subError) {
+            console.error("Failed to assign default plan:", subError);
+            // Don't fail the registration, just log it
+        }
 
         res.status(201).json({
             status: 'success',

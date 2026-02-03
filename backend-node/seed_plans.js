@@ -18,6 +18,13 @@ const seedPlans = async () => {
                 is_active: true
             },
             {
+                name: "Free",
+                price: 0,
+                duration_days: 365,
+                features: ["Paper Trading Only", "1 Backtest/Day", "Basic Strategy"],
+                is_active: true
+            },
+            {
                 name: "3 Months",
                 price: 5500,
                 duration_days: 90,
