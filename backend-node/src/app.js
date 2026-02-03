@@ -249,12 +249,31 @@ app.get('/analytics', verifyToken, async (req, res) => {
                 return new Date(a.day) - new Date(b.day);
             });
 
-        let bestDay = { pnl: 0, date: '-' };
-        let worstDay = { pnl: 0, date: '-' };
+        // Initialize with first day or defaults
+        let bestDay = dailyPnL.length > 0 ? { ...dailyPnL[0] } : { pnl: 0, date: '-' };
+        let worstDay = dailyPnL.length > 0 ? { ...dailyPnL[0] } : { pnl: 0, date: '-' };
 
         dailyPnL.forEach(d => {
             if (d.pnl > bestDay.pnl) bestDay = { pnl: d.pnl, date: d.day };
             if (d.pnl < worstDay.pnl) worstDay = { pnl: d.pnl, date: d.day };
+        });
+
+        // Max Drawdown Calculation
+        // Assumption: Base Capital = 100,000 (Adjust as needed or fetch from config)
+        let currentEquity = 100000;
+        let peakEquity = currentEquity;
+        let maxDrawdownPct = 0;
+
+        dailyPnL.forEach(d => {
+            currentEquity += d.pnl;
+            if (currentEquity > peakEquity) {
+                peakEquity = currentEquity;
+            }
+            const drawdown = peakEquity - currentEquity;
+            const drawdownPct = (drawdown / peakEquity) * 100;
+            if (drawdownPct > maxDrawdownPct) {
+                maxDrawdownPct = drawdownPct;
+            }
         });
 
         // Helper to ensure value is a valid number (not NaN or Infinity)
@@ -270,7 +289,7 @@ app.get('/analytics', verifyToken, async (req, res) => {
             profit_factor: safeNum(Math.round(profitFactor * 100) / 100),
             best_day: bestDay,
             worst_day: worstDay,
-            max_drawdown: 0, // Would need more complex calculation
+            max_drawdown: safeNum(Math.round(maxDrawdownPct * 100) / 100), // Return percentage
             winning_trades: winningTrades.length,
             losing_trades: losingTrades.length,
             daily_pnl: dailyPnL // Return all data, frontend will filter by period

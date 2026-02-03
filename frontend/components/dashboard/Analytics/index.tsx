@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 import { toast } from "sonner";
 
+import { format, subDays, eachDayOfInterval } from "date-fns";
+
 export function Analytics() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -72,7 +74,7 @@ export function Analytics() {
     const maxDrawdown = data.max_drawdown ?? 0;
     const dailyPnl = data.daily_pnl ?? [];
 
-    // Filter data based on time period
+    // Filter & Fill data based on time period
     const getDaysCount = () => {
         switch (timePeriod) {
             case '7D': return 7;
@@ -82,7 +84,20 @@ export function Analytics() {
         }
     };
 
-    const filteredDailyPnl = dailyPnl.slice(-getDaysCount());
+    const daysCount = getDaysCount();
+    const today = new Date();
+    const startDate = subDays(today, daysCount - 1);
+
+    // Generate full date range
+    const filteredDailyPnl = eachDayOfInterval({ start: startDate, end: today }).map(date => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        // Find if this date exists in data
+        const found = dailyPnl.find((d: any) => d.day === dateStr);
+        return {
+            day: format(date, 'MMM dd'),
+            pnl: found ? found.pnl : 0
+        };
+    });
 
     const winLossData = [
         { name: 'Winning', value: winningTrades, color: '#22c55e' }, // green-500
