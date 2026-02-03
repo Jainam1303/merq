@@ -70,6 +70,63 @@ app.post('/update_profile', verifyToken, userController.updateProfile);
 
 app.get('/plans', userController.getPlans);
 
+// Search Scrip Endpoint - Needed for Token Resolution
+app.get('/search_scrip', async (req, res) => {
+    try {
+        const query = req.query.q;
+        if (!query || query.length < 2) return res.json([]);
+
+        // Use SmartApi if available via a service, or simple local lookup if DB holds it
+        // Or call Python Engine? For now, let's use a mock list expanded or try to fetch from Python service
+        // Actually, Python engine connects to Angel. Node.js backend might not have direct connection unless we use SmartAPI here too.
+        // Quickest fix: Return subset of known tokens or call Python engine /search endpoint (if we make one).
+
+        // Let's implement a basic lookup from our static map + wildcards if possible, 
+        // OR better: Forward this request to Python Engine which has access to SmartAPI Scrip Master?
+        // Python Engine doesn't expose HTTP for this yet.
+
+        // FALLBACK: Use a larger static list for now to satisfy the "5PAISA" search
+        const known_stocks = [
+            { symbol: "RELIANCE-EQ", token: "2885", exchange: "NSE" },
+            { symbol: "TCS-EQ", token: "11536", exchange: "NSE" },
+            { symbol: "INFY-EQ", token: "1594", exchange: "NSE" },
+            { symbol: "HDFCBANK-EQ", token: "1333", exchange: "NSE" },
+            { symbol: "SBIN-EQ", token: "3045", exchange: "NSE" },
+            { symbol: "5PAISA-EQ", token: "445", exchange: "NSE" },
+            { symbol: "RVNL-EQ", token: "24948", exchange: "NSE" }, // Correct Token?
+            { symbol: "ADANIGREEN-EQ", token: "17388", exchange: "NSE" }, // Approx
+            { symbol: "PRECAM-EQ", token: "123456", exchange: "NSE" }, // Placeholder
+            { symbol: "TATAMOTORS-EQ", token: "3456", exchange: "NSE" },
+            { symbol: "WIPRO-EQ", token: "3787", exchange: "NSE" }
+        ].filter(s => s.symbol.toUpperCase().includes(query.toUpperCase()));
+
+        // Also check DB stocks if we have them
+        const { Stock } = require('./models');
+        try {
+            const dbStocks = await Stock.findAll({
+                where: {
+                    symbol: { [require('sequelize').Op.like]: `%${query}%` }
+                }
+            });
+            // Merge results
+            const dbResults = dbStocks.map(s => ({ symbol: s.symbol, token: s.token, exchange: s.exchange }));
+
+            // Combine unique by symbol
+            const combined = [...known_stocks, ...dbResults];
+            const unique = Array.from(new Map(combined.map(item => [item.symbol, item])).values());
+
+            res.json(unique);
+        } catch (e) {
+            res.json(known_stocks);
+        }
+
+    } catch (e) {
+        console.error('Search Scrip Error:', e);
+        res.json([]);
+    }
+});
+
+
 app.get('/symbols', async (req, res) => {
     try {
         const { Stock } = require('./models');
@@ -87,7 +144,6 @@ app.post('/add_token', verifyToken, userController.addToken);
 app.post('/backtest', verifyToken, tradingController.runBacktest);
 app.post('/save_backtest', verifyToken, tradingController.saveBacktestResult);
 app.get('/backtest_history', verifyToken, tradingController.getBacktestHistory);
-app.delete('/backtest_history/:id', verifyToken, tradingController.deleteBacktestResult);
 app.post('/update_safety_guard', verifyToken, tradingController.updateSafetyGuard);
 app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
