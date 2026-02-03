@@ -3,7 +3,7 @@ import React from 'react';
 import { Home, LineChart, ScrollText, Settings, Power, BarChart3, BookOpen, CreditCard, TrendingUp as TrendingUpIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type MobileTab = 'status' | 'trades' | 'logs' | 'backtest' | 'analytics' | 'orderbook' | 'plans';
+export type MobileTab = 'status' | 'trades' | 'logs' | 'backtest' | 'analytics';
 
 interface MobileNavigationProps {
     activeTab: MobileTab;
@@ -23,9 +23,7 @@ export function MobileNavigation({
         { id: 'trades', label: 'Trades', icon: LineChart },
         { id: 'backtest', label: 'Backtest', icon: TrendingUpIcon },
         { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-        { id: 'orderbook', label: 'Orders', icon: BookOpen },
         { id: 'logs', label: 'Logs', icon: ScrollText },
-        { id: 'plans', label: 'Plans', icon: CreditCard },
     ];
 
     return (
@@ -46,7 +44,7 @@ export function MobileNavigation({
             </div>
 
             {/* Tab Bar */}
-            <div className="flex items-center gap-1 py-2 px-2 overflow-x-auto scrollbar-hide">
+            <div className="flex items-center justify-around py-2 px-2">
                 {tabs.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -56,14 +54,14 @@ export function MobileNavigation({
                             key={tab.id}
                             onClick={() => onTabChange(tab.id)}
                             className={cn(
-                                "flex flex-col items-center justify-center min-h-[48px] min-w-[64px] rounded-xl transition-all duration-200 flex-shrink-0",
+                                "flex flex-col items-center justify-center min-h-[48px] min-w-[60px] rounded-xl transition-all duration-200",
                                 isActive
                                     ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                                     : "text-zinc-500 dark:text-zinc-400 active:bg-zinc-100 dark:active:bg-zinc-800"
                             )}
                         >
                             <Icon
-                                size={20}
+                                size={22}
                                 strokeWidth={isActive ? 2.5 : 2}
                                 className="mb-0.5"
                             />
