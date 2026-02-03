@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { fetchJson } from "@/lib/api";
-import { Play, Loader2, Save, Trash2, ChevronLeft, ChevronRight, Search, X, ChevronDown, Upload, Download } from "lucide-react";
+import { Play, Loader2, Save, Trash2, ChevronLeft, ChevronRight, Search, X, ChevronDown, Upload, Download, Calendar as CalendarIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -268,11 +272,53 @@ export function Backtesting() {
                         </div>
                         <div className="space-y-1">
                             <Label>From Date</Label>
-                            <Input type="date" value={formData.from_date} onChange={e => setFormData({ ...formData, from_date: e.target.value })} />
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !formData.from_date && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formData.from_date ? format(new Date(formData.from_date), "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={formData.from_date ? new Date(formData.from_date) : undefined}
+                                        onSelect={(date) => date && setFormData({ ...formData, from_date: format(date, 'yyyy-MM-dd') })}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                         <div className="space-y-1">
                             <Label>To Date</Label>
-                            <Input type="date" value={formData.to_date} onChange={e => setFormData({ ...formData, to_date: e.target.value })} />
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal",
+                                            !formData.to_date && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {formData.to_date ? format(new Date(formData.to_date), "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={formData.to_date ? new Date(formData.to_date) : undefined}
+                                        onSelect={(date) => date && setFormData({ ...formData, to_date: format(date, 'yyyy-MM-dd') })}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     </div>
 
@@ -370,6 +416,16 @@ export function Backtesting() {
                                     accept=".csv,.txt"
                                     onChange={handleFileUpload}
                                 />
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => setSelectedStocks([])}
+                                    disabled={selectedStocks.length === 0}
+                                    title="Clear Selection"
+                                    className="h-11 w-11 shrink-0"
+                                >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
                                 <Button
                                     variant="outline"
                                     className="h-11 gap-2"
