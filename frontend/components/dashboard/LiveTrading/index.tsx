@@ -142,11 +142,11 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
     // Only connect if system is active (Running)
     // Only connect if system is active (Running)
     if (isSystemActive) {
-      // Connect DIRECTLY to backend to avoid Next.js proxy WS issues
-      socket = io('http://localhost:3001', {
+      // Connect via Proxy (Vercel Rewrites handle this)
+      socket = io({
         path: '/socket.io',
         withCredentials: true,
-        transports: ['websocket', 'polling'], // Allow WebSocket upgrade
+        transports: ['polling'], // Force Polling (Vercel proxies HTTP well, but not WS)
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
       });

@@ -110,6 +110,7 @@ class TradingSession:
                 clean = sym.upper().replace("-EQ", "")
                 
                 # Search using Angel One API
+                time.sleep(1.0) # Increased Rate limit protection
                 search = self.smartApi.searchScrip("NSE", clean)
                 
                 if search and search.get('status') and search.get('data'):
@@ -168,6 +169,7 @@ class TradingSession:
                     "todate": to_date
                 }
                 
+                time.sleep(1.0) # Increased Rate limit protection
                 res = self.smartApi.getCandleData(params)
                 
                 if not res:
@@ -175,8 +177,10 @@ class TradingSession:
                     continue
                 
                 if not res.get('status'):
+                    # Detailed Debug Log
                     error_msg = res.get('message', 'Unknown error')
-                    self.log(f"API Error for {symbol}: {error_msg}", "WARNING")
+                    error_code = res.get('errorcode', 'N/A')
+                    self.log(f"API Error {symbol}: {error_msg} (Code: {error_code})", "WARNING")
                     continue
                     
                 if not res.get('data'):
@@ -289,6 +293,10 @@ class TradingSession:
             
             # Check for signals (only if ORB levels calculated)
             if symbol in self.orb_levels:
+                # Heartbeat log (every 100 ticks or random) to prevent spam
+                import random
+                if random.random() < 0.05: # 5% chance to log
+                    self.log(f"Tick Rx: {symbol} @ {ltp}", "DEBUG")
                 self._check_signal(symbol, ltp)
                 
         except Exception as e:
@@ -387,6 +395,17 @@ class TradingSession:
         capital = float(self.config.get('capital', 100000))
         qty = int(capital / ltp) if ltp > 0 else 1
         qty = max(1, qty)  # At least 1 share
+        
+        # DEBUG: Explain Logic
+        if ltp > or_high:
+             self.log(f"{symbol} BREAKOUT CHECK: {ltp} > {or_high} -> BUY!", "DEBUG")
+        elif ltp < or_low:
+             self.log(f"{symbol} BREAKDOWN CHECK: {ltp} < {or_low} -> SELL!", "DEBUG")
+        else:
+             # Log only occasionally to verify logic is running
+             import random
+             if random.random() < 0.01: 
+                 self.log(f"{symbol} Logic: {ltp} is inside range ({or_low} - {or_high})", "INFO")
         
         # BUY Signal: Price breaks above ORB High
         if ltp > or_high:

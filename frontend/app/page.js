@@ -2586,11 +2586,11 @@ export default function Home() {
     // Only connect if user is logged in AND Algo is RUNNING
     if (user && status === 'RUNNING' && (activeTab === 'live' || (currentPage === 'dashboard' && activeTab === 'dashboard'))) {
       console.log('[SOCKET] Connecting to Socket.IO (Algo Running)...');
-      // connect to same origin (localhost:3000), which proxies /socket.io to localhost:3001
+      // Connect via Vercel Proxy (polling only - Vercel doesn't support WebSockets)
       socket = io({
         path: '/socket.io',
         withCredentials: true,
-        transports: ['polling', 'websocket']
+        transports: ['polling']  // Force polling - Vercel can't proxy WebSockets
       });
 
       socket.on('connect', () => {
