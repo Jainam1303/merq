@@ -171,7 +171,15 @@ app.get('/analytics', verifyToken, async (req, res) => {
             dailyMap[day] += t.pnl || 0;
         });
 
-        const dailyPnL = Object.entries(dailyMap).map(([day, pnl]) => ({ day, pnl }));
+        // Convert to array and sort by date
+        const dailyPnL = Object.entries(dailyMap)
+            .map(([day, pnl]) => ({ day, pnl }))
+            .sort((a, b) => {
+                // Sort by date (oldest first)
+                if (a.day === 'Unknown') return 1;
+                if (b.day === 'Unknown') return -1;
+                return new Date(a.day) - new Date(b.day);
+            });
 
         let bestDay = { pnl: 0, date: '-' };
         let worstDay = { pnl: 0, date: '-' };
@@ -197,7 +205,7 @@ app.get('/analytics', verifyToken, async (req, res) => {
             max_drawdown: 0, // Would need more complex calculation
             winning_trades: winningTrades.length,
             losing_trades: losingTrades.length,
-            daily_pnl: dailyPnL.slice(-7) // Last 7 days
+            daily_pnl: dailyPnL // Return all data, frontend will filter by period
         });
     } catch (e) {
         console.error('Analytics error:', e);
