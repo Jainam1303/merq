@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Terminal, ChevronDown, ChevronUp, Pause, Play } from "lucide-react";
+import { Terminal, ChevronDown, ChevronUp, Pause, Play, AlertCircle, CheckCircle, AlertTriangle, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LogEntry } from "@/data/mockData";
@@ -22,9 +22,14 @@ export function SystemLogs({ logs = [] }: SystemLogsProps) {
     }
   };
 
-  // If paused, we could technically freeze the displayed logs, but for simplicity
-  // we will just display what is passed. 
-  // TODO: Implement actual pause functionality if needed by maintaining local frozen state.
+  const getLogIcon = (type: LogEntry['type']) => {
+    switch (type) {
+      case 'success': return <CheckCircle className="h-3.5 w-3.5 text-profit shrink-0 mt-0.5" />;
+      case 'error': return <AlertCircle className="h-3.5 w-3.5 text-loss shrink-0 mt-0.5" />;
+      case 'warning': return <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />;
+      default: return <Info className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />;
+    }
+  };
 
   return (
     <Card className="border-border bg-card">
@@ -32,12 +37,15 @@ export function SystemLogs({ logs = [] }: SystemLogsProps) {
         <div className="flex items-center gap-2">
           <Terminal className="h-5 w-5 text-muted-foreground" />
           <CardTitle className="text-lg">System Logs</CardTitle>
+          <span className="text-xs text-muted-foreground">
+            ({logs.length})
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-10 w-10"
             onClick={() => setIsPaused(!isPaused)}
           >
             {isPaused ? (
@@ -49,7 +57,7 @@ export function SystemLogs({ logs = [] }: SystemLogsProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8"
+            className="h-10 w-10"
             onClick={() => setIsExpanded(!isExpanded)}
           >
             {isExpanded ? (
@@ -63,14 +71,33 @@ export function SystemLogs({ logs = [] }: SystemLogsProps) {
 
       {isExpanded && (
         <CardContent className="pt-0">
-          <div className="scrollbar-thin max-h-48 overflow-y-auto rounded-lg bg-secondary/50 p-3 font-mono text-xs">
+          <div className="scrollbar-thin max-h-48 md:max-h-64 overflow-y-auto rounded-lg bg-secondary/50 p-3 space-y-1">
             {logs.length === 0 ? (
-              <div className="text-muted-foreground text-center py-2">No logs yet...</div>
+              <div className="text-muted-foreground text-center py-4">No logs yet...</div>
             ) : (
               logs.map((log) => (
-                <div key={log.id} className="flex gap-3 py-0.5">
-                  <span className="text-muted-foreground">[{log.timestamp}]</span>
-                  <span className={getLogColor(log.type)}>{log.message}</span>
+                <div key={log.id} className="flex gap-2 py-1 border-b border-border/30 last:border-0">
+                  {/* Icon */}
+                  {getLogIcon(log.type)}
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    {/* Mobile: Stack timestamp and message */}
+                    <div className="md:hidden">
+                      <span className="text-[10px] text-muted-foreground font-mono block mb-0.5">
+                        {log.timestamp}
+                      </span>
+                      <span className={cn("text-xs break-words", getLogColor(log.type))}>
+                        {log.message}
+                      </span>
+                    </div>
+
+                    {/* Desktop: Inline */}
+                    <div className="hidden md:flex gap-3 font-mono text-xs">
+                      <span className="text-muted-foreground shrink-0">[{log.timestamp}]</span>
+                      <span className={cn("break-words", getLogColor(log.type))}>{log.message}</span>
+                    </div>
+                  </div>
                 </div>
               ))
             )}
@@ -80,3 +107,4 @@ export function SystemLogs({ logs = [] }: SystemLogsProps) {
     </Card>
   );
 }
+

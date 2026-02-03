@@ -156,13 +156,13 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
         <div className="space-y-3">
           <Label className="text-sm font-medium">Stock Universe</Label>
 
-          {/* Search Bar */}
-          <div className="flex gap-2">
+          {/* Search Bar + Actions */}
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search Stocks (e.g. RELIANCE)..."
-                className="pl-9"
+                className="pl-9 min-h-[44px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 disabled={disabled}
@@ -177,7 +177,7 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
                   {searchResults.map((res: any, i) => (
                     <div
                       key={i}
-                      className="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                      className="flex cursor-pointer items-center justify-between rounded-sm px-3 py-2.5 text-sm hover:bg-accent hover:text-accent-foreground min-h-[44px]"
                       onClick={() => handleAddSearchResult(res.symbol)}
                     >
                       <span className="font-medium">{res.symbol}</span>
@@ -188,78 +188,83 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
               )}
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild disabled={disabled}>
-                <Button variant="outline" className="min-w-[130px]">
-                  My Stocklist <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[250px]">
-                <div className="p-2 border-b">
-                  <Input
-                    placeholder="Filter list..."
-                    value={stocklistFilter}
-                    onChange={e => setStocklistFilter(e.target.value)}
-                    className="h-8 text-xs"
-                    onClick={e => e.stopPropagation()}
-                  />
-                </div>
-                <div className="max-h-[300px] overflow-y-auto">
-                  {savedStocks.length > 0 ? (
-                    savedStocks
-                      .filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase()))
-                      .slice(0, 8)
-                      .map(s => (
-                        <DropdownMenuItem key={s} onClick={() => {
-                          if (!config.symbols.includes(s)) {
-                            onConfigChange({ ...config, symbols: [...config.symbols, s] });
-                            setStocklistFilter("");
-                          }
-                        }} className="cursor-pointer text-xs">
-                          {s}
-                        </DropdownMenuItem>
-                      ))
-                  ) : (
-                    <div className="p-2 text-xs text-muted-foreground text-center">No saved stocks</div>
-                  )}
-                  {savedStocks.filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase())).length === 0 && savedStocks.length > 0 && (
-                    <div className="p-2 text-xs text-muted-foreground text-center">No matches found</div>
-                  )}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Action Buttons Row */}
+            <div className="flex gap-2 shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild disabled={disabled}>
+                  <Button variant="outline" className="min-w-[100px] sm:min-w-[130px] min-h-[44px]">
+                    <span className="hidden sm:inline">My Stocklist</span>
+                    <span className="sm:hidden">Stocks</span>
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[250px]">
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="Filter list..."
+                      value={stocklistFilter}
+                      onChange={e => setStocklistFilter(e.target.value)}
+                      className="h-8 text-xs"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto">
+                    {savedStocks.length > 0 ? (
+                      savedStocks
+                        .filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase()))
+                        .slice(0, 8)
+                        .map(s => (
+                          <DropdownMenuItem key={s} onClick={() => {
+                            if (!config.symbols.includes(s)) {
+                              onConfigChange({ ...config, symbols: [...config.symbols, s] });
+                              setStocklistFilter("");
+                            }
+                          }} className="cursor-pointer text-xs min-h-[44px]">
+                            {s}
+                          </DropdownMenuItem>
+                        ))
+                    ) : (
+                      <div className="p-2 text-xs text-muted-foreground text-center">No saved stocks</div>
+                    )}
+                    {savedStocks.filter(s => s.toLowerCase().includes(stocklistFilter.toLowerCase())).length === 0 && savedStocks.length > 0 && (
+                      <div className="p-2 text-xs text-muted-foreground text-center">No matches found</div>
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            {/* Import CSV Button */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept=".csv,.txt"
-              onChange={handleFileUpload}
-              disabled={disabled}
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 shrink-0"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
-              title="Import CSV"
-            >
-              <Upload className="h-4 w-4" />
-            </Button>
+              {/* Import CSV Button */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".csv,.txt"
+                onChange={handleFileUpload}
+                disabled={disabled}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                title="Import CSV"
+              >
+                <Upload className="h-4 w-4" />
+              </Button>
 
-            {/* Clear All Button */}
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 shrink-0 text-destructive hover:text-destructive"
-              onClick={() => onConfigChange({ ...config, symbols: [] })}
-              disabled={disabled || config.symbols.length === 0}
-              title="Clear All"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+              {/* Clear All Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-11 w-11 shrink-0 text-destructive hover:text-destructive"
+                onClick={() => onConfigChange({ ...config, symbols: [] })}
+                disabled={disabled || config.symbols.length === 0}
+                title="Clear All"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           {/* Selected Stocks Badge List */}
@@ -311,8 +316,8 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
           </div>
         </div>
 
-        {/* Timeframe, Time Range, and Capital - All in One Row */}
-        <div className="grid grid-cols-4 gap-4">
+        {/* Timeframe, Time Range, and Capital - Responsive Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {/* Timeframe */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Timeframe</Label>

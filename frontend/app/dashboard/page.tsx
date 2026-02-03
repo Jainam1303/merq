@@ -10,6 +10,7 @@ import { BacktestHistory } from "@/components/dashboard/BacktestHistory";
 import { Analytics } from "@/components/dashboard/Analytics";
 import { OrderBook } from "@/components/dashboard/OrderBook";
 import { Profile } from "@/components/dashboard/Profile";
+import { MobileDashboard } from "@/components/mobile";
 import { fetchJson } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -65,6 +66,11 @@ export default function DashboardNewPage() {
     };
 
     const handleToggleTradingMode = () => {
+        // Prevent mode switch while system is running
+        if (isSystemRunning) {
+            toast.error("Stop the bot before switching trading modes");
+            return;
+        }
         const newMode = tradingMode === 'LIVE' ? 'PAPER' : 'LIVE';
         setTradingMode(newMode);
         toast.info(`Switched to ${newMode} mode`);
@@ -113,38 +119,47 @@ export default function DashboardNewPage() {
 
     return (
         <div className="min-h-screen bg-background">
-
-
-            <DashboardHeader
-                isSidebarOpen={isSidebarOpen}
-                onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            {/* ===== MOBILE VIEW (< 1024px) ===== */}
+            <MobileDashboard
                 tradingMode={tradingMode}
-                onToggleTradingMode={handleToggleTradingMode}
-                onTabChange={setActiveTab}
-                onLogout={handleLogout}
                 user={user}
-                isSystemRunning={isSystemRunning}
+                onSystemStatusChange={setIsSystemRunning}
             />
 
-            <div className="flex">
-                <DashboardSidebar
-                    isOpen={isSidebarOpen}
-                    onClose={() => setIsSidebarOpen(false)}
-                    activeTab={activeTab}
+            {/* ===== DESKTOP VIEW (>= 1024px) ===== */}
+            <div className="hidden lg:block">
+                <DashboardHeader
+                    isSidebarOpen={isSidebarOpen}
+                    onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+                    tradingMode={tradingMode}
+                    onToggleTradingMode={handleToggleTradingMode}
                     onTabChange={setActiveTab}
+                    onLogout={handleLogout}
+                    user={user}
+                    isSystemRunning={isSystemRunning}
                 />
 
-                <main className="flex-1 p-4 md:p-6 lg:p-8">
-                    <div className="mb-6">
-                        <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
-                        <p className="text-muted-foreground">
-                            {getPageDescription()}
-                        </p>
-                    </div>
+                <div className="flex">
+                    <DashboardSidebar
+                        isOpen={isSidebarOpen}
+                        onClose={() => setIsSidebarOpen(false)}
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                    />
 
-                    {renderContent()}
-                </main>
+                    <main className="flex-1 p-4 md:p-6 lg:p-8">
+                        <div className="mb-6">
+                            <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
+                            <p className="text-muted-foreground">
+                                {getPageDescription()}
+                            </p>
+                        </div>
+
+                        {renderContent()}
+                    </main>
+                </div>
             </div>
         </div>
     );
 }
+

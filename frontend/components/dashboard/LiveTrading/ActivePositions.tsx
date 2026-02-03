@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Edit2, X, Check } from "lucide-react";
+import { useState } from "react";
+import { Edit2, X, Check, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,177 @@ interface ActivePositionsProps {
   onUpdatePosition?: (id: string, tp: number, sl: number) => void;
 }
 
+// Mobile Position Card Component
+function PositionCard({
+  position,
+  onEdit,
+  onExit,
+  onUpdate,
+  isEditing,
+  editValues,
+  setEditValues,
+  onSave,
+  onCancel
+}: {
+  position: Position;
+  onEdit: () => void;
+  onExit: () => void;
+  onUpdate: (tp: number, sl: number) => void;
+  isEditing: boolean;
+  editValues: { tp: string; sl: string };
+  setEditValues: (values: { tp: string; sl: string }) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [confirmExit, setConfirmExit] = useState(false);
+
+  const handleExitClick = () => {
+    if (confirmExit) {
+      onExit();
+      setConfirmExit(false);
+    } else {
+      setConfirmExit(true);
+      setTimeout(() => setConfirmExit(false), 3000);
+    }
+  };
+
+  const isProfitable = position.pnl >= 0;
+
+  return (
+    <div className={cn(
+      "rounded-xl border transition-all duration-200 overflow-hidden bg-card",
+      isProfitable
+        ? "border-profit/30"
+        : "border-loss/30"
+    )}>
+      {/* Main Card Content */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full p-4 text-left flex items-center gap-3"
+      >
+        {/* Symbol & Type */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-foreground truncate">{position.symbol}</span>
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] shrink-0",
+                position.type === 'BUY'
+                  ? "border-profit/50 bg-profit/10 text-profit"
+                  : "border-loss/50 bg-loss/10 text-loss"
+              )}
+            >
+              {position.type}
+            </Badge>
+          </div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {position.qty} @ ₹{position.entry.toFixed(2)} • {position.time}
+          </div>
+        </div>
+
+        {/* P&L */}
+        <div className="text-right shrink-0">
+          <div className={cn(
+            "text-lg font-bold tabular-nums",
+            isProfitable ? "text-profit" : "text-loss"
+          )}>
+            {isProfitable ? '+' : ''}₹{position.pnl.toFixed(2)}
+          </div>
+          <div className="flex items-center justify-end gap-1 text-muted-foreground">
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+        </div>
+      </button>
+
+      {/* Expanded Details */}
+      {expanded && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+          {/* TP/SL Display or Edit */}
+          {isEditing ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Take Profit</label>
+                  <Input
+                    type="number"
+                    value={editValues.tp}
+                    onChange={(e) => setEditValues({ ...editValues, tp: e.target.value })}
+                    className="bg-profit/5 border-profit/30 text-profit font-mono text-sm"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Stop Loss</label>
+                  <Input
+                    type="number"
+                    value={editValues.sl}
+                    onChange={(e) => setEditValues({ ...editValues, sl: e.target.value })}
+                    className="bg-loss/5 border-loss/30 text-loss font-mono text-sm"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={onCancel}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-primary"
+                  onClick={onSave}
+                >
+                  <Check size={16} className="mr-1" /> Save
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 grid grid-cols-2 gap-2 text-sm">
+                <div className="px-3 py-2 rounded-lg bg-profit/5 border border-profit/20">
+                  <div className="text-[10px] text-muted-foreground uppercase">TP</div>
+                  <div className="font-mono text-profit">₹{position.tp.toFixed(2)}</div>
+                </div>
+                <div className="px-3 py-2 rounded-lg bg-loss/5 border border-loss/20">
+                  <div className="text-[10px] text-muted-foreground uppercase">SL</div>
+                  <div className="font-mono text-loss">₹{position.sl.toFixed(2)}</div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              >
+                <Edit2 size={18} />
+              </Button>
+            </div>
+          )}
+
+          {/* Exit Button */}
+          <Button
+            variant={confirmExit ? "destructive" : "outline"}
+            className={cn(
+              "w-full min-h-[44px]",
+              !confirmExit && "border-loss/50 text-loss hover:bg-loss/10 hover:text-loss"
+            )}
+            onClick={(e) => { e.stopPropagation(); handleExitClick(); }}
+          >
+            <X size={18} className="mr-2" />
+            {confirmExit ? 'TAP AGAIN TO CONFIRM EXIT' : 'Exit Position'}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ActivePositions({
   positions = [],
   onSquareOffAll,
@@ -30,6 +201,7 @@ export function ActivePositions({
 }: ActivePositionsProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ tp: string; sl: string }>({ tp: '', sl: '' });
+  const [confirmSquareOff, setConfirmSquareOff] = useState(false);
 
   const startEditing = (position: Position) => {
     setEditingId(position.id);
@@ -47,143 +219,189 @@ export function ActivePositions({
     setEditingId(null);
   };
 
+  const handleSquareOffAll = () => {
+    if (confirmSquareOff) {
+      onSquareOffAll?.();
+      setConfirmSquareOff(false);
+    } else {
+      setConfirmSquareOff(true);
+      setTimeout(() => setConfirmSquareOff(false), 3000);
+    }
+  };
+
+  const totalPnl = positions.reduce((sum, p) => sum + p.pnl, 0);
+
   return (
     <Card className="border-border bg-card">
       <CardHeader className="flex flex-row items-center justify-between pb-4">
-        <CardTitle className="text-lg">Active Positions</CardTitle>
+        <div>
+          <CardTitle className="text-lg">Active Positions</CardTitle>
+          {positions.length > 0 && (
+            <div className={cn(
+              "text-sm font-bold mt-1",
+              totalPnl >= 0 ? "text-profit" : "text-loss"
+            )}>
+              Total: {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toFixed(2)}
+            </div>
+          )}
+        </div>
         {positions.length > 0 && (
           <Button
-            variant="destructive"
+            variant={confirmSquareOff ? "destructive" : "outline"}
             size="sm"
-            onClick={onSquareOffAll}
+            onClick={handleSquareOffAll}
+            className={cn(
+              "min-h-[40px]",
+              !confirmSquareOff && "border-loss/50 text-loss hover:bg-loss/10"
+            )}
           >
-            Square Off All
+            <AlertTriangle size={14} className="mr-1" />
+            {confirmSquareOff ? 'CONFIRM' : 'Exit All'}
           </Button>
         )}
       </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <Table className="table-fixed">
-            <TableHeader>
-              <TableRow className="border-border hover:bg-transparent">
-                <TableHead className="text-muted-foreground hidden md:table-cell w-20">Time</TableHead>
-                <TableHead className="text-muted-foreground w-32">Symbol</TableHead>
-                <TableHead className="text-muted-foreground w-20">Type</TableHead>
-                <TableHead className="text-right text-muted-foreground w-16">Qty</TableHead>
-                <TableHead className="text-right text-muted-foreground hidden md:table-cell w-24">Entry</TableHead>
-                <TableHead className="text-right text-muted-foreground w-28">TP</TableHead>
-                <TableHead className="text-right text-muted-foreground w-28">SL</TableHead>
-                <TableHead className="text-right text-muted-foreground w-24">P&L</TableHead>
-                <TableHead className="text-right text-muted-foreground w-28">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {positions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={9} className="py-8 text-center text-muted-foreground">
-                    No active positions
-                  </TableCell>
-                </TableRow>
-              ) : (
-                positions.map((position) => (
-                  <TableRow key={position.id} className="border-border">
-                    <TableCell className="font-mono text-sm hidden md:table-cell">{position.time}</TableCell>
-                    <TableCell className="font-medium">{position.symbol}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          position.type === 'BUY'
-                            ? "border-profit/50 bg-profit/10 text-profit"
-                            : "border-loss/50 bg-loss/10 text-loss"
-                        )}
-                      >
-                        {position.type}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{position.qty}</TableCell>
-                    <TableCell className="text-right font-mono hidden md:table-cell">₹{position.entry.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">
-                      {editingId === position.id ? (
-                        <Input
-                          type="text"
-                          value={editValues.tp}
-                          onChange={(e) => setEditValues({ ...editValues, tp: e.target.value })}
-                          className="h-7 w-full text-right text-sm font-mono bg-transparent border-primary/50 focus:border-primary px-2"
-                          placeholder="TP"
-                        />
-                      ) : (
-                        <span className="font-mono text-profit">₹{position.tp.toFixed(2)}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {editingId === position.id ? (
-                        <Input
-                          type="text"
-                          value={editValues.sl}
-                          onChange={(e) => setEditValues({ ...editValues, sl: e.target.value })}
-                          className="h-7 w-full text-right text-sm font-mono bg-transparent border-loss/50 focus:border-loss px-2"
-                          placeholder="SL"
-                        />
-                      ) : (
-                        <span className="font-mono text-loss">₹{position.sl.toFixed(2)}</span>
-                      )}
-                    </TableCell>
-                    <TableCell className={cn(
-                      "text-right font-mono font-medium",
-                      position.pnl >= 0 ? "text-profit" : "text-loss"
-                    )}>
-                      {position.pnl >= 0 ? '+' : ''}₹{position.pnl.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {editingId === position.id ? (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => saveEdit(position.id)}
-                            >
-                              <Check className="h-4 w-4 text-profit" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={cancelEdit}
-                            >
-                              <X className="h-4 w-4 text-loss" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => startEditing(position)}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 text-xs text-loss hover:bg-loss/10 hover:text-loss"
-                              onClick={() => onExitPosition && onExitPosition(position.id)}
-                            >
-                              Exit
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
+      <CardContent className="p-4 pt-0">
+        {positions.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">
+            No active positions
+          </div>
+        ) : (
+          <>
+            {/* Mobile/Tablet View - Cards */}
+            <div className="xl:hidden space-y-3">
+              {positions.map((position) => (
+                <PositionCard
+                  key={position.id}
+                  position={position}
+                  onEdit={() => startEditing(position)}
+                  onExit={() => onExitPosition?.(position.id)}
+                  onUpdate={(tp, sl) => onUpdatePosition?.(position.id, tp, sl)}
+                  isEditing={editingId === position.id}
+                  editValues={editValues}
+                  setEditValues={setEditValues}
+                  onSave={() => saveEdit(position.id)}
+                  onCancel={cancelEdit}
+                />
+              ))}
+            </div>
+
+            {/* Desktop View - Table */}
+            <div className="hidden xl:block overflow-x-auto">
+              <Table className="table-fixed">
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead className="text-muted-foreground w-20">Time</TableHead>
+                    <TableHead className="text-muted-foreground w-32">Symbol</TableHead>
+                    <TableHead className="text-muted-foreground w-20">Type</TableHead>
+                    <TableHead className="text-right text-muted-foreground w-16">Qty</TableHead>
+                    <TableHead className="text-right text-muted-foreground w-24">Entry</TableHead>
+                    <TableHead className="text-right text-muted-foreground w-28">TP</TableHead>
+                    <TableHead className="text-right text-muted-foreground w-28">SL</TableHead>
+                    <TableHead className="text-right text-muted-foreground w-24">P&L</TableHead>
+                    <TableHead className="text-right text-muted-foreground w-28">Actions</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {positions.map((position) => (
+                    <TableRow key={position.id} className="border-border">
+                      <TableCell className="font-mono text-sm">{position.time}</TableCell>
+                      <TableCell className="font-medium">{position.symbol}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            position.type === 'BUY'
+                              ? "border-profit/50 bg-profit/10 text-profit"
+                              : "border-loss/50 bg-loss/10 text-loss"
+                          )}
+                        >
+                          {position.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{position.qty}</TableCell>
+                      <TableCell className="text-right font-mono">₹{position.entry.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        {editingId === position.id ? (
+                          <Input
+                            type="text"
+                            value={editValues.tp}
+                            onChange={(e) => setEditValues({ ...editValues, tp: e.target.value })}
+                            className="h-7 w-full text-right text-sm font-mono bg-transparent border-primary/50 focus:border-primary px-2"
+                            placeholder="TP"
+                          />
+                        ) : (
+                          <span className="font-mono text-profit">₹{position.tp.toFixed(2)}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {editingId === position.id ? (
+                          <Input
+                            type="text"
+                            value={editValues.sl}
+                            onChange={(e) => setEditValues({ ...editValues, sl: e.target.value })}
+                            className="h-7 w-full text-right text-sm font-mono bg-transparent border-loss/50 focus:border-loss px-2"
+                            placeholder="SL"
+                          />
+                        ) : (
+                          <span className="font-mono text-loss">₹{position.sl.toFixed(2)}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className={cn(
+                        "text-right font-mono font-medium",
+                        position.pnl >= 0 ? "text-profit" : "text-loss"
+                      )}>
+                        {position.pnl >= 0 ? '+' : ''}₹{position.pnl.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {editingId === position.id ? (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => saveEdit(position.id)}
+                              >
+                                <Check className="h-4 w-4 text-profit" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={cancelEdit}
+                              >
+                                <X className="h-4 w-4 text-loss" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => startEditing(position)}
+                              >
+                                <Edit2 className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-loss hover:bg-loss/10 hover:text-loss"
+                                onClick={() => onExitPosition && onExitPosition(position.id)}
+                              >
+                                Exit
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );
