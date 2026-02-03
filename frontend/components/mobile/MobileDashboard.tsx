@@ -78,6 +78,10 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         totp: ''
     });
 
+    const [orderBook, setOrderBook] = useState<any[]>([]);
+    const [plans, setPlans] = useState<any[]>([]);
+    const [profile, setProfile] = useState<any>(null);
+
     const socketRef = useRef<Socket | null>(null);
 
     // Notify parent of status changes
@@ -93,13 +97,14 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 const statusData = await fetchJson('/status');
                 setIsSystemActive(statusData.active === true);
 
-                // Get profile credentials
-                const profile = await fetchJson('/get_profile');
+                // Get profile credentials and data
+                const profileData = await fetchJson('/get_profile');
+                setProfile(profileData);
                 setCredentials({
-                    apiKey: profile.angel_api_key || '',
-                    clientCode: profile.angel_client_code || '',
-                    password: profile.angel_password || '',
-                    totp: profile.angel_totp || ''
+                    apiKey: profileData.angel_api_key || '',
+                    clientCode: profileData.angel_client_code || '',
+                    password: profileData.angel_password || '',
+                    totp: profileData.angel_totp || ''
                 });
 
                 // Get P&L
@@ -111,6 +116,16 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 if (tradesData.status === 'success') {
                     setPositions(mapBackendTrades(tradesData.data));
                 }
+
+                // Get order book
+                const orderBookData = await fetchJson('/orderbook?simulated=false');
+                if (orderBookData.status === 'success') {
+                    setOrderBook(orderBookData.data);
+                }
+
+                // Get plans
+                const plansData = await fetchJson('/plans');
+                setPlans(plansData);
             } catch (err) {
                 console.error("Failed to load initial data", err);
             }
@@ -458,7 +473,22 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                             ← Back
                         </button>
                     </div>
-                    <MobileOrderBookView orders={[]} />
+                    <MobileOrderBookView
+                        orders={orderBook}
+                        onDeleteOrders={async (ids) => {
+                            try {
+                                await fetchJson('/delete_orders', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ ids })
+                                });
+                                setOrderBook(prev => prev.filter(o => !ids.includes(o.id)));
+                                toast.success(`Deleted ${ids.length} order(s)`);
+                            } catch (err) {
+                                toast.error('Failed to delete orders');
+                            }
+                        }}
+                    />
                 </div>
             )}
 
@@ -473,7 +503,29 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                             ← Back
                         </button>
                     </div>
-                    <MobilePlansView plans={[]} currentPlan={null} />
+                    <MobilePlansView
+                        plans={plans}
+                        currentPlan={profile?.plan || null}
+                        onSubscribe={async (planId) => {
+                            try {
+                                const result = await fetchJson('/subscribe', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ plan_id: planId })
+                                });
+                                if (result.status === 'success') {
+                                    toast.success('Subscription initiated!');
+                                    // Refresh profile
+                                    const profileData = await fetchJson('/get_profile');
+                                    setProfile(profileData);
+                                } else {
+                                    toast.error(result.message || 'Subscription failed');
+                                }
+                            } catch (err) {
+                                toast.error('Failed to subscribe');
+                            }
+                        }}
+                    />
                 </div>
             )}
 
