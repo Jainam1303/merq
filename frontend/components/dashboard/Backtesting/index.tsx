@@ -185,6 +185,7 @@ export function Backtesting() {
             await fetchJson('/save_backtest', {
                 method: 'POST', body: JSON.stringify({
                     results: rawResults,
+                    strategy: formData.strategy,
                     interval: formData.interval,
                     fromDate: formData.from_date,
                     toDate: formData.to_date
