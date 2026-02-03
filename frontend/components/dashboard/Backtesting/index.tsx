@@ -323,7 +323,7 @@ export function Backtesting() {
 
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" className="min-w-[120px]">
+                                        <Button variant="outline" className="min-w-[120px] h-11">
                                             My Stocklist <ChevronDown className="ml-2 h-4 w-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
@@ -374,7 +374,7 @@ export function Backtesting() {
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-10 w-10 shrink-0"
+                                    className="h-11 w-11 shrink-0"
                                     onClick={() => fileInputRef.current?.click()}
                                     disabled={running}
                                     title="Import CSV"
@@ -386,7 +386,7 @@ export function Backtesting() {
                                 <Button
                                     variant="outline"
                                     size="icon"
-                                    className="h-10 w-10 shrink-0 text-destructive hover:text-destructive"
+                                    className="h-11 w-11 shrink-0 text-destructive hover:text-destructive"
                                     onClick={() => setSelectedStocks([])}
                                     disabled={running || selectedStocks.length === 0}
                                     title="Clear All"
@@ -394,7 +394,7 @@ export function Backtesting() {
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
 
-                                <Button onClick={handleRunBacktest} disabled={running || selectedStocks.length === 0} className="min-w-[130px]">
+                                <Button onClick={handleRunBacktest} disabled={running || selectedStocks.length === 0} className="min-w-[130px] h-11">
                                     {running ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running...</> : <><Play className="mr-2 h-4 w-4" /> Run Backtest</>}
                                 </Button>
                             </div>
