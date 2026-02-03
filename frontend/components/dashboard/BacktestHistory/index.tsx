@@ -33,11 +33,13 @@ export function BacktestHistory() {
 
     const handleDelete = async (id: number) => {
         try {
+            console.log("Deleting backtest result:", id);
             await fetchJson(`/backtest_history/${id}`, { method: 'DELETE' });
             setHistory(prev => prev.filter(h => h.id !== id));
-            toast.success("Result deleted");
+            toast.success("Backtest deleted successfully");
         } catch (e) {
-            toast.error("Failed to delete result");
+            console.error("Delete failed:", e);
+            toast.error("Failed to delete result. Check console.");
         }
     };
 
