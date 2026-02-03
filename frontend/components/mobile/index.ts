@@ -6,4 +6,6 @@ export { MobileLogsView } from './MobileLogsView';
 export { MobileSettingsView } from './MobileSettingsView';
 export { MobileBacktestView } from './MobileBacktestView';
 export { MobileAnalyticsView } from './MobileAnalyticsView';
+export { MobileOrderBookView } from './MobileOrderBookView';
+export { MobilePlansView } from './MobilePlansView';
 export { MobileDashboard } from './MobileDashboard';

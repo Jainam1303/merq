@@ -10,6 +10,8 @@ import {
     MobileSettingsView,
     MobileBacktestView,
     MobileAnalyticsView,
+    MobileOrderBookView,
+    MobilePlansView,
     type MobileTab
 } from '@/components/mobile';
 import { MobileHeader } from './MobileHeader';
@@ -422,6 +424,9 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         toast.success(`Switched to ${newMode} mode`);
     };
 
+    const [showOrderBook, setShowOrderBook] = useState(false);
+    const [showPlans, setShowPlans] = useState(false);
+
     return (
         <div className="lg:hidden min-h-screen bg-zinc-50 dark:bg-zinc-950">
             {/* Mobile Header */}
@@ -432,15 +437,45 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 onLogout={handleLogout}
                 onToggleTradingMode={handleToggleTradingMode}
                 onNavigateToOrderBook={() => {
-                    toast.info("Order Book - Coming soon on mobile");
+                    setShowOrderBook(true);
                 }}
                 onNavigateToPlans={() => {
-                    toast.info("Plans - Coming soon on mobile");
+                    setShowPlans(true);
                 }}
                 onNavigateToSettings={() => {
                     toast.info("Settings are available in the Home tab");
                 }}
             />
+
+            {/* Order Book Modal */}
+            {showOrderBook && (
+                <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-950">
+                    <div className="h-16 flex items-center px-4 border-b border-zinc-200 dark:border-zinc-800">
+                        <button
+                            onClick={() => setShowOrderBook(false)}
+                            className="text-zinc-600 dark:text-zinc-400 font-medium"
+                        >
+                            ← Back
+                        </button>
+                    </div>
+                    <MobileOrderBookView orders={[]} />
+                </div>
+            )}
+
+            {/* Plans Modal */}
+            {showPlans && (
+                <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-950">
+                    <div className="h-16 flex items-center px-4 border-b border-zinc-200 dark:border-zinc-800">
+                        <button
+                            onClick={() => setShowPlans(false)}
+                            className="text-zinc-600 dark:text-zinc-400 font-medium"
+                        >
+                            ← Back
+                        </button>
+                    </div>
+                    <MobilePlansView plans={[]} currentPlan={null} />
+                </div>
+            )}
 
             {/* Content */}
             <main className="pt-16 has-mobile-nav">
