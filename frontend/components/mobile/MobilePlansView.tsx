@@ -30,6 +30,9 @@ export function MobilePlansView({
     currentPlan = null,
     onSubscribe
 }: MobilePlansViewProps) {
+    // Ensure plans is always an array
+    const safePlans = Array.isArray(plans) ? plans : [];
+
     const getDurationLabel = (days: number, price: number) => {
         if (days === 90) return '/ 3 Months';
         if (days === 180) return '/ 6 Months';
@@ -105,7 +108,7 @@ export function MobilePlansView({
                     {currentPlan ? 'Upgrade or Change Plan' : 'Available Plans'}
                 </h3>
                 <div className="space-y-3">
-                    {plans.map((plan) => {
+                    {safePlans.map((plan) => {
                         const Icon = getPlanIcon(plan.name);
                         const features = parseFeatures(plan.features);
                         const isCurrentPlan = currentPlan?.name === plan.name;

@@ -28,7 +28,10 @@ export function MobileOrderBookView({
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
-    const filteredOrders = orders.filter(order => {
+    // Ensure orders is always an array
+    const safeOrders = Array.isArray(orders) ? orders : [];
+
+    const filteredOrders = safeOrders.filter(order => {
         if (!startDate && !endDate) return true;
         const orderDate = new Date(order.timestamp);
         const start = startDate ? new Date(startDate) : null;
@@ -95,7 +98,7 @@ export function MobileOrderBookView({
         }
     };
 
-    if (orders.length === 0) {
+    if (safeOrders.length === 0) {
         return (
             <div className="min-h-[calc(100vh-180px)] flex items-center justify-center p-4">
                 <div className="text-center">
