@@ -31,7 +31,7 @@ export function LivePnLCard({ pnl, percentChange }: LivePnLCardProps) {
               ) : (
                 <TrendingDown className="h-4 w-4" />
               )}
-              <span>{isPositive ? '+' : ''}{percentChange.toFixed(2)}%</span>
+              <span>{isPositive ? '+' : ''}{parseFloat(String(percentChange ?? 0)).toFixed(2)}%</span>
             </div>
           </div>
 

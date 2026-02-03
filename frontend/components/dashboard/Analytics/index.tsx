@@ -108,7 +108,7 @@ export function Analytics() {
                     <CardContent className="p-6 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">Win Rate</p>
-                            <p className="text-2xl font-bold text-green-500">{winRate.toFixed(1)}%</p>
+                            <p className="text-2xl font-bold text-green-500">{parseFloat(String(winRate ?? 0)).toFixed(1)}%</p>
                         </div>
                         <div className="h-10 w-10 flex items-center justify-center rounded bg-green-500/10 text-green-500">
                             <Target className="h-5 w-5" />
@@ -120,7 +120,7 @@ export function Analytics() {
                         <div>
                             <p className="text-sm text-muted-foreground">Avg Profit/Trade</p>
                             <p className={`text-2xl font-bold ${avgProfitPerTrade >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                ₹{avgProfitPerTrade.toFixed(0)}
+                                ₹{parseFloat(String(avgProfitPerTrade ?? 0)).toFixed(0)}
                             </p>
                         </div>
                         <div className="h-10 w-10 flex items-center justify-center rounded bg-blue-500/10 text-blue-500">
@@ -132,7 +132,7 @@ export function Analytics() {
                     <CardContent className="p-6 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">Profit Factor</p>
-                            <p className="text-2xl font-bold">{profitFactor.toFixed(2)}</p>
+                            <p className="text-2xl font-bold">{parseFloat(String(profitFactor ?? 0)).toFixed(2)}</p>
                         </div>
                         <div className="h-10 w-10 flex items-center justify-center rounded bg-orange-500/10 text-orange-500">
                             <Activity className="h-5 w-5" />
@@ -189,8 +189,8 @@ export function Analytics() {
                             <button
                                 onClick={() => setTimePeriod('7D')}
                                 className={`px-3 py-1 text-xs font-medium rounded transition-colors ${timePeriod === '7D'
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                                     }`}
                             >
                                 7D
@@ -198,8 +198,8 @@ export function Analytics() {
                             <button
                                 onClick={() => setTimePeriod('30D')}
                                 className={`px-3 py-1 text-xs font-medium rounded transition-colors ${timePeriod === '30D'
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                                     }`}
                             >
                                 30D
@@ -207,8 +207,8 @@ export function Analytics() {
                             <button
                                 onClick={() => setTimePeriod('90D')}
                                 className={`px-3 py-1 text-xs font-medium rounded transition-colors ${timePeriod === '90D'
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
                                     }`}
                             >
                                 90D
@@ -258,7 +258,7 @@ export function Analytics() {
                                 </PieChart>
                             </ResponsiveContainer>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span className="text-3xl font-bold">{winRate.toFixed(0)}%</span>
+                                <span className="text-3xl font-bold">{parseFloat(String(winRate ?? 0)).toFixed(0)}%</span>
                                 <span className="text-xs text-muted-foreground">Win Rate</span>
                             </div>
                         </div>
