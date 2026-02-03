@@ -293,6 +293,10 @@ class TradingSession:
             
             # Check for signals (only if ORB levels calculated)
             if symbol in self.orb_levels:
+                # Heartbeat log (every 100 ticks or random) to prevent spam
+                import random
+                if random.random() < 0.05: # 5% chance to log
+                    self.log(f"Tick Rx: {symbol} @ {ltp}", "DEBUG")
                 self._check_signal(symbol, ltp)
                 
         except Exception as e:
@@ -391,6 +395,17 @@ class TradingSession:
         capital = float(self.config.get('capital', 100000))
         qty = int(capital / ltp) if ltp > 0 else 1
         qty = max(1, qty)  # At least 1 share
+        
+        # DEBUG: Explain Logic
+        if ltp > or_high:
+             self.log(f"{symbol} BREAKOUT CHECK: {ltp} > {or_high} -> BUY!", "DEBUG")
+        elif ltp < or_low:
+             self.log(f"{symbol} BREAKDOWN CHECK: {ltp} < {or_low} -> SELL!", "DEBUG")
+        else:
+             # Log only occasionally to verify logic is running
+             import random
+             if random.random() < 0.01: 
+                 self.log(f"{symbol} Logic: {ltp} is inside range ({or_low} - {or_high})", "INFO")
         
         # BUY Signal: Price breaks above ORB High
         if ltp > or_high:
