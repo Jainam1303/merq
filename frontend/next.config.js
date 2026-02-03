@@ -9,6 +9,10 @@ const nextConfig = {
                 destination: `${apiUrl}/:path*`, // Proxy to Backend
             },
             {
+                source: '/socket.io',
+                destination: `${apiUrl}/socket.io`,
+            },
+            {
                 source: '/socket.io/:path*',
                 destination: `${apiUrl}/socket.io/:path*`,
             },
