@@ -101,208 +101,157 @@ class TradingSession:
             time.sleep(1)
 
     def _load_symbol_tokens(self):
-        """Map symbol names to Angel One tokens using searchScrip API with optimized rate limiting"""
+        """Load symbol tokens from pre-built file - NO API CALLS NEEDED"""
         symbols = self.config.get('symbols', [])
-        failed_lookups = []
         
-        # Process in batches with controlled timing
-        batch_size = 5  # Process 5 symbols, then pause
+        # Load the master token map from file (no API calls!)
+        token_map = {}
+        token_file_paths = [
+            '../backend-node/token -symbol.txt',
+            './token_symbol.txt',
+            '/root/merq/backend-node/token -symbol.txt',
+            '/home/ubuntu/merq/backend-node/token -symbol.txt'
+        ]
         
-        for idx, sym in enumerate(symbols):
+        import os
+        token_file = None
+        for path in token_file_paths:
+            if os.path.exists(path):
+                token_file = path
+                break
+        
+        if token_file:
             try:
-                # Clean symbol name (remove -EQ suffix if present)
-                clean = sym.upper().replace("-EQ", "")
-                
-                # Retry logic for API calls
-                max_retries = 2  # Reduced from 3
-                search = None
-                
-                for attempt in range(max_retries):
-                    # Shorter base delay: 0.5s between calls
-                    delay = 0.5 + (attempt * 0.3)  # 0.5s, 0.8s
-                    time.sleep(delay)
-                    
-                    try:
-                        search = self.smartApi.searchScrip("NSE", clean)
-                        
-                        if search and search.get('status') and search.get('data'):
-                            break  # Success
-                        
-                        # Check for rate limit
-                        error_code = search.get('errorcode', '') if search else ''
-                        if error_code == 'AB1004' and attempt < max_retries - 1:
-                            time.sleep(1.5)  # Reduced from 2s
-                            continue
-                        break
-                        
-                    except Exception as e:
-                        if attempt < max_retries - 1:
-                            continue
-                        break
-                
-                if search and search.get('status') and search.get('data'):
-                    # Find exact match or first result
-                    for item in search['data']:
-                        if item.get('tradingsymbol') == clean or item.get('tradingsymbol') == f"{clean}-EQ":
-                            self.symbol_tokens[sym] = item['symboltoken']
-                            break
-                    else:
-                        # Use first result if no exact match
-                        self.symbol_tokens[sym] = search['data'][0]['symboltoken']
-                else:
-                    failed_lookups.append(sym)
-                
-                # Batch pause: after every batch_size symbols, pause longer
-                if (idx + 1) % batch_size == 0 and idx < len(symbols) - 1:
-                    time.sleep(2)  # 2s pause between batches
-                    
+                with open(token_file, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 2 and parts[0].isdigit():
+                            token = parts[0]
+                            symbol = parts[1]
+                            token_map[symbol] = token
+                            # Also map without -EQ suffix
+                            token_map[symbol.replace('-EQ', '')] = token
+                self.log(f"Loaded {len(token_map)} tokens from file", "SUCCESS")
             except Exception as e:
-                self.log(f"Token lookup error for {sym}: {e}", "WARNING")
-                failed_lookups.append(sym)
+                self.log(f"Error loading token file: {e}", "WARNING")
         
-        self.log(f"Loaded tokens for {len(self.symbol_tokens)} symbols")
-        if failed_lookups:
-            self.log(f"Could not find tokens for: {', '.join(failed_lookups[:5])}{'...' if len(failed_lookups) > 5 else ''}", "WARNING")
+        # Map user's symbols to tokens
+        not_found = []
+        for sym in symbols:
+            clean = sym.upper()
+            if clean in token_map:
+                self.symbol_tokens[sym] = token_map[clean]
+            elif clean.replace('-EQ', '') in token_map:
+                self.symbol_tokens[sym] = token_map[clean.replace('-EQ', '')]
+            elif f"{clean}-EQ" in token_map:
+                self.symbol_tokens[sym] = token_map[f"{clean}-EQ"]
+            else:
+                not_found.append(sym)
+        
+        # If file not found or some symbols missing, fallback to searchScrip for just those
+        if not token_file or not_found:
+            if not_found:
+                self.log(f"Looking up {len(not_found)} missing symbols via API...", "INFO")
+            for sym in not_found:
+                try:
+                    clean = sym.upper().replace("-EQ", "")
+                    time.sleep(0.3)  # Minimal delay
+                    search = self.smartApi.searchScrip("NSE", clean)
+                    if search and search.get('status') and search.get('data'):
+                        self.symbol_tokens[sym] = search['data'][0]['symboltoken']
+                except Exception as e:
+                    self.log(f"Token lookup failed for {sym}: {e}", "WARNING")
+        
+        self.log(f"✓ Loaded tokens for {len(self.symbol_tokens)}/{len(symbols)} symbols")
+        if len(self.symbol_tokens) < len(symbols):
+            missing = [s for s in symbols if s not in self.symbol_tokens]
+            self.log(f"Missing: {', '.join(missing[:5])}", "WARNING")
 
     def _calculate_orb_levels(self):
-        """Fetch 09:15-09:30 candles and calculate ORB High/Low with optimized rate limiting"""
+        """
+        NEW APPROACH: Skip REST API calls entirely!
+        ORB levels will be calculated from WebSocket data in real-time.
+        This eliminates all rate limiting issues.
+        """
         symbols = self.config.get('symbols', [])
+        current_time = datetime.datetime.now().time()
         
-        # Angel One interval format mapping
-        interval_input = self.config.get('interval', 'FIVE_MINUTE')
-        interval_map = {
-            'FIVE_MINUTE': 'FIVE_MINUTE',
-            'FIFTEEN_MINUTE': 'FIFTEEN_MINUTE',
-            'THIRTY_MINUTE': 'THIRTY_MINUTE',
-            'ONE_HOUR': 'ONE_HOUR',
-            'ONE_DAY': 'ONE_DAY',
-            '5': 'FIVE_MINUTE',
-            '15': 'FIFTEEN_MINUTE',
-            '30': 'THIRTY_MINUTE',
-            '60': 'ONE_HOUR'
-        }
-        interval = interval_map.get(interval_input, 'FIVE_MINUTE')
-        
-        failed_symbols = []
-        success_count = 0
-        batch_size = 5  # Process 5 symbols, then pause
-        
-        for idx, symbol in enumerate(symbols):
-            try:
+        # Check if we're before 9:30 (ORB period not complete)
+        if current_time < datetime.time(9, 30):
+            self.log(f"⏳ Market opens at 9:15. ORB will be calculated from live WebSocket data.", "INFO")
+            # Initialize empty ORB levels - will be filled by WebSocket
+            for symbol in symbols:
+                if symbol in self.symbol_tokens:
+                    self.orb_levels[symbol] = {
+                        'or_high': 0,
+                        'or_low': float('inf'),
+                        'or_mid': 0,
+                        'collecting': True,  # Flag to collect data
+                        'candles': []  # Store ticks for ORB calculation
+                    }
+            self.log(f"🚀 Starting WebSocket. Will calculate ORB from 9:15-9:30 ticks.", "SUCCESS")
+        else:
+            # Market already open - try to get data, but don't block if rate limited
+            self.log(f"⚡ Market is open. Attempting quick ORB fetch...", "INFO")
+            
+            success_count = 0
+            for symbol in symbols:
+                if symbol not in self.symbol_tokens:
+                    continue
+                    
                 token = self.symbol_tokens.get(symbol)
-                if not token:
-                    self.log(f"No token for {symbol}, skipping ORB calc", "WARNING")
-                    failed_symbols.append(symbol)
-                    continue
-                
-                # Fetch today's data - use correct datetime format
                 today = datetime.date.today()
-                from_date = f"{today.strftime('%Y-%m-%d')} 09:15"
-                to_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
                 
-                params = {
-                    "exchange": "NSE",
-                    "symboltoken": token,
-                    "interval": interval,
-                    "fromdate": from_date,
-                    "todate": to_date
-                }
-                
-                # Retry logic with faster timing
-                max_retries = 2  # Reduced from 3
-                res = None
-                
-                for attempt in range(max_retries):
-                    # Faster base delay: 0.8s between calls
-                    delay = 0.8 + (attempt * 0.5)  # 0.8s, 1.3s
-                    time.sleep(delay)
+                try:
+                    # Single quick attempt - no retries
+                    params = {
+                        "exchange": "NSE",
+                        "symboltoken": token,
+                        "interval": "FIVE_MINUTE",
+                        "fromdate": f"{today.strftime('%Y-%m-%d')} 09:15",
+                        "todate": f"{today.strftime('%Y-%m-%d')} 09:30"
+                    }
                     
-                    try:
-                        res = self.smartApi.getCandleData(params)
-                        
-                        if res and res.get('status'):
-                            break  # Success, exit retry loop
-                        
-                        # Check for rate limit error
-                        error_code = res.get('errorcode', '') if res else ''
-                        if error_code == 'AB1004':
-                            if attempt < max_retries - 1:
-                                self.log(f"Rate limited on {symbol}, retrying in {delay + 1.5}s...", "WARNING")
-                                time.sleep(1.5)  # Reduced from 2s
-                                continue
-                        else:
-                            break  # Other error, don't retry
-                            
-                    except Exception as e:
-                        if attempt < max_retries - 1:
-                            self.log(f"API call failed for {symbol}, retrying... ({e})", "WARNING")
-                            continue
-                        break
-                
-                if not res:
-                    failed_symbols.append(symbol)
-                    continue
-                
-                if not res.get('status'):
-                    error_msg = res.get('message', 'Unknown error')
-                    error_code = res.get('errorcode', 'N/A')
-                    # Only log if it's not a rate limit error (already logged above)
-                    if error_code != 'AB1004':
-                        self.log(f"API Error {symbol}: {error_msg} (Code: {error_code})", "WARNING")
-                    failed_symbols.append(symbol)
-                    continue
+                    time.sleep(0.3)  # Minimal delay
+                    res = self.smartApi.getCandleData(params)
                     
-                if not res.get('data'):
-                    self.log(f"Empty data for {symbol} (token: {token})", "WARNING")
-                    failed_symbols.append(symbol)
-                    continue
-                
-                df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                df['timestamp'] = pd.to_datetime(df['timestamp'])
-                
-                # Filter for Opening Range (09:15 - 09:30)
-                or_df = df[(df['timestamp'].dt.time >= datetime.time(9, 15)) & 
-                           (df['timestamp'].dt.time <= datetime.time(9, 30))]
-                
-                if or_df.empty:
-                    # If no 9:15-9:30 data, use first 2-3 candles as ORB
-                    if len(df) >= 2:
-                        or_df = df.head(3)
-                        self.log(f"Using first 3 candles for ORB of {symbol}", "INFO")
+                    if res and res.get('status') and res.get('data'):
+                        df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                        or_high = float(df['high'].max())
+                        or_low = float(df['low'].min())
+                        
+                        self.orb_levels[symbol] = {
+                            'or_high': or_high,
+                            'or_low': or_low,
+                            'or_mid': (or_high + or_low) / 2,
+                            'collecting': False
+                        }
+                        success_count += 1
                     else:
-                        self.log(f"Not enough data for {symbol} ORB", "WARNING")
-                        failed_symbols.append(symbol)
-                        continue
-                
-                or_high = float(or_df['high'].max())
-                or_low = float(or_df['low'].min())
-                
-                self.orb_levels[symbol] = {
-                    'or_high': or_high,
-                    'or_low': or_low,
-                    'or_mid': (or_high + or_low) / 2
-                }
-                
-                success_count += 1
-                self.log(f"ORB {symbol}: High={or_high:.2f}, Low={or_low:.2f}")
-                
-                # Batch pause: after every batch_size symbols, pause longer
-                if (idx + 1) % batch_size == 0 and idx < len(symbols) - 1:
-                    time.sleep(2)  # 2s pause between batches
-                
-            except Exception as e:
-                self.log(f"ORB Calc Error {symbol}: {e}", "ERROR")
-                failed_symbols.append(symbol)
+                        # Failed - will use dynamic ORB from WebSocket
+                        self.orb_levels[symbol] = {
+                            'or_high': 0,
+                            'or_low': float('inf'),
+                            'or_mid': 0,
+                            'collecting': True
+                        }
+                except Exception as e:
+                    # Failed - will use dynamic ORB from WebSocket
+                    self.orb_levels[symbol] = {
+                        'or_high': 0,
+                        'or_low': float('inf'),
+                        'or_mid': 0,
+                        'collecting': True
+                    }
+            
+            dynamic_count = len([s for s in self.orb_levels.values() if s.get('collecting')])
+            
+            if success_count > 0:
+                self.log(f"✓ Got ORB data for {success_count} symbols from API", "SUCCESS")
+            if dynamic_count > 0:
+                self.log(f"📊 Using dynamic ORB for {dynamic_count} symbols (from WebSocket ticks)", "INFO")
         
-        # Summary log
-        if success_count > 0:
-            self.log(f"✓ Successfully calculated ORB for {success_count}/{len(symbols)} symbols", "SUCCESS")
-        if failed_symbols:
-            self.log(f"⚠ Failed to get data for {len(failed_symbols)} symbols: {', '.join(failed_symbols[:5])}{'...' if len(failed_symbols) > 5 else ''}", "WARNING")
-        
-        # If we have at least some symbols ready, continue to WebSocket
-        if success_count > 0:
-            self.log(f"Proceeding with {success_count} symbols. WebSocket will provide real-time data.", "INFO")
+        self.log(f"🚀 Ready! Starting WebSocket for real-time trading.", "SUCCESS")
 
     def _start_websocket(self):
         """Initialize and connect Angel One WebSocket for live data"""
@@ -369,7 +318,7 @@ class TradingSession:
                     symbol = sym
                     break
             
-            if not symbol:
+            if not symbol or ltp <= 0:
                 return
             
             # Update LTP cache
@@ -378,13 +327,29 @@ class TradingSession:
             # Update positions with live PnL
             self._update_position_pnl(symbol, ltp)
             
-            # Check for signals (only if ORB levels calculated)
+            # DYNAMIC ORB: Update ORB levels from WebSocket if we're collecting
             if symbol in self.orb_levels:
-                # Heartbeat log (every 100 ticks or random) to prevent spam
-                import random
-                if random.random() < 0.05: # 5% chance to log
-                    self.log(f"Tick Rx: {symbol} @ {ltp}", "DEBUG")
-                self._check_signal(symbol, ltp)
+                orb = self.orb_levels[symbol]
+                current_time = datetime.datetime.now().time()
+                
+                # If collecting ORB data (9:15-9:30)
+                if orb.get('collecting', False):
+                    if datetime.time(9, 15) <= current_time <= datetime.time(9, 30):
+                        # Update high/low from live ticks
+                        if ltp > orb.get('or_high', 0):
+                            orb['or_high'] = ltp
+                        if ltp < orb.get('or_low', float('inf')):
+                            orb['or_low'] = ltp
+                        orb['or_mid'] = (orb['or_high'] + orb['or_low']) / 2
+                    
+                    # After 9:30, stop collecting
+                    elif current_time > datetime.time(9, 30) and orb['or_high'] > 0:
+                        orb['collecting'] = False
+                        self.log(f"📊 ORB {symbol}: High={orb['or_high']:.2f}, Low={orb['or_low']:.2f} (from WebSocket)", "SUCCESS")
+                
+                # Check for signals (only after ORB is ready)
+                if not orb.get('collecting', False) and orb.get('or_high', 0) > 0:
+                    self._check_signal(symbol, ltp)
                 
         except Exception as e:
             # Don't spam logs for every tick error
