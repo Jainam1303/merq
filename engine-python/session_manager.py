@@ -447,6 +447,39 @@ class TradingSession:
                 return
 
         # ==========================================
+        # AUTO SQUARE OFF CHECK (3:05 PM Safety)
+        # ==========================================
+        # Parse stop time from config or default to 15:15 (3:15 PM)
+        # But per user request: "Auto Square off at 3:05 PM"
+        
+        # Hard safety stop at 15:05
+        square_off_time = datetime.time(15, 5)
+        
+        # Or use config stop time if it's earlier
+        config_stop_str = self.config.get('stopTime', '15:15')
+        try:
+            h, m = map(int, config_stop_str.split(':'))
+            config_stop = datetime.time(h, m)
+            if config_stop < square_off_time:
+                square_off_time = config_stop
+        except:
+            pass
+
+        if current_time >= square_off_time:
+            # 1. Close all OPEN positions for this symbol
+            active_smart_orders = 0
+            for p in self.positions:
+                 if p['symbol'] == symbol and p['status'] == 'OPEN':
+                     self._close_position(p, ltp, "AUTO_SQUARE_OFF")
+                     active_smart_orders += 1
+            
+            if active_smart_orders > 0:
+                 self.log(f"⏰ Auto Square Off Triggered for {symbol} at {current_time}", "WARNING")
+            
+            # 2. Block new signals
+            return
+
+        # ==========================================
         # STRATEGY: TEST (Immediate Buy)
         # ==========================================
         strategy_name = self.config.get('strategy', 'ORB').upper()
