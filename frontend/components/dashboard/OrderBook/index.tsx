@@ -357,7 +357,7 @@ export function OrderBook() {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP") : <span>Start Date</span>}
+                      {startDate ? format(startDate, "dd-MM-yyyy") : <span>Start Date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -380,7 +380,7 @@ export function OrderBook() {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : <span>End Date</span>}
+                      {endDate ? format(endDate, "dd-MM-yyyy") : <span>End Date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">

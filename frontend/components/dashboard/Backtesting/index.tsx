@@ -282,7 +282,7 @@ export function Backtesting() {
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {formData.from_date ? format(new Date(formData.from_date), "PPP") : <span>Pick a date</span>}
+                                        {formData.from_date ? format(new Date(formData.from_date), "dd-MM-yyyy") : <span>Pick a date</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
@@ -307,7 +307,7 @@ export function Backtesting() {
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {formData.to_date ? format(new Date(formData.to_date), "PPP") : <span>Pick a date</span>}
+                                        {formData.to_date ? format(new Date(formData.to_date), "dd-MM-yyyy") : <span>Pick a date</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0">
@@ -418,6 +418,15 @@ export function Backtesting() {
                                 />
                                 <Button
                                     variant="outline"
+                                    className="h-11 gap-2"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    title="Import CSV"
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    <span className="hidden sm:inline">Import CSV</span>
+                                </Button>
+                                <Button
+                                    variant="outline"
                                     size="icon"
                                     onClick={() => setSelectedStocks([])}
                                     disabled={selectedStocks.length === 0}
@@ -425,15 +434,6 @@ export function Backtesting() {
                                     className="h-11 w-11 shrink-0"
                                 >
                                     <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="h-11 gap-2"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    title="Import CSV"
-                                >
-                                    <Upload className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Import CSV</span>
                                 </Button>
 
                                 <Button
