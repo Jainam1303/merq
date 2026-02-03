@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { fetchJson } from "@/lib/api";
-import { User, Lock, Key, CreditCard, Eye, EyeOff, Check, Loader2, Save, ChevronRight } from "lucide-react";
+import { User, Lock, Key, CreditCard, Eye, EyeOff, Check, Loader2, Save, ChevronRight, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,26 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+// Country codes with flags
+const COUNTRIES = [
+    { code: 'IN', dial: '+91', flag: '🇮🇳', name: 'India' },
+    { code: 'US', dial: '+1', flag: '🇺🇸', name: 'United States' },
+    { code: 'GB', dial: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+    { code: 'AE', dial: '+971', flag: '🇦🇪', name: 'UAE' },
+    { code: 'SG', dial: '+65', flag: '🇸🇬', name: 'Singapore' },
+    { code: 'AU', dial: '+61', flag: '🇦🇺', name: 'Australia' },
+    { code: 'CA', dial: '+1', flag: '🇨🇦', name: 'Canada' },
+    { code: 'DE', dial: '+49', flag: '🇩🇪', name: 'Germany' },
+    { code: 'FR', dial: '+33', flag: '🇫🇷', name: 'France' },
+    { code: 'JP', dial: '+81', flag: '🇯🇵', name: 'Japan' },
+];
 
 const loadScript = (src: string) => {
     return new Promise((resolve) => {
@@ -21,21 +41,28 @@ const loadScript = (src: string) => {
     });
 };
 
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function Profile() {
     const [formData, setFormData] = useState({
         username: '',
         email: '',
         phone: '',
+        phoneCountry: 'IN', // Default to India
         angel_api_key: '',
         angel_client_code: '',
-        angel_password: '', // Will be empty from backend
+        angel_password: '',
         angel_totp: '',
         backtest_api_key: '',
         backtest_client_code: '',
-        backtest_password: '', // Will be empty
+        backtest_password: '',
         backtest_totp: '',
         new_password: '',
     });
+
+    // Validation errors
+    const [errors, setErrors] = useState<{ email?: string; phone?: string }>({});
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -87,7 +114,46 @@ export function Profile() {
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+
+        // Real-time validation
+        if (name === 'email') {
+            if (value && !EMAIL_REGEX.test(value)) {
+                setErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
+            } else {
+                setErrors(prev => ({ ...prev, email: undefined }));
+            }
+        }
+
+        if (name === 'phone') {
+            // Only allow digits
+            const digitsOnly = value.replace(/\D/g, '');
+            const country = COUNTRIES.find(c => c.code === formData.phoneCountry);
+            const maxLength = country?.code === 'IN' ? 10 : 15; // India has 10 digits
+
+            if (digitsOnly.length > maxLength) {
+                return; // Don't update if exceeds max length
+            }
+
+            setFormData(prev => ({ ...prev, phone: digitsOnly }));
+
+            if (digitsOnly && digitsOnly.length < 10) {
+                setErrors(prev => ({ ...prev, phone: 'Phone number must be at least 10 digits' }));
+            } else {
+                setErrors(prev => ({ ...prev, phone: undefined }));
+            }
+            return;
+        }
+    };
+
+    const handleCountryChange = (countryCode: string) => {
+        setFormData(prev => ({ ...prev, phoneCountry: countryCode, phone: '' }));
+        setErrors(prev => ({ ...prev, phone: undefined }));
+    };
+
+    const getSelectedCountry = () => {
+        return COUNTRIES.find(c => c.code === formData.phoneCountry) || COUNTRIES[0];
     };
 
     const handleUpdate = async (section: string) => {
@@ -191,11 +257,58 @@ export function Profile() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Email</Label>
-                                    <Input name="email" value={formData.email} onChange={handleChange} />
+                                    <Input
+                                        name="email"
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        className={errors.email ? 'border-red-500' : ''}
+                                        placeholder="example@email.com"
+                                    />
+                                    {errors.email && (
+                                        <p className="text-xs text-red-500">{errors.email}</p>
+                                    )}
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Phone</Label>
-                                    <Input name="phone" value={formData.phone} onChange={handleChange} />
+                                <div className="space-y-2 md:col-span-2">
+                                    <Label>Phone Number</Label>
+                                    <div className="flex gap-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" className="w-[130px] justify-between">
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="text-lg">{getSelectedCountry().flag}</span>
+                                                        <span className="text-sm">{getSelectedCountry().dial}</span>
+                                                    </span>
+                                                    <ChevronDown className="h-4 w-4 opacity-50" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="w-[200px] max-h-[300px] overflow-y-auto">
+                                                {COUNTRIES.map(country => (
+                                                    <DropdownMenuItem
+                                                        key={country.code}
+                                                        onClick={() => handleCountryChange(country.code)}
+                                                        className="cursor-pointer"
+                                                    >
+                                                        <span className="text-lg mr-2">{country.flag}</span>
+                                                        <span className="flex-1">{country.name}</span>
+                                                        <span className="text-muted-foreground text-xs">{country.dial}</span>
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                        <Input
+                                            name="phone"
+                                            type="tel"
+                                            value={formData.phone}
+                                            onChange={handleChange}
+                                            className={`flex-1 ${errors.phone ? 'border-red-500' : ''}`}
+                                            placeholder={formData.phoneCountry === 'IN' ? '9876543210' : 'Phone number'}
+                                            maxLength={formData.phoneCountry === 'IN' ? 10 : 15}
+                                        />
+                                    </div>
+                                    {errors.phone && (
+                                        <p className="text-xs text-red-500">{errors.phone}</p>
+                                    )}
                                 </div>
                             </div>
 
