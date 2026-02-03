@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import Link from 'next/link';
-import { TrendingUp, Power, LogOut, Moon, Sun, User, MoreVertical } from 'lucide-react';
+import { TrendingUp, Power, LogOut, Moon, Sun, User, MoreVertical, BookOpen, CreditCard, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MobileHeaderProps {
@@ -99,13 +99,49 @@ export function MobileHeader({
                                         <p className="text-xs text-zinc-500 truncate">{user?.email || ''}</p>
                                     </div>
 
+                                    {/* Order Book */}
+                                    <button
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            // Navigate to order book - will be handled by parent
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                    >
+                                        <BookOpen size={16} />
+                                        Order Book
+                                    </button>
+
+                                    {/* Plans */}
+                                    <button
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            // Navigate to plans - will be handled by parent
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                    >
+                                        <CreditCard size={16} />
+                                        Plans
+                                    </button>
+
+                                    {/* Settings */}
+                                    <button
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            // Navigate to settings - will be handled by parent
+                                        }}
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                    >
+                                        <Settings size={16} />
+                                        Settings
+                                    </button>
+
                                     {/* Theme Toggle */}
                                     <button
                                         onClick={() => {
                                             toggleTheme();
                                             setShowMenu(false);
                                         }}
-                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 border-t border-zinc-100 dark:border-zinc-800"
                                     >
                                         {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
                                         {isDarkMode ? 'Light Mode' : 'Dark Mode'}
