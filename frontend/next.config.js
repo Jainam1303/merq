@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     async rewrites() {
-        const apiUrl = process.env.API_URL || 'http://localhost:3001';
+        const apiUrl = 'http://3.110.30.136:5000'; // Hardcoded for immediate fix
         console.log(`[Next.js] Rewriting API calls to: ${apiUrl}`);
         return [
             {

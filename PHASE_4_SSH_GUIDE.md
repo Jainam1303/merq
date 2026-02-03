@@ -59,7 +59,7 @@ npm install
 
 ## Step 5: Start Node Server
 ```bash
-pm2 start src/app.js --name "merq-backend"
+pm2 start server.js --name "merq-backend"
 ```
 
 ## Step 6: Configure Python Engine
