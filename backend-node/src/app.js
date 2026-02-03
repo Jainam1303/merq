@@ -112,10 +112,29 @@ app.get('/analytics', verifyToken, async (req, res) => {
         try {
             const { Trade } = require('./models');
             dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
-            dbTrades = dbTrades.map(t => ({ pnl: t.pnl || 0, date: t.createdAt }));
+            dbTrades = dbTrades.map(t => {
+                let dateStr = 'Unknown';
+                if (t.timestamp && t.timestamp.includes(' ')) {
+                    dateStr = t.timestamp.split(' ')[0];
+                } else if (t.createdAt) {
+                    dateStr = t.createdAt.toISOString().split('T')[0];
+                }
+
+                return {
+                    pnl: parseFloat(t.pnl) || 0,
+                    date: dateStr
+                };
+            });
         } catch (e) { }
 
-        const allTrades = [...trades, ...dbTrades];
+        // Sanitize engine trades
+        const sanitizedTrades = trades.map(t => ({
+            ...t,
+            pnl: parseFloat(t.pnl) || 0,
+            date: t.date || 'Unknown'
+        }));
+
+        const allTrades = [...sanitizedTrades, ...dbTrades];
 
         if (allTrades.length === 0) {
             return res.json({
@@ -133,15 +152,15 @@ app.get('/analytics', verifyToken, async (req, res) => {
         }
 
         // Calculate statistics
-        const winningTrades = allTrades.filter(t => (t.pnl || 0) > 0);
-        const losingTrades = allTrades.filter(t => (t.pnl || 0) < 0);
+        const winningTrades = allTrades.filter(t => t.pnl > 0);
+        const losingTrades = allTrades.filter(t => t.pnl < 0);
 
-        const totalPnL = allTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+        const totalPnL = allTrades.reduce((sum, t) => sum + t.pnl, 0);
         const winRate = (winningTrades.length / allTrades.length) * 100;
         const avgProfit = totalPnL / allTrades.length;
 
-        const totalProfit = winningTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
-        const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + (t.pnl || 0), 0));
+        const totalProfit = winningTrades.reduce((sum, t) => sum + t.pnl, 0);
+        const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0));
         const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
 
         // Group by day
