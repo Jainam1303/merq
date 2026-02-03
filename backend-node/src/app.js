@@ -100,19 +100,17 @@ app.get('/market_data', (req, res) => {
 
 app.get('/analytics', verifyToken, async (req, res) => {
     try {
-        const engineService = require('./services/engineService');
-        const userId = String(req.user.id);
+        const { Trade } = require('./models');
 
-        // Get all trades from Python session
-        const engineStatus = await engineService.getStatus(userId);
-        const trades = engineStatus.trades_history || [];
-
-        // Also try DB trades
-        let dbTrades = [];
+        // Get ALL trades from Order Book database
+        let allTrades = [];
         try {
-            const { Trade } = require('./models');
-            dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
-            dbTrades = dbTrades.map(t => {
+            const dbTrades = await Trade.findAll({
+                where: { user_id: req.user.id },
+                order: [['createdAt', 'ASC']]
+            });
+
+            allTrades = dbTrades.map(t => {
                 let dateStr = 'Unknown';
                 if (t.timestamp && t.timestamp.includes(' ')) {
                     dateStr = t.timestamp.split(' ')[0];
@@ -125,16 +123,29 @@ app.get('/analytics', verifyToken, async (req, res) => {
                     date: dateStr
                 };
             });
-        } catch (e) { }
+        } catch (e) {
+            console.error('Failed to fetch trades from DB:', e);
+        }
 
-        // Sanitize engine trades
-        const sanitizedTrades = trades.map(t => ({
-            ...t,
-            pnl: parseFloat(t.pnl) || 0,
-            date: t.date || 'Unknown'
-        }));
+        // If no DB trades, try engine as fallback
+        if (allTrades.length === 0) {
+            try {
+                const engineService = require('./services/engineService');
+                const userId = String(req.user.id);
+                const engineStatus = await engineService.getStatus(userId);
+                const engineTrades = engineStatus.trades_history || [];
 
-        const allTrades = [...sanitizedTrades, ...dbTrades];
+                allTrades = engineTrades.map(t => ({
+                    pnl: parseFloat(t.pnl) || 0,
+                    date: t.date || 'Unknown'
+                }));
+            } catch (e) {
+                console.error('Failed to fetch from engine:', e);
+            }
+        }
+
+        console.log(`[Analytics] Fetched ${allTrades.length} trades for user ${req.user.id}`);
+        console.log(`[Analytics] Date range: ${allTrades[0]?.date} to ${allTrades[allTrades.length - 1]?.date}`);
 
         if (allTrades.length === 0) {
             return res.json({
