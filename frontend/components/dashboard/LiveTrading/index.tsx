@@ -146,7 +146,7 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
       socket = io({
         path: '/socket.io',
         withCredentials: true,
-        transports: ['websocket', 'polling'], // Allow WebSocket upgrade
+        transports: ['polling'], // Force Polling (Vercel proxies HTTP well, but not WS)
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
       });
