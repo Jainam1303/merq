@@ -176,7 +176,7 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
               )}
 
               {/* Unified Search Results Dropdown */}
-              {showDropdown && (searchTerm.length >= 0 || searchResults.length > 0) && (
+              {showDropdown && searchTerm.trim().length > 0 && (
                 <div className="absolute z-50 mt-1 max-h-80 w-full overflow-auto rounded-md border border-border bg-popover p-1 shadow-md">
                   {/* Local/Saved Matches */}
                   {(() => {
