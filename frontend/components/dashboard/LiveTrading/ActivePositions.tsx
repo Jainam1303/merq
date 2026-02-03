@@ -157,11 +157,11 @@ function PositionCard({
               <div className="flex-1 grid grid-cols-2 gap-2 text-sm">
                 <div className="px-3 py-2 rounded-lg bg-profit/5 border border-profit/20">
                   <div className="text-[10px] text-muted-foreground uppercase">TP</div>
-                  <div className="font-mono text-profit">₹{position.tp.toFixed(2)}</div>
+                  <div className="font-mono text-profit">₹{Number(position.tp || 0).toFixed(2)}</div>
                 </div>
                 <div className="px-3 py-2 rounded-lg bg-loss/5 border border-loss/20">
                   <div className="text-[10px] text-muted-foreground uppercase">SL</div>
-                  <div className="font-mono text-loss">₹{position.sl.toFixed(2)}</div>
+                  <div className="font-mono text-loss">₹{Number(position.sl || 0).toFixed(2)}</div>
                 </div>
               </div>
               <Button
@@ -229,7 +229,7 @@ export function ActivePositions({
     }
   };
 
-  const totalPnl = positions.reduce((sum, p) => sum + p.pnl, 0);
+  const totalPnl = positions.reduce((sum, p) => sum + (Number(p.pnl) || 0), 0);
 
   return (
     <Card className="border-border bg-card">
@@ -247,12 +247,12 @@ export function ActivePositions({
         </div>
         {positions.length > 0 && (
           <Button
-            variant={confirmSquareOff ? "destructive" : "outline"}
+            variant="destructive"
             size="sm"
             onClick={handleSquareOffAll}
             className={cn(
               "min-h-[40px]",
-              !confirmSquareOff && "border-loss/50 text-loss hover:bg-loss/10"
+              !confirmSquareOff && "border-loss/50 text-loss hover:bg-loss/10 bg-transparent"
             )}
           >
             <AlertTriangle size={14} className="mr-1" />
@@ -319,7 +319,7 @@ export function ActivePositions({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">{position.qty}</TableCell>
-                      <TableCell className="text-right font-mono">₹{position.entry.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-mono">₹{Number(position.entry || 0).toFixed(2)}</TableCell>
                       <TableCell className="text-right">
                         {editingId === position.id ? (
                           <Input
@@ -330,7 +330,7 @@ export function ActivePositions({
                             placeholder="TP"
                           />
                         ) : (
-                          <span className="font-mono text-profit">₹{position.tp.toFixed(2)}</span>
+                          <span className="font-mono text-profit">₹{Number(position.tp || 0).toFixed(2)}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
@@ -343,14 +343,14 @@ export function ActivePositions({
                             placeholder="SL"
                           />
                         ) : (
-                          <span className="font-mono text-loss">₹{position.sl.toFixed(2)}</span>
+                          <span className="font-mono text-loss">₹{Number(position.sl || 0).toFixed(2)}</span>
                         )}
                       </TableCell>
                       <TableCell className={cn(
                         "text-right font-mono font-medium",
-                        position.pnl >= 0 ? "text-profit" : "text-loss"
+                        Number(position.pnl) >= 0 ? "text-profit" : "text-loss"
                       )}>
-                        {position.pnl >= 0 ? '+' : ''}₹{position.pnl.toFixed(2)}
+                        {Number(position.pnl) >= 0 ? '+' : ''}₹{Number(position.pnl || 0).toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
