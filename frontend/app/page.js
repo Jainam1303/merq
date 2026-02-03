@@ -9,6 +9,7 @@ import { ConfirmDialog, PromptDialog, RiskDisclosureModal } from './Modal';
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { BacktestHistory } from "@/components/dashboard/BacktestHistory";
+import { MobileDashboard } from "@/components/mobile";
 
 // Dynamic Razorpay script loading (like startup project)
 const loadRazorpayScript = async () => {
@@ -2673,6 +2674,7 @@ export default function Home() {
   const currentObItems = orderBook.slice(obFirstIdx, obLastIdx);
   const totalObPages = Math.ceil(orderBook.length / obItemsPerPage);
 
+
   // Main Render
   let content;
   if (currentPage === 'landing' || (!user && !['login', 'register', 'pricing'].includes(currentPage))) {
@@ -2684,55 +2686,449 @@ export default function Home() {
   } else if (currentPage === 'pricing') {
     content = <Pricing onSubscribe={(plan) => { alert(`You selected ${plan.name} plan! Redirecting to payment...`); setCurrentPage('register'); }} />;
   } else {
+    // DASHBOARD CONTENT - Split into Mobile and Desktop
     content = (
-      <main className="pt-24 pb-20 px-6 animate-in fade-in duration-500">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 gap-6">
-          <div className="flex justify-between items-end border-b border-zinc-200 dark:border-[#27272a] pb-6">
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Dashboard</h2>
+      <>
+        {/* MOBILE DASHBOARD (Visible only on lg and smaller) */}
+        <div className="lg:hidden">
+          <MobileDashboard
+            tradingMode={isSimulated ? 'PAPER' : 'LIVE'}
+            user={user}
+            onSystemStatusChange={(active) => {
+              if (active && status !== "RUNNING") setStatus("RUNNING");
+              if (!active && status === "RUNNING") setStatus("OFFLINE");
+            }}
+          />
+        </div>
 
+        {/* DESKTOP DASHBOARD (Hidden on mobile) */}
+        <main className="hidden lg:block pt-24 pb-20 px-6 animate-in fade-in duration-500">
+
+          <div className="max-w-7xl mx-auto grid grid-cols-1 gap-6">
+            <div className="flex justify-between items-end border-b border-zinc-200 dark:border-[#27272a] pb-6">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Dashboard</h2>
+
+                </div>
+                <p className="text-zinc-500 text-sm mt-1">Manage live strategies and simulations</p>
               </div>
-              <p className="text-zinc-500 text-sm mt-1">Manage live strategies and simulations</p>
+              <div className="bg-zinc-100 dark:bg-[#18181b] p-1 rounded-full border border-zinc-200 dark:border-[#27272a] flex">
+                <button onClick={() => setActiveTab('live')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'live' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Live</button>
+                <button onClick={() => setActiveTab('backtest')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'backtest' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Backtest</button>
+                <button onClick={() => setActiveTab('backtest_history')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'backtest_history' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Backtest History</button>
+                {user && <button onClick={() => setActiveTab('analytics')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'analytics' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Analytics</button>}
+                {/* <button onClick={() => setActiveTab('orderbook')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'orderbook' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Order Book</button> */}
+                {user && <button onClick={() => setActiveTab('history')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'history' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>History</button>}
+                {user && <button onClick={() => setShowProfile(true)} className="ml-2 px-4 lg:px-6 py-2 rounded-full font-bold text-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all flex items-center gap-2"><UserIcon size={14} /> Profile</button>}
+              </div>
             </div>
-            <div className="bg-zinc-100 dark:bg-[#18181b] p-1 rounded-full border border-zinc-200 dark:border-[#27272a] flex">
-              <button onClick={() => setActiveTab('live')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'live' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Live</button>
-              <button onClick={() => setActiveTab('backtest')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'backtest' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Backtest</button>
-              <button onClick={() => setActiveTab('backtest_history')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'backtest_history' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Backtest History</button>
-              {user && <button onClick={() => setActiveTab('analytics')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'analytics' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Analytics</button>}
-              {/* <button onClick={() => setActiveTab('orderbook')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'orderbook' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>Order Book</button> */}
-              {user && <button onClick={() => setActiveTab('history')} className={`px-4 lg:px-6 py-2 rounded-full font-bold text-sm transition-all ${activeTab === 'history' ? 'bg-white dark:bg-zinc-800 text-black dark:text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300'}`}>History</button>}
-              {user && <button onClick={() => setShowProfile(true)} className="ml-2 px-4 lg:px-6 py-2 rounded-full font-bold text-sm bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-300 dark:hover:bg-zinc-700 transition-all flex items-center gap-2"><UserIcon size={14} /> Profile</button>}
-            </div>
-          </div>
-          {activeTab === 'live' && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="lg:col-span-1 flex flex-col gap-6">
-                {/* System Status / Toggle Box */}
-                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] p-5 rounded-2xl shadow-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase tracking-wider">
-                    <Zap size={14} className={status === "RUNNING" ? "text-blue-500" : ""} />
-                    System Status
+            {activeTab === 'live' && (
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="lg:col-span-1 flex flex-col gap-6">
+                  {/* System Status / Toggle Box */}
+                  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] p-5 rounded-2xl shadow-xl flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase tracking-wider">
+                      <Zap size={14} className={status === "RUNNING" ? "text-blue-500" : ""} />
+                      System Status
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className={`text-xs font-bold transition-colors ${status === "RUNNING" ? "text-zinc-400" : "text-zinc-600 dark:text-zinc-300"}`}>OFF</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={status === "RUNNING"}
+                          onChange={() => status === "RUNNING" ? stopBot() : startBot()}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>
+                      </label>
+                      <span className={`text-xs font-bold transition-colors ${status === "RUNNING" ? "text-blue-600 dark:text-blue-400" : "text-zinc-400"}`}>ON</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-xs font-bold transition-colors ${status === "RUNNING" ? "text-zinc-400" : "text-zinc-600 dark:text-zinc-300"}`}>OFF</span>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={status === "RUNNING"}
-                        onChange={() => status === "RUNNING" ? stopBot() : startBot()}
-                        className="sr-only peer"
-                      />
-                      <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-zinc-600 peer-checked:bg-blue-600"></div>
-                    </label>
-                    <span className={`text-xs font-bold transition-colors ${status === "RUNNING" ? "text-blue-600 dark:text-blue-400" : "text-zinc-400"}`}>ON</span>
+
+                  <div className={`bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] p-5 rounded-2xl shadow-xl space-y-4 transition-opacity ${status === "RUNNING" ? "opacity-50 pointer-events-none" : ""}`}>
+                    <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2"><Activity size={14} /> Strategy Config</div>
+                    <div className="space-y-4">
+                      <InstrumentSearch onAdd={async (item) => {
+                        try {
+                          const res = await fetchJson('/add_token', { method: 'POST', body: JSON.stringify(item) });
+
+                          if (res.status === 'success') {
+                            const syms = await fetchJson('/symbols');
+                            setAllSymbols(syms);
+
+                            // Add to watchlist if not already there
+                            setLiveSymbols(prev => {
+                              if (!prev.includes(item.symbol)) {
+                                addToast(`Added ${item.symbol} to watchlist`, "success");
+                                return [...prev, item.symbol];
+                              }
+                              addToast(`${item.symbol} is already in your watchlist`, "info");
+                              return prev;
+                            });
+                          } else {
+                            addToast(res.message || "Error adding token", "error");
+                          }
+                        } catch (e) {
+                          addToast(e.message || "Error adding token", "error");
+                        }
+                      }} />
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold">Stock Universe</label>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => {
+                                const csvContent = "data:text/csv;charset=utf-8," + "SYMBOL\nSBIN-EQ\nRELIANCE-EQ\nINFY-EQ\nTATASTEEL-EQ";
+                                const encodedUri = encodeURI(csvContent);
+                                const link = document.createElement("a");
+                                link.setAttribute("href", encodedUri);
+                                link.setAttribute("download", "sample_symbols.csv");
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }} className="flex items-center gap-1 cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-bold bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded transition-colors" title="Download Sample CSV">
+                                <Download size={10} /> Sample
+                              </button>
+                              <label className="flex items-center gap-1 cursor-pointer text-[10px] text-blue-500 hover:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40">
+                                <Upload size={10} /> Bulk Upload
+                                <input type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
+                              </label>
+                              <button onClick={() => setLiveSymbols([])} className="flex items-center justify-center cursor-pointer text-red-500 hover:text-red-400 bg-red-50 dark:bg-red-900/20 w-6 h-6 rounded transition-colors hover:bg-red-100 dark:hover:bg-red-900/40" title="Clear All Symbols">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <MultiSelect options={allSymbols} selected={liveSymbols} onChange={setLiveSymbols} placeholder="Select Stocks..." />
+                      </div>
+                      <div><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Timeframe</label><div className="grid grid-cols-4 gap-1">{tfOptions.map(tf => (<button key={tf.value} onClick={() => setLiveInterval(tf.value)} className={`px-1 py-2 text-[10px] font-bold rounded border transition-all ${liveInterval === tf.value ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-50 dark:bg-[#18181b] border-zinc-200 dark:border-[#27272a] text-zinc-500 hover:border-zinc-400'}`}>{tf.label}</button>))}</div></div>
+                      {/* Strategy Selection */}
+                      <div className="mb-4">
+                        <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-2">Select Strategy</label>
+                        <div className="grid grid-cols-2 gap-3">
+                          {[{ id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' }, { id: 'ema', name: 'EMA', desc: '8 & 30 EMA Crossover' }].map(s => (
+                            <button key={s.id} onClick={() => setSelectedStrategy(s.id)}
+                              className={`p-3 rounded-lg border text-left transition-all ${selectedStrategy === s.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 ring-1 ring-blue-500' : 'bg-zinc-50 dark:bg-[#18181b] border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                              <div className={`text-xs font-bold mb-0.5 ${selectedStrategy === s.id ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300'}`}>{s.name}</div>
+                              <div className="text-[10px] text-zinc-500">{s.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2"><div > <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Start</label><input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded px-2 py-2 text-xs text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none transition-colors" /></div><div><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Stop</label><input type="time" value={stopTime} onChange={(e) => setStopTime(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded px-2 py-2 text-xs text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none transition-colors" /></div></div>
+                      <div><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Initial Capital</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold">₹</span><input type="number" value={initialCapital} onChange={(e) => setInitialCapital(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded pl-6 pr-2 py-2 text-xs text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none transition-colors" /></div></div>
+
+                      {/* Safety Guard Config */}
+                      <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold flex items-center gap-1"><ShieldAlert size={12} className={isSafetyOn ? "text-red-500" : ""} /> Safety Guard (Auto-Stop)</label>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" checked={isSafetyOn} onChange={() => { setIsSafetyOn(!isSafetyOn); setSafetyTriggered(false); }} className="sr-only peer" />
+                            <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-zinc-600 peer-checked:bg-red-500"></div>
+                          </label>
+                        </div>
+                        <div className={`transition-all duration-300 ${isSafetyOn ? 'opacity-100 max-h-20' : 'opacity-40 max-h-0 overflow-hidden'}`}>
+                          <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Max Daily Loss Limit</label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold">-₹</span>
+                            <input
+                              type="number"
+                              value={maxLoss}
+                              onChange={(e) => setMaxLoss(e.target.value)}
+                              className="w-full bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded pl-7 pr-2 py-2 text-xs text-red-600 dark:text-red-400 focus:border-red-500 focus:outline-none transition-colors font-bold"
+                              placeholder="1000"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+
+
+
+
+                  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] p-5 rounded-2xl shadow-xl relative overflow-hidden flex items-center justify-between">
+                    <div className="absolute inset-0 opacity-10 pointer-events-none">
+
+                    </div>
+                    <div className="relative z-10 flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase"><DollarSign size={14} /> Live P&L</div>
+                    <span className={`relative z-10 font-mono text-2xl font-black ${pnl >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'} transition-all`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</span>
                   </div>
                 </div>
+                <div className="lg:col-span-3">
+                  <div className="h-full flex flex-col gap-8">
+                    {/* Active Trades */}
+                    <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl overflow-hidden shadow-xl flex-shrink-0 min-h-[200px] flex flex-col">
+                      <div className="p-4 border-b border-zinc-200 dark:border-[#27272a] flex items-center justify-between">
+                        <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2"><Activity size={16} className="text-emerald-500" /> Active Positions</h3>
+                        {activeTrades.length > 0 && (
+                          <button onClick={handleGlobalSquareOff} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow-sm transition-colors flex items-center gap-1">
+                            <AlertTriangle size={12} /> SQUARE OFF ALL
+                          </button>
+                        )}
+                      </div>
+                      <div className="overflow-x-auto flex-1">
+                        <table className="w-full text-left text-xs table-fixed">
+                          <thead className="bg-zinc-50 dark:bg-[#18181b] text-zinc-500 font-bold uppercase sticky top-0">
+                            <tr>
+                              <th className="px-4 py-3 w-[80px]">Time</th>
+                              <th className="px-4 py-3 w-[140px]">Symbol</th>
+                              <th className="px-4 py-3 w-[70px]">Type</th>
+                              <th className="px-4 py-3 w-[60px]">Qty</th>
+                              <th className="px-4 py-3 w-[90px]">Entry</th>
+                              <th className="px-4 py-3 w-[90px]">TP</th>
+                              <th className="px-4 py-3 w-[90px]">SL</th>
+                              <th className="px-4 py-3 w-[90px]">PnL</th>
+                              <th className="px-4 py-3 w-[120px]">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-200 dark:divide-[#27272a]">
+                            {activeTrades.length === 0 ? <tr><td colSpan="9" className="px-4 py-8 text-center text-zinc-500 italic">No active trades running.</td></tr> : activeTrades.map((t) => (
+                              <TradeRow
+                                key={t.entry_order_id}
+                                t={t}
+                                onUpdateTP={async (trade, newTP) => {
+                                  try {
+                                    const res = await fetchJson('/update_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id, sl: trade.sl, tp: newTP }) });
+                                    if (res.status === 'success') {
+                                      addToast(res.message, "success");
+                                      setActiveTrades(prev => prev.map(pt => pt.entry_order_id === trade.entry_order_id ? { ...pt, tp: parseFloat(newTP) } : pt));
+                                    } else {
+                                      addToast(res.message || "Update Failed", "error");
+                                    }
+                                  } catch (e) {
+                                    addToast("Update Failed: " + e.message, "error");
+                                  }
+                                }}
+                                onUpdateSL={async (trade, newSL) => {
+                                  try {
+                                    const res = await fetchJson('/update_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id, sl: newSL, tp: trade.tp }) });
+                                    if (res.status === 'success') {
+                                      addToast(res.message, "success");
+                                      setActiveTrades(prev => prev.map(pt => pt.entry_order_id === trade.entry_order_id ? { ...pt, sl: parseFloat(newSL) } : pt));
+                                    } else {
+                                      addToast(res.message || "Update Failed", "error");
+                                    }
+                                  } catch (e) {
+                                    addToast("Update Failed: " + e.message, "error");
+                                  }
+                                }}
+                                onExit={async (trade) => {
+                                  const confirmed = await showConfirm("Force Exit Trade", "This will attempt to square off at market price. Are you sure?", null, "danger");
+                                  if (confirmed) {
+                                    try { const res = await fetchJson('/exit_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id }) }); addToast(res.message, "success"); } catch (e) { addToast("Error: " + e.message, "error"); }
+                                  }
+                                }}
+                                onDelete={async (trade) => {
+                                  const confirmed = await showConfirm("Delete Trade Record", "This does NOT exit the position on exchange. Only removes from tracking. Continue?", null, "warning");
+                                  if (confirmed) {
+                                    try { const res = await fetchJson('/delete_active_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id }) }); addToast(res.message, "success"); } catch (e) { addToast("Error: " + e.message, "error"); }
+                                  }
+                                }}
+                                showPrompt={showPrompt}
+                              />
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
 
-                <div className={`bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] p-5 rounded-2xl shadow-xl space-y-4 transition-opacity ${status === "RUNNING" ? "opacity-50 pointer-events-none" : ""}`}>
-                  <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider mb-2"><Activity size={14} /> Strategy Config</div>
-                  <div className="space-y-4">
-                    <InstrumentSearch onAdd={async (item) => {
+                    {showLogs && (
+                      <div className="h-[320px] max-h-[320px] bg-zinc-900 dark:bg-black border border-zinc-200 dark:border-[#27272a] rounded-2xl p-4 font-mono text-xs flex flex-col shadow-2xl relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full bg-zinc-800 dark:bg-[#121214] border-b border-zinc-700 dark:border-[#27272a] px-4 py-3 flex items-center justify-between z-10">
+                          <div className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500"><Terminal size={14} /> <span className="font-bold uppercase tracking-wider text-[10px]">System Output</span></div>
+                          <div className="flex items-center gap-4">
+                            <button onClick={() => setShowLogs(false)} title="Hide Logs" className="text-zinc-500 hover:text-blue-500 transition-colors">
+                              <EyeOff size={14} />
+                            </button>
+                            <button onClick={() => { setClearTime(new Date()); setLogs([]); }} title="Clear Logs" className="text-zinc-500 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                            <div className="flex gap-1"><div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div><div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div><div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/50"></div></div>
+                          </div>
+                        </div>
+                        <div className="mt-10 h-[calc(320px-50px)] max-h-[calc(320px-50px)] overflow-y-auto space-y-1 pr-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">{logs.slice(-100).map((log, i) => (<div key={i} className="flex gap-4 hover:bg-zinc-800/50 dark:hover:bg-zinc-900/50 p-0.5 rounded"><span className="text-zinc-500 dark:text-zinc-600 shrink-0 select-none">{log.split(' - ')[0]}</span><span className={`break-all ${log.includes("Error") ? 'text-red-400 font-bold' : (log.includes("SIGNAL") ? 'text-yellow-400 font-bold glow' : 'text-zinc-400 dark:text-zinc-300')}`}>{log.split(' - ').slice(1).join(' - ')}</span></div>))}</div>
+                      </div>
+                    )}
+
+                    {!showLogs && (
+                      <div className="bg-zinc-900/50 dark:bg-black/50 border border-zinc-200 dark:border-[#27272a] rounded-2xl p-4 flex items-center justify-center">
+                        <button
+                          onClick={() => setShowLogs(true)}
+                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
+                        >
+                          <Eye size={16} />
+                          <span className="font-medium text-sm">Show System Logs</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            {activeTab === 'orderbook' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl shadow-xl overflow-hidden">
+                  <div className="p-6 border-b border-zinc-200 dark:border-[#27272a] flex flex-col md:flex-row justify-between items-end gap-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-2"><BookOpen size={20} className="text-purple-500" /> Order Book</h2>
+                      <p className="text-zinc-500 text-sm">Comprehensive ledger of all algorithmic trades.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <CustomDateInput value={obFilters.startDate} onChange={e => setObFilters({ ...obFilters, startDate: e.target.value })} placeholder="Start Date" />
+                        <span className="text-zinc-400 font-bold">-</span>
+                        <CustomDateInput value={obFilters.endDate} onChange={e => setObFilters({ ...obFilters, endDate: e.target.value })} placeholder="End Date" />
+                      </div>
+                      <button onClick={() => {
+                        const csvContent = "data:text/csv;charset=utf-8," + "ID,Symbol,Entry,Qty,SL,TP,Status,PnL,Time\n" + orderBook.map(row => `${row.id},${row.symbol},${row.entry_price},${row.quantity},${row.sl},${row.tp},${row.status},${row.pnl},${row.timestamp}`).join("\n");
+                        const encodedUri = encodeURI(csvContent);
+                        const link = document.createElement("a");
+                        link.setAttribute("href", encodedUri);
+                        link.setAttribute("download", "orderbook.csv");
+                        document.body.appendChild(link);
+                        link.click();
+                      }} className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-lg font-bold text-xs hover:opacity-90 transition-opacity">
+                        <Download size={14} /> Download CSV
+                      </button>
+                      {selectedObIds.size > 0 && (
+                        <button onClick={handleDeleteOrders} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors">
+                          <Trash2 size={14} /> Delete ({selectedObIds.size})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-zinc-50 dark:bg-[#18181b] text-zinc-500 font-bold uppercase text-xs border-b border-zinc-200 dark:border-[#27272a]">
+                        <tr>
+                          <th className="px-6 py-4 w-12">
+                            <input type="checkbox"
+                              checked={currentObItems.length > 0 && currentObItems.every(i => selectedObIds.has(i.id))}
+                              onChange={() => {
+                                const newSet = new Set(selectedObIds);
+                                if (currentObItems.every(i => newSet.has(i.id))) {
+                                  currentObItems.forEach(i => newSet.delete(i.id));
+                                } else {
+                                  currentObItems.forEach(i => newSet.add(i.id));
+                                }
+                                setSelectedObIds(newSet);
+                              }}
+                              className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 focus:ring-blue-500 cursor-pointer"
+                            />
+                          </th>
+                          <th className="px-6 py-4">ID</th>
+                          <th className="px-6 py-4">Time</th>
+                          <th className="px-6 py-4">Mode</th>
+                          <th className="px-6 py-4">Symbol</th>
+                          <th className="px-6 py-4">Type</th>
+                          <th className="px-6 py-4">Price</th>
+                          <th className="px-6 py-4">Qty</th>
+                          <th className="px-6 py-4">TP</th>
+                          <th className="px-6 py-4">SL</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">PnL</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-200 dark:divide-[#27272a]">
+                        {currentObItems.map((row, i) => (
+                          <tr key={i} className={`hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors ${selectedObIds.has(row.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                            <td className="px-6 py-4">
+                              <input type="checkbox"
+                                checked={selectedObIds.has(row.id)}
+                                onChange={() => {
+                                  const newSet = new Set(selectedObIds);
+                                  if (newSet.has(row.id)) newSet.delete(row.id);
+                                  else newSet.add(row.id);
+                                  setSelectedObIds(newSet);
+                                }}
+                                className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-6 py-4 text-zinc-500 font-mono text-xs">#{row.id}</td>
+                            <td className="px-6 py-4 text-zinc-500 text-xs text-nowrap">
+                              {(() => {
+                                try {
+                                  const [datePart, timePart] = row.timestamp.split(' ');
+                                  const [y, m, d] = datePart.split('-');
+                                  return `${d}-${m}-${y} ${timePart ? timePart.split('.')[0] : ''}`;
+                                } catch (e) { return row.timestamp; }
+                              })()}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2 py-1 rounded text-[10px] font-bold ${row.is_simulated ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'}`}>
+                                {row.is_simulated ? 'PAPER' : 'LIVE'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 font-bold text-zinc-900 dark:text-white">{row.symbol}</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${row.mode === 'BUY' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
+                                {row.mode}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 font-mono">{row.entry_price}</td>
+                            <td className="px-6 py-4 font-mono">{row.quantity}</td>
+                            <td className="px-6 py-4 font-mono text-emerald-600 dark:text-emerald-400">{row.tp}</td>
+                            <td className="px-6 py-4 font-mono text-red-600 dark:text-red-400">{row.sl}</td>
+                            <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs font-bold ${row.status.startsWith('OPEN') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : (row.pnl >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600')}`}>{row.status}</span></td>
+                            <td className={`px-6 py-4 text-right font-mono font-bold ${row.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{parseFloat(row.pnl).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {orderBook.length === 0 && <div className="p-12 text-center text-zinc-500">No trades found in order book.</div>}
+                  </div>
+                  {totalObPages > 1 && (
+                    <div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200 dark:border-[#27272a]">
+                      <span className="text-sm text-zinc-500">
+                        Page {obPage} of {totalObPages}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setObPage(prev => Math.max(prev - 1, 1))}
+                          disabled={obPage === 1}
+                          className="px-3 py-1 text-sm bg-zinc-100 dark:bg-zinc-800 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => setObPage(prev => Math.min(prev + 1, totalObPages))}
+                          disabled={obPage === totalObPages}
+                          className="px-3 py-1 text-sm bg-zinc-100 dark:bg-zinc-800 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {activeTab === 'backtest' && (
+              <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex flex-col gap-6 bg-white dark:bg-[#121214] p-6 rounded-2xl border border-zinc-200 dark:border-[#27272a] shadow-xl">
+                  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl p-6 shadow-xl h-fit">
+                    <div><h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2"><Database size={20} className="text-cyan-500 dark:text-cyan-400" /> Backtest Configuration</h2><p className="text-zinc-500 text-sm mb-1">Run historical simulations.</p><p className="text-zinc-400 text-xs flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800/50 w-fit px-2 py-1 rounded border border-zinc-200 dark:border-zinc-800"><Info size={12} className="text-cyan-500" /> Backtest will be performed with an initial capital of <strong>₹1,00,000</strong></p></div>
+
+                    <div className="mt-6 mb-6">
+                      <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-2">Strategy to Test</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[{ id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' }, { id: 'ema', name: 'EMA', desc: '8 & 30 EMA Crossover' }].map(s => (
+                          <button key={s.id} onClick={() => setSelectedStrategy(s.id)}
+                            className={`p-3 rounded-lg border text-left transition-all ${selectedStrategy === s.id ? 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-500 ring-1 ring-cyan-500' : 'bg-zinc-50 dark:bg-[#18181b] border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
+                            <div className={`text-xs font-bold mb-0.5 ${selectedStrategy === s.id ? 'text-cyan-600 dark:text-cyan-400' : 'text-zinc-700 dark:text-zinc-300'}`}>{s.name}</div>
+                            <div className="text-[10px] text-zinc-500">{s.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-end gap-6 w-full">
+                    <div className="w-[320px]"><InstrumentSearch onAdd={async (item) => {
                       try {
                         const res = await fetchJson('/add_token', { method: 'POST', body: JSON.stringify(item) });
 
@@ -2740,13 +3136,13 @@ export default function Home() {
                           const syms = await fetchJson('/symbols');
                           setAllSymbols(syms);
 
-                          // Add to watchlist if not already there
-                          setLiveSymbols(prev => {
+                          // Add to backtest list if not already there
+                          setBtSymbols(prev => {
                             if (!prev.includes(item.symbol)) {
-                              addToast(`Added ${item.symbol} to watchlist`, "success");
+                              addToast(`Added ${item.symbol} to backtest list`, "success");
                               return [...prev, item.symbol];
                             }
-                            addToast(`${item.symbol} is already in your watchlist`, "info");
+                            addToast(`${item.symbol} is already in backtest list`, "info");
                             return prev;
                           });
                         } else {
@@ -2755,624 +3151,247 @@ export default function Home() {
                       } catch (e) {
                         addToast(e.message || "Error adding token", "error");
                       }
-                    }} />
-                    <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-[10px] uppercase text-zinc-500 font-bold">Stock Universe</label>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => {
-                              const csvContent = "data:text/csv;charset=utf-8," + "SYMBOL\nSBIN-EQ\nRELIANCE-EQ\nINFY-EQ\nTATASTEEL-EQ";
-                              const encodedUri = encodeURI(csvContent);
-                              const link = document.createElement("a");
-                              link.setAttribute("href", encodedUri);
-                              link.setAttribute("download", "sample_symbols.csv");
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            }} className="flex items-center gap-1 cursor-pointer text-[10px] text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 font-bold bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded transition-colors" title="Download Sample CSV">
-                              <Download size={10} /> Sample
-                            </button>
-                            <label className="flex items-center gap-1 cursor-pointer text-[10px] text-blue-500 hover:text-blue-400 font-bold bg-blue-50 dark:bg-blue-900/20 px-2 py-0.5 rounded transition-colors hover:bg-blue-100 dark:hover:bg-blue-900/40">
-                              <Upload size={10} /> Bulk Upload
-                              <input type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
-                            </label>
-                            <button onClick={() => setLiveSymbols([])} className="flex items-center justify-center cursor-pointer text-red-500 hover:text-red-400 bg-red-50 dark:bg-red-900/20 w-6 h-6 rounded transition-colors hover:bg-red-100 dark:hover:bg-red-900/40" title="Clear All Symbols">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <MultiSelect options={allSymbols} selected={liveSymbols} onChange={setLiveSymbols} placeholder="Select Stocks..." />
-                    </div>
-                    <div><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Timeframe</label><div className="grid grid-cols-4 gap-1">{tfOptions.map(tf => (<button key={tf.value} onClick={() => setLiveInterval(tf.value)} className={`px-1 py-2 text-[10px] font-bold rounded border transition-all ${liveInterval === tf.value ? 'bg-emerald-100 dark:bg-emerald-900/50 border-emerald-500 text-emerald-600 dark:text-emerald-400' : 'bg-zinc-50 dark:bg-[#18181b] border-zinc-200 dark:border-[#27272a] text-zinc-500 hover:border-zinc-400'}`}>{tf.label}</button>))}</div></div>
-                    {/* Strategy Selection */}
-                    <div className="mb-4">
-                      <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-2">Select Strategy</label>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[{ id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' }, { id: 'ema', name: 'EMA', desc: '8 & 30 EMA Crossover' }].map(s => (
-                          <button key={s.id} onClick={() => setSelectedStrategy(s.id)}
-                            className={`p-3 rounded-lg border text-left transition-all ${selectedStrategy === s.id ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 ring-1 ring-blue-500' : 'bg-zinc-50 dark:bg-[#18181b] border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
-                            <div className={`text-xs font-bold mb-0.5 ${selectedStrategy === s.id ? 'text-blue-600 dark:text-blue-400' : 'text-zinc-700 dark:text-zinc-300'}`}>{s.name}</div>
-                            <div className="text-[10px] text-zinc-500">{s.desc}</div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2"><div > <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Start</label><input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded px-2 py-2 text-xs text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none transition-colors" /></div><div><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Stop</label><input type="time" value={stopTime} onChange={(e) => setStopTime(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded px-2 py-2 text-xs text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none transition-colors" /></div></div>
-                    <div><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Initial Capital</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold">₹</span><input type="number" value={initialCapital} onChange={(e) => setInitialCapital(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded pl-6 pr-2 py-2 text-xs text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none transition-colors" /></div></div>
-
-                    {/* Safety Guard Config */}
-                    <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-[10px] uppercase text-zinc-500 font-bold flex items-center gap-1"><ShieldAlert size={12} className={isSafetyOn ? "text-red-500" : ""} /> Safety Guard (Auto-Stop)</label>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" checked={isSafetyOn} onChange={() => { setIsSafetyOn(!isSafetyOn); setSafetyTriggered(false); }} className="sr-only peer" />
-                          <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-zinc-600 peer-checked:bg-red-500"></div>
-                        </label>
-                      </div>
-                      <div className={`transition-all duration-300 ${isSafetyOn ? 'opacity-100 max-h-20' : 'opacity-40 max-h-0 overflow-hidden'}`}>
-                        <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Max Daily Loss Limit</label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs font-bold">-₹</span>
-                          <input
-                            type="number"
-                            value={maxLoss}
-                            onChange={(e) => setMaxLoss(e.target.value)}
-                            className="w-full bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded pl-7 pr-2 py-2 text-xs text-red-600 dark:text-red-400 focus:border-red-500 focus:outline-none transition-colors font-bold"
-                            placeholder="1000"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
+                    }} /></div>
+                    <div className="w-[200px] mb-4"><MultiSelect label="Stocks" options={allSymbols} selected={btSymbols} onChange={setBtSymbols} placeholder="Select..." /></div>
+                    <div className="w-[100px] mb-4"><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Interval</label><select value={btInterval} onChange={(e) => setBtInterval(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-cyan-500 h-[42px] cursor-pointer">{tfOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+                    <div className="w-[160px] mb-4"><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">From</label><CustomDateTimeInput value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
+                    <div className="w-[160px] mb-4"><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">To</label><CustomDateTimeInput value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
+                    <button onClick={runBacktest} disabled={isBacktesting} className={`flex items-center gap-2 px-8 py-2 mb-4 rounded-xl font-bold transition-all h-[42px] ${isBacktesting ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-cyan-600 text-white hover:bg-cyan-500 hover:shadow-lg shadow-cyan-500/20'}`}>Run {isBacktesting ? '...' : <Play size={16} fill="currentColor" />}</button>
                   </div>
                 </div>
-
-
-
-
-
-                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] p-5 rounded-2xl shadow-xl relative overflow-hidden flex items-center justify-between">
-                  <div className="absolute inset-0 opacity-10 pointer-events-none">
-
-                  </div>
-                  <div className="relative z-10 flex items-center gap-2 text-zinc-500 text-xs font-bold uppercase"><DollarSign size={14} /> Live P&L</div>
-                  <span className={`relative z-10 font-mono text-2xl font-black ${pnl >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-red-500 dark:text-red-400'} transition-all`}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</span>
-                </div>
-              </div>
-              <div className="lg:col-span-3">
-                <div className="h-full flex flex-col gap-8">
-                  {/* Active Trades */}
-                  <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl overflow-hidden shadow-xl flex-shrink-0 min-h-[200px] flex flex-col">
-                    <div className="p-4 border-b border-zinc-200 dark:border-[#27272a] flex items-center justify-between">
-                      <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2"><Activity size={16} className="text-emerald-500" /> Active Positions</h3>
-                      {activeTrades.length > 0 && (
-                        <button onClick={handleGlobalSquareOff} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded shadow-sm transition-colors flex items-center gap-1">
-                          <AlertTriangle size={12} /> SQUARE OFF ALL
+                <ErrorBanner message={error} onClose={() => setError(null)} />
+                {backtestResults.length > 0 && (
+                  <div className="bg-white dark:bg-[#121214] rounded-2xl border border-zinc-200 dark:border-[#27272a] overflow-hidden shadow-2xl">
+                    <div className="p-4 border-b border-zinc-200 dark:border-[#27272a] flex justify-between items-center">
+                      <h3 className="font-bold text-zinc-900 dark:text-white">Results</h3>
+                      {user && (
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetchJson('/save_backtest', {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                  results: backtestResults,
+                                  interval: btInterval,
+                                  fromDate,
+                                  toDate
+                                })
+                              });
+                              if (res.status === 'success') {
+                                addToast(`✓ Saved ${res.saved} results to history!`, "success");
+                              }
+                            } catch (err) {
+                              addToast('Error saving: ' + err.message, "error");
+                            }
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white dark:text-black rounded-lg font-bold text-sm hover:bg-emerald-400 transition-all"
+                        >
+                          <Database size={16} /> Save to History
                         </button>
                       )}
                     </div>
-                    <div className="overflow-x-auto flex-1">
-                      <table className="w-full text-left text-xs table-fixed">
-                        <thead className="bg-zinc-50 dark:bg-[#18181b] text-zinc-500 font-bold uppercase sticky top-0">
-                          <tr>
-                            <th className="px-4 py-3 w-[80px]">Time</th>
-                            <th className="px-4 py-3 w-[140px]">Symbol</th>
-                            <th className="px-4 py-3 w-[70px]">Type</th>
-                            <th className="px-4 py-3 w-[60px]">Qty</th>
-                            <th className="px-4 py-3 w-[90px]">Entry</th>
-                            <th className="px-4 py-3 w-[90px]">TP</th>
-                            <th className="px-4 py-3 w-[90px]">SL</th>
-                            <th className="px-4 py-3 w-[90px]">PnL</th>
-                            <th className="px-4 py-3 w-[120px]">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-200 dark:divide-[#27272a]">
-                          {activeTrades.length === 0 ? <tr><td colSpan="9" className="px-4 py-8 text-center text-zinc-500 italic">No active trades running.</td></tr> : activeTrades.map((t) => (
-                            <TradeRow
-                              key={t.entry_order_id}
-                              t={t}
-                              onUpdateTP={async (trade, newTP) => {
-                                try {
-                                  const res = await fetchJson('/update_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id, sl: trade.sl, tp: newTP }) });
-                                  if (res.status === 'success') {
-                                    addToast(res.message, "success");
-                                    setActiveTrades(prev => prev.map(pt => pt.entry_order_id === trade.entry_order_id ? { ...pt, tp: parseFloat(newTP) } : pt));
-                                  } else {
-                                    addToast(res.message || "Update Failed", "error");
-                                  }
-                                } catch (e) {
-                                  addToast("Update Failed: " + e.message, "error");
-                                }
-                              }}
-                              onUpdateSL={async (trade, newSL) => {
-                                try {
-                                  const res = await fetchJson('/update_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id, sl: newSL, tp: trade.tp }) });
-                                  if (res.status === 'success') {
-                                    addToast(res.message, "success");
-                                    setActiveTrades(prev => prev.map(pt => pt.entry_order_id === trade.entry_order_id ? { ...pt, sl: parseFloat(newSL) } : pt));
-                                  } else {
-                                    addToast(res.message || "Update Failed", "error");
-                                  }
-                                } catch (e) {
-                                  addToast("Update Failed: " + e.message, "error");
-                                }
-                              }}
-                              onExit={async (trade) => {
-                                const confirmed = await showConfirm("Force Exit Trade", "This will attempt to square off at market price. Are you sure?", null, "danger");
-                                if (confirmed) {
-                                  try { const res = await fetchJson('/exit_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id }) }); addToast(res.message, "success"); } catch (e) { addToast("Error: " + e.message, "error"); }
-                                }
-                              }}
-                              onDelete={async (trade) => {
-                                const confirmed = await showConfirm("Delete Trade Record", "This does NOT exit the position on exchange. Only removes from tracking. Continue?", null, "warning");
-                                if (confirmed) {
-                                  try { const res = await fetchJson('/delete_active_trade', { method: 'POST', body: JSON.stringify({ trade_id: trade.entry_order_id }) }); addToast(res.message, "success"); } catch (e) { addToast("Error: " + e.message, "error"); }
-                                }
-                              }}
-                              showPrompt={showPrompt}
-                            />
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {showLogs && (
-                    <div className="h-[320px] max-h-[320px] bg-zinc-900 dark:bg-black border border-zinc-200 dark:border-[#27272a] rounded-2xl p-4 font-mono text-xs flex flex-col shadow-2xl relative overflow-hidden group">
-                      <div className="absolute top-0 left-0 w-full bg-zinc-800 dark:bg-[#121214] border-b border-zinc-700 dark:border-[#27272a] px-4 py-3 flex items-center justify-between z-10">
-                        <div className="flex items-center gap-2 text-zinc-400 dark:text-zinc-500"><Terminal size={14} /> <span className="font-bold uppercase tracking-wider text-[10px]">System Output</span></div>
-                        <div className="flex items-center gap-4">
-                          <button onClick={() => setShowLogs(false)} title="Hide Logs" className="text-zinc-500 hover:text-blue-500 transition-colors">
-                            <EyeOff size={14} />
-                          </button>
-                          <button onClick={() => { setClearTime(new Date()); setLogs([]); }} title="Clear Logs" className="text-zinc-500 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
-                          <div className="flex gap-1"><div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div><div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div><div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/50"></div></div>
-                        </div>
-                      </div>
-                      <div className="mt-10 h-[calc(320px-50px)] max-h-[calc(320px-50px)] overflow-y-auto space-y-1 pr-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">{logs.slice(-100).map((log, i) => (<div key={i} className="flex gap-4 hover:bg-zinc-800/50 dark:hover:bg-zinc-900/50 p-0.5 rounded"><span className="text-zinc-500 dark:text-zinc-600 shrink-0 select-none">{log.split(' - ')[0]}</span><span className={`break-all ${log.includes("Error") ? 'text-red-400 font-bold' : (log.includes("SIGNAL") ? 'text-yellow-400 font-bold glow' : 'text-zinc-400 dark:text-zinc-300')}`}>{log.split(' - ').slice(1).join(' - ')}</span></div>))}</div>
-                    </div>
-                  )}
-
-                  {!showLogs && (
-                    <div className="bg-zinc-900/50 dark:bg-black/50 border border-zinc-200 dark:border-[#27272a] rounded-2xl p-4 flex items-center justify-center">
-                      <button
-                        onClick={() => setShowLogs(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors"
-                      >
-                        <Eye size={16} />
-                        <span className="font-medium text-sm">Show System Logs</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          {activeTab === 'orderbook' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl shadow-xl overflow-hidden">
-                <div className="p-6 border-b border-zinc-200 dark:border-[#27272a] flex flex-col md:flex-row justify-between items-end gap-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-2"><BookOpen size={20} className="text-purple-500" /> Order Book</h2>
-                    <p className="text-zinc-500 text-sm">Comprehensive ledger of all algorithmic trades.</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2">
-                      <CustomDateInput value={obFilters.startDate} onChange={e => setObFilters({ ...obFilters, startDate: e.target.value })} placeholder="Start Date" />
-                      <span className="text-zinc-400 font-bold">-</span>
-                      <CustomDateInput value={obFilters.endDate} onChange={e => setObFilters({ ...obFilters, endDate: e.target.value })} placeholder="End Date" />
-                    </div>
-                    <button onClick={() => {
-                      const csvContent = "data:text/csv;charset=utf-8," + "ID,Symbol,Entry,Qty,SL,TP,Status,PnL,Time\n" + orderBook.map(row => `${row.id},${row.symbol},${row.entry_price},${row.quantity},${row.sl},${row.tp},${row.status},${row.pnl},${row.timestamp}`).join("\n");
-                      const encodedUri = encodeURI(csvContent);
-                      const link = document.createElement("a");
-                      link.setAttribute("href", encodedUri);
-                      link.setAttribute("download", "orderbook.csv");
-                      document.body.appendChild(link);
-                      link.click();
-                    }} className="flex items-center gap-2 px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-lg font-bold text-xs hover:opacity-90 transition-opacity">
-                      <Download size={14} /> Download CSV
-                    </button>
-                    {selectedObIds.size > 0 && (
-                      <button onClick={handleDeleteOrders} className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors">
-                        <Trash2 size={14} /> Delete ({selectedObIds.size})
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-zinc-50 dark:bg-[#18181b] text-zinc-500 font-bold uppercase text-xs border-b border-zinc-200 dark:border-[#27272a]">
-                      <tr>
-                        <th className="px-6 py-4 w-12">
-                          <input type="checkbox"
-                            checked={currentObItems.length > 0 && currentObItems.every(i => selectedObIds.has(i.id))}
-                            onChange={() => {
-                              const newSet = new Set(selectedObIds);
-                              if (currentObItems.every(i => newSet.has(i.id))) {
-                                currentObItems.forEach(i => newSet.delete(i.id));
-                              } else {
-                                currentObItems.forEach(i => newSet.add(i.id));
-                              }
-                              setSelectedObIds(newSet);
-                            }}
-                            className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 focus:ring-blue-500 cursor-pointer"
-                          />
-                        </th>
-                        <th className="px-6 py-4">ID</th>
-                        <th className="px-6 py-4">Time</th>
-                        <th className="px-6 py-4">Mode</th>
-                        <th className="px-6 py-4">Symbol</th>
-                        <th className="px-6 py-4">Type</th>
-                        <th className="px-6 py-4">Price</th>
-                        <th className="px-6 py-4">Qty</th>
-                        <th className="px-6 py-4">TP</th>
-                        <th className="px-6 py-4">SL</th>
-                        <th className="px-6 py-4">Status</th>
-                        <th className="px-6 py-4 text-right">PnL</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-[#27272a]">
-                      {currentObItems.map((row, i) => (
-                        <tr key={i} className={`hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors ${selectedObIds.has(row.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                          <td className="px-6 py-4">
-                            <input type="checkbox"
-                              checked={selectedObIds.has(row.id)}
-                              onChange={() => {
-                                const newSet = new Set(selectedObIds);
-                                if (newSet.has(row.id)) newSet.delete(row.id);
-                                else newSet.add(row.id);
-                                setSelectedObIds(newSet);
-                              }}
-                              className="rounded border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 focus:ring-blue-500 cursor-pointer"
-                            />
-                          </td>
-                          <td className="px-6 py-4 text-zinc-500 font-mono text-xs">#{row.id}</td>
-                          <td className="px-6 py-4 text-zinc-500 text-xs text-nowrap">
-                            {(() => {
-                              try {
-                                const [datePart, timePart] = row.timestamp.split(' ');
-                                const [y, m, d] = datePart.split('-');
-                                return `${d}-${m}-${y} ${timePart ? timePart.split('.')[0] : ''}`;
-                              } catch (e) { return row.timestamp; }
-                            })()}
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${row.is_simulated ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400'}`}>
-                              {row.is_simulated ? 'PAPER' : 'LIVE'}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-bold text-zinc-900 dark:text-white">{row.symbol}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded text-xs font-bold ${row.mode === 'BUY' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'}`}>
-                              {row.mode}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 font-mono">{row.entry_price}</td>
-                          <td className="px-6 py-4 font-mono">{row.quantity}</td>
-                          <td className="px-6 py-4 font-mono text-emerald-600 dark:text-emerald-400">{row.tp}</td>
-                          <td className="px-6 py-4 font-mono text-red-600 dark:text-red-400">{row.sl}</td>
-                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded text-xs font-bold ${row.status.startsWith('OPEN') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600' : (row.pnl >= 0 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600' : 'bg-red-100 dark:bg-red-900/30 text-red-600')}`}>{row.status}</span></td>
-                          <td className={`px-6 py-4 text-right font-mono font-bold ${row.pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{parseFloat(row.pnl).toFixed(2)}</td>
+                    <table className="w-full text-left text-sm text-zinc-500 dark:text-zinc-400">
+                      <thead className="bg-zinc-100 dark:bg-[#18181b] uppercase font-bold text-xs text-zinc-500 border-b border-zinc-200 dark:border-[#27272a]">
+                        <tr>
+                          <th className="px-6 py-4">Symbol</th>
+                          <th className="px-6 py-4">Trades</th>
+                          <th className="px-6 py-4">Win Rate</th>
+                          <th className="px-6 py-4">P&L</th>
+                          <th className="px-6 py-4">Final Cap</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {orderBook.length === 0 && <div className="p-12 text-center text-zinc-500">No trades found in order book.</div>}
-                </div>
-                {totalObPages > 1 && (
-                  <div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200 dark:border-[#27272a]">
-                    <span className="text-sm text-zinc-500">
-                      Page {obPage} of {totalObPages}
-                    </span>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setObPage(prev => Math.max(prev - 1, 1))}
-                        disabled={obPage === 1}
-                        className="px-3 py-1 text-sm bg-zinc-100 dark:bg-zinc-800 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setObPage(prev => Math.min(prev + 1, totalObPages))}
-                        disabled={obPage === totalObPages}
-                        className="px-3 py-1 text-sm bg-zinc-100 dark:bg-zinc-800 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 transition-colors"
-                      >
-                        Next
-                      </button>
-                    </div>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-200 dark:divide-[#27272a]">
+                        {backtestResults.map((row, i) => {
+                          const pnlVal = parseFloat(String(row['Total P&L']).replace(/[^0-9.-]+/g, ""));
+                          return (
+                            <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                              <td className="px-6 py-4 font-bold text-zinc-900 dark:text-white">{row.Symbol}</td>
+                              <td className="px-6 py-4">{row['Total Trades']}</td>
+                              <td className="px-6 py-4">{row['Win Rate %']}</td>
+                              <td className={`px-6 py-4 font-mono font-bold ${pnlVal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                                {row['Total P&L']}
+                              </td>
+                              <td className="px-6 py-4 font-mono">{row['Final Capital'] || '-'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-          {activeTab === 'backtest' && (
-            <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="flex flex-col gap-6 bg-white dark:bg-[#121214] p-6 rounded-2xl border border-zinc-200 dark:border-[#27272a] shadow-xl">
-                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl p-6 shadow-xl h-fit">
-                  <div><h2 className="text-xl font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2"><Database size={20} className="text-cyan-500 dark:text-cyan-400" /> Backtest Configuration</h2><p className="text-zinc-500 text-sm mb-1">Run historical simulations.</p><p className="text-zinc-400 text-xs flex items-center gap-1.5 bg-zinc-100 dark:bg-zinc-800/50 w-fit px-2 py-1 rounded border border-zinc-200 dark:border-zinc-800"><Info size={12} className="text-cyan-500" /> Backtest will be performed with an initial capital of <strong>₹1,00,000</strong></p></div>
+            )}
 
-                  <div className="mt-6 mb-6">
-                    <label className="text-[10px] uppercase text-zinc-500 font-bold block mb-2">Strategy to Test</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[{ id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' }, { id: 'ema', name: 'EMA', desc: '8 & 30 EMA Crossover' }].map(s => (
-                        <button key={s.id} onClick={() => setSelectedStrategy(s.id)}
-                          className={`p-3 rounded-lg border text-left transition-all ${selectedStrategy === s.id ? 'bg-cyan-50 dark:bg-cyan-900/20 border-cyan-500 ring-1 ring-cyan-500' : 'bg-zinc-50 dark:bg-[#18181b] border-zinc-200 dark:border-[#27272a] hover:border-zinc-300 dark:hover:border-zinc-700'}`}>
-                          <div className={`text-xs font-bold mb-0.5 ${selectedStrategy === s.id ? 'text-cyan-600 dark:text-cyan-400' : 'text-zinc-700 dark:text-zinc-300'}`}>{s.name}</div>
-                          <div className="text-[10px] text-zinc-500">{s.desc}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap items-end gap-6 w-full">
-                  <div className="w-[320px]"><InstrumentSearch onAdd={async (item) => {
-                    try {
-                      const res = await fetchJson('/add_token', { method: 'POST', body: JSON.stringify(item) });
-
-                      if (res.status === 'success') {
-                        const syms = await fetchJson('/symbols');
-                        setAllSymbols(syms);
-
-                        // Add to backtest list if not already there
-                        setBtSymbols(prev => {
-                          if (!prev.includes(item.symbol)) {
-                            addToast(`Added ${item.symbol} to backtest list`, "success");
-                            return [...prev, item.symbol];
-                          }
-                          addToast(`${item.symbol} is already in backtest list`, "info");
-                          return prev;
-                        });
-                      } else {
-                        addToast(res.message || "Error adding token", "error");
-                      }
-                    } catch (e) {
-                      addToast(e.message || "Error adding token", "error");
-                    }
-                  }} /></div>
-                  <div className="w-[200px] mb-4"><MultiSelect label="Stocks" options={allSymbols} selected={btSymbols} onChange={setBtSymbols} placeholder="Select..." /></div>
-                  <div className="w-[100px] mb-4"><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">Interval</label><select value={btInterval} onChange={(e) => setBtInterval(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded px-3 py-2 text-sm text-zinc-900 dark:text-white focus:outline-none focus:border-cyan-500 h-[42px] cursor-pointer">{tfOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-                  <div className="w-[160px] mb-4"><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">From</label><CustomDateTimeInput value={fromDate} onChange={(e) => setFromDate(e.target.value)} /></div>
-                  <div className="w-[160px] mb-4"><label className="text-[10px] uppercase text-zinc-500 font-bold block mb-1">To</label><CustomDateTimeInput value={toDate} onChange={(e) => setToDate(e.target.value)} /></div>
-                  <button onClick={runBacktest} disabled={isBacktesting} className={`flex items-center gap-2 px-8 py-2 mb-4 rounded-xl font-bold transition-all h-[42px] ${isBacktesting ? 'bg-zinc-200 dark:bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-cyan-600 text-white hover:bg-cyan-500 hover:shadow-lg shadow-cyan-500/20'}`}>Run {isBacktesting ? '...' : <Play size={16} fill="currentColor" />}</button>
-                </div>
+            {activeTab === 'backtest_history' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <BacktestHistory />
               </div>
-              <ErrorBanner message={error} onClose={() => setError(null)} />
-              {backtestResults.length > 0 && (
-                <div className="bg-white dark:bg-[#121214] rounded-2xl border border-zinc-200 dark:border-[#27272a] overflow-hidden shadow-2xl">
-                  <div className="p-4 border-b border-zinc-200 dark:border-[#27272a] flex justify-between items-center">
-                    <h3 className="font-bold text-zinc-900 dark:text-white">Results</h3>
-                    {user && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetchJson('/save_backtest', {
-                              method: 'POST',
-                              body: JSON.stringify({
-                                results: backtestResults,
-                                interval: btInterval,
-                                fromDate,
-                                toDate
-                              })
-                            });
-                            if (res.status === 'success') {
-                              addToast(`✓ Saved ${res.saved} results to history!`, "success");
-                            }
-                          } catch (err) {
-                            addToast('Error saving: ' + err.message, "error");
-                          }
-                        }}
-                        className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white dark:text-black rounded-lg font-bold text-sm hover:bg-emerald-400 transition-all"
-                      >
-                        <Database size={16} /> Save to History
-                      </button>
-                    )}
+            )}
+
+            {/* Analytics Tab */}
+            {activeTab === 'analytics' && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl shadow-xl overflow-hidden">
+                  <div className="p-6 border-b border-zinc-200 dark:border-[#27272a]">
+                    <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                      <BarChart3 size={20} className="text-blue-500" /> Performance Analytics
+                    </h2>
+                    <p className="text-zinc-500 text-sm mt-1">Complete overview of your trading performance</p>
                   </div>
-                  <table className="w-full text-left text-sm text-zinc-500 dark:text-zinc-400">
-                    <thead className="bg-zinc-100 dark:bg-[#18181b] uppercase font-bold text-xs text-zinc-500 border-b border-zinc-200 dark:border-[#27272a]">
-                      <tr>
-                        <th className="px-6 py-4">Symbol</th>
-                        <th className="px-6 py-4">Trades</th>
-                        <th className="px-6 py-4">Win Rate</th>
-                        <th className="px-6 py-4">P&L</th>
-                        <th className="px-6 py-4">Final Cap</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-[#27272a]">
-                      {backtestResults.map((row, i) => {
-                        const pnlVal = parseFloat(String(row['Total P&L']).replace(/[^0-9.-]+/g, ""));
-                        return (
-                          <tr key={i} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
-                            <td className="px-6 py-4 font-bold text-zinc-900 dark:text-white">{row.Symbol}</td>
-                            <td className="px-6 py-4">{row['Total Trades']}</td>
-                            <td className="px-6 py-4">{row['Win Rate %']}</td>
-                            <td className={`px-6 py-4 font-mono font-bold ${pnlVal >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                              {row['Total P&L']}
-                            </td>
-                            <td className="px-6 py-4 font-mono">{row['Final Capital'] || '-'}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
 
-          {activeTab === 'backtest_history' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <BacktestHistory />
-            </div>
-          )}
-
-          {/* Analytics Tab */}
-          {activeTab === 'analytics' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-[#27272a] rounded-2xl shadow-xl overflow-hidden">
-                <div className="p-6 border-b border-zinc-200 dark:border-[#27272a]">
-                  <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                    <BarChart3 size={20} className="text-blue-500" /> Performance Analytics
-                  </h2>
-                  <p className="text-zinc-500 text-sm mt-1">Complete overview of your trading performance</p>
-                </div>
-
-                {!analyticsData ? (
-                  <div className="p-12 text-center">
-                    <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-zinc-500 text-sm">Loading analytics...</p>
-                  </div>
-                ) : (
-                  <>
-
-                    {/* Metrics Grid */}
-                    <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Total Trades */}
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 border border-blue-200 dark:border-blue-900/30 rounded-xl p-5">
-                        <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase mb-2">
-                          <Activity size={14} /> Total Trades
-                        </div>
-                        <div className="text-3xl font-black text-blue-900 dark:text-blue-100">{analyticsData?.total_trades || 0}</div>
-                        <div className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">Last 30 days</div>
-                      </div>
-
-                      {/* Win Rate */}
-                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/10 border border-emerald-200 dark:border-emerald-900/30 rounded-xl p-5">
-                        <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase mb-2">
-                          <TrendingUp size={14} /> Win Rate
-                        </div>
-                        <div className="text-3xl font-black text-emerald-900 dark:text-emerald-100">{analyticsData?.win_rate?.toFixed(1) || 0}%</div>
-                        <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">{analyticsData?.winning_trades || 0}W / {analyticsData?.losing_trades || 0}L</div>
-                      </div>
-
-                      {/* Avg Profit/Trade */}
-                      <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/10 border border-cyan-200 dark:border-cyan-900/30 rounded-xl p-5">
-                        <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 text-xs font-bold uppercase mb-2">
-                          <DollarSign size={14} /> Avg Profit/Trade
-                        </div>
-                        <div className="text-3xl font-black text-cyan-900 dark:text-cyan-100">₹{analyticsData?.avg_profit_per_trade?.toFixed(0) || 0}</div>
-                        <div className="text-xs text-cyan-600/70 dark:text-cyan-400/70 mt-1">Per executed trade</div>
-                      </div>
-
-                      {/* Profit Factor */}
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/10 border border-purple-200 dark:border-purple-900/30 rounded-xl p-5">
-                        <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase mb-2">
-                          <BarChart3 size={14} /> Profit Factor
-                        </div>
-                        <div className="text-3xl font-black text-purple-900 dark:text-purple-100">{analyticsData?.profit_factor?.toFixed(2) || 0}</div>
-                        <div className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">{(analyticsData?.profit_factor || 0) > 1.5 ? 'Excellent' : (analyticsData?.profit_factor || 0) > 1 ? 'Good' : 'Needs Work'}</div>
-                      </div>
+                  {!analyticsData ? (
+                    <div className="p-12 text-center">
+                      <div className="w-8 h-8 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-zinc-500 text-sm">Loading analytics...</p>
                     </div>
+                  ) : (
+                    <>
 
-                    {/* Additional Metrics Row */}
-                    <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {/* Best Day */}
-                      <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
-                        <div className="text-xs text-zinc-500 font-bold uppercase mb-2">🏆 Best Day</div>
-                        <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-                          {analyticsData?.best_day?.pnl >= 0 ? '+' : ''}₹{analyticsData?.best_day?.pnl?.toFixed(2) || 0}
+                      {/* Metrics Grid */}
+                      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Total Trades */}
+                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/10 border border-blue-200 dark:border-blue-900/30 rounded-xl p-5">
+                          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-xs font-bold uppercase mb-2">
+                            <Activity size={14} /> Total Trades
+                          </div>
+                          <div className="text-3xl font-black text-blue-900 dark:text-blue-100">{analyticsData?.total_trades || 0}</div>
+                          <div className="text-xs text-blue-600/70 dark:text-blue-400/70 mt-1">Last 30 days</div>
                         </div>
-                        <div className="text-xs text-zinc-500 mt-1">{analyticsData?.best_day?.date || 'N/A'}</div>
+
+                        {/* Win Rate */}
+                        <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-900/20 dark:to-emerald-800/10 border border-emerald-200 dark:border-emerald-900/30 rounded-xl p-5">
+                          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase mb-2">
+                            <TrendingUp size={14} /> Win Rate
+                          </div>
+                          <div className="text-3xl font-black text-emerald-900 dark:text-emerald-100">{analyticsData?.win_rate?.toFixed(1) || 0}%</div>
+                          <div className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">{analyticsData?.winning_trades || 0}W / {analyticsData?.losing_trades || 0}L</div>
+                        </div>
+
+                        {/* Avg Profit/Trade */}
+                        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/10 border border-cyan-200 dark:border-cyan-900/30 rounded-xl p-5">
+                          <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 text-xs font-bold uppercase mb-2">
+                            <DollarSign size={14} /> Avg Profit/Trade
+                          </div>
+                          <div className="text-3xl font-black text-cyan-900 dark:text-cyan-100">₹{analyticsData?.avg_profit_per_trade?.toFixed(0) || 0}</div>
+                          <div className="text-xs text-cyan-600/70 dark:text-cyan-400/70 mt-1">Per executed trade</div>
+                        </div>
+
+                        {/* Profit Factor */}
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/10 border border-purple-200 dark:border-purple-900/30 rounded-xl p-5">
+                          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase mb-2">
+                            <BarChart3 size={14} /> Profit Factor
+                          </div>
+                          <div className="text-3xl font-black text-purple-900 dark:text-purple-100">{analyticsData?.profit_factor?.toFixed(2) || 0}</div>
+                          <div className="text-xs text-purple-600/70 dark:text-purple-400/70 mt-1">{(analyticsData?.profit_factor || 0) > 1.5 ? 'Excellent' : (analyticsData?.profit_factor || 0) > 1 ? 'Good' : 'Needs Work'}</div>
+                        </div>
                       </div>
 
-                      {/* Worst Day */}
-                      <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
-                        <div className="text-xs text-zinc-500 font-bold uppercase mb-2">📉 Worst Day</div>
-                        <div className="text-2xl font-black text-red-600 dark:text-red-400">₹{analyticsData?.worst_day?.pnl?.toFixed(2) || 0}</div>
-                        <div className="text-xs text-zinc-500 mt-1">{analyticsData?.worst_day?.date || 'N/A'}</div>
+                      {/* Additional Metrics Row */}
+                      <div className="px-6 pb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Best Day */}
+                        <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+                          <div className="text-xs text-zinc-500 font-bold uppercase mb-2">🏆 Best Day</div>
+                          <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                            {analyticsData?.best_day?.pnl >= 0 ? '+' : ''}₹{analyticsData?.best_day?.pnl?.toFixed(2) || 0}
+                          </div>
+                          <div className="text-xs text-zinc-500 mt-1">{analyticsData?.best_day?.date || 'N/A'}</div>
+                        </div>
+
+                        {/* Worst Day */}
+                        <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+                          <div className="text-xs text-zinc-500 font-bold uppercase mb-2">📉 Worst Day</div>
+                          <div className="text-2xl font-black text-red-600 dark:text-red-400">₹{analyticsData?.worst_day?.pnl?.toFixed(2) || 0}</div>
+                          <div className="text-xs text-zinc-500 mt-1">{analyticsData?.worst_day?.date || 'N/A'}</div>
+                        </div>
+
+                        {/* Max Drawdown */}
+                        <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+                          <div className="text-xs text-zinc-500 font-bold uppercase mb-2">⚠️ Max Drawdown</div>
+                          <div className="text-2xl font-black text-orange-600 dark:text-orange-400">-{analyticsData?.max_drawdown?.toFixed(1) || 0}%</div>
+                          <div className="text-xs text-zinc-500 mt-1">From peak</div>
+                        </div>
                       </div>
 
-                      {/* Max Drawdown */}
-                      <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
-                        <div className="text-xs text-zinc-500 font-bold uppercase mb-2">⚠️ Max Drawdown</div>
-                        <div className="text-2xl font-black text-orange-600 dark:text-orange-400">-{analyticsData?.max_drawdown?.toFixed(1) || 0}%</div>
-                        <div className="text-xs text-zinc-500 mt-1">From peak</div>
+                      {/* Charts Section */}
+                      <div className="p-6 border-t border-zinc-200 dark:border-zinc-800">
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Daily P&L Trend (Last 7 Days)</h3>
+
+                        {/* Simple Bar Chart */}
+                        <div className="flex items-end justify-between gap-2 h-48 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
+                          {(analyticsData?.daily_pnl || []).map((item, i) => {
+                            const maxPnl = Math.max(...(analyticsData?.daily_pnl || [{ pnl: 1 }]).map(d => Math.abs(d.pnl)), 1);
+                            const height = Math.abs(item.pnl) / maxPnl * 100;
+                            const isPositive = item.pnl >= 0;
+                            const label = Math.abs(item.pnl) >= 1000
+                              ? (item.pnl >= 0 ? `+${(item.pnl / 1000).toFixed(1)}K` : `${(item.pnl / 1000).toFixed(1)}K`)
+                              : (item.pnl >= 0 ? `+${item.pnl.toFixed(0)}` : `${item.pnl.toFixed(0)}`);
+
+                            return (
+                              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                                <div className="text-[10px] font-bold text-zinc-900 dark:text-white">{label}</div>
+                                <div
+                                  className={`w-full rounded-t transition-all hover:opacity-80 ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`}
+                                  style={{ height: `${height}%`, minHeight: '10px' }}
+                                  title={`₹${item.pnl.toFixed(2)}`}
+                                />
+                                <div className="text-xs text-zinc-500 font-medium">{item.day}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Charts Section */}
-                    <div className="p-6 border-t border-zinc-200 dark:border-zinc-800">
-                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Daily P&L Trend (Last 7 Days)</h3>
-
-                      {/* Simple Bar Chart */}
-                      <div className="flex items-end justify-between gap-2 h-48 bg-zinc-50 dark:bg-zinc-900/30 rounded-xl p-4 border border-zinc-200 dark:border-zinc-800">
-                        {(analyticsData?.daily_pnl || []).map((item, i) => {
-                          const maxPnl = Math.max(...(analyticsData?.daily_pnl || [{ pnl: 1 }]).map(d => Math.abs(d.pnl)), 1);
-                          const height = Math.abs(item.pnl) / maxPnl * 100;
-                          const isPositive = item.pnl >= 0;
-                          const label = Math.abs(item.pnl) >= 1000
-                            ? (item.pnl >= 0 ? `+${(item.pnl / 1000).toFixed(1)}K` : `${(item.pnl / 1000).toFixed(1)}K`)
-                            : (item.pnl >= 0 ? `+${item.pnl.toFixed(0)}` : `${item.pnl.toFixed(0)}`);
-
-                          return (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                              <div className="text-[10px] font-bold text-zinc-900 dark:text-white">{label}</div>
-                              <div
-                                className={`w-full rounded-t transition-all hover:opacity-80 ${isPositive ? 'bg-emerald-500' : 'bg-red-500'}`}
-                                style={{ height: `${height}%`, minHeight: '10px' }}
-                                title={`₹${item.pnl.toFixed(2)}`}
-                              />
-                              <div className="text-xs text-zinc-500 font-medium">{item.day}</div>
+                      {/* Win/Loss Pie Chart */}
+                      <div className="p-6 border-t border-zinc-200 dark:border-zinc-800">
+                        <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Win/Loss Distribution</h3>
+                        <div className="flex items-center justify-center gap-12">
+                          {/* Simple Pie Chart using conic-gradient */}
+                          <div className="relative">
+                            <div
+                              className="w-48 h-48 rounded-full"
+                              style={{
+                                background: `conic-gradient(from 0deg, #10b981 0%, #10b981 ${analyticsData?.win_rate || 0}%, #ef4444 ${analyticsData?.win_rate || 0}%, #ef4444 100%)`
+                              }}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-32 h-32 bg-white dark:bg-[#121214] rounded-full flex items-center justify-center">
+                                <div className="text-center">
+                                  <div className="text-2xl font-black text-zinc-900 dark:text-white">{analyticsData?.win_rate?.toFixed(1) || 0}%</div>
+                                  <div className="text-xs text-zinc-500">Win Rate</div>
+                                </div>
+                              </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                          </div>
 
-                    {/* Win/Loss Pie Chart */}
-                    <div className="p-6 border-t border-zinc-200 dark:border-zinc-800">
-                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Win/Loss Distribution</h3>
-                      <div className="flex items-center justify-center gap-12">
-                        {/* Simple Pie Chart using conic-gradient */}
-                        <div className="relative">
-                          <div
-                            className="w-48 h-48 rounded-full"
-                            style={{
-                              background: `conic-gradient(from 0deg, #10b981 0%, #10b981 ${analyticsData?.win_rate || 0}%, #ef4444 ${analyticsData?.win_rate || 0}%, #ef4444 100%)`
-                            }}
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-32 h-32 bg-white dark:bg-[#121214] rounded-full flex items-center justify-center">
-                              <div className="text-center">
-                                <div className="text-2xl font-black text-zinc-900 dark:text-white">{analyticsData?.win_rate?.toFixed(1) || 0}%</div>
-                                <div className="text-xs text-zinc-500">Win Rate</div>
+                          {/* Legend */}
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-4 h-4 rounded bg-emerald-500" />
+                              <div>
+                                <div className="text-sm font-bold text-zinc-900 dark:text-white">Winning Trades</div>
+                                <div className="text-xs text-zinc-500">{analyticsData?.winning_trades || 0} trades ({analyticsData?.win_rate?.toFixed(1) || 0}%)</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="w-4 h-4 rounded bg-red-500" />
+                              <div>
+                                <div className="text-sm font-bold text-zinc-900 dark:text-white">Losing Trades</div>
+                                <div className="text-xs text-zinc-500">{analyticsData?.losing_trades || 0} trades ({(100 - (analyticsData?.win_rate || 0)).toFixed(1)}%)</div>
                               </div>
                             </div>
                           </div>
                         </div>
-
-                        {/* Legend */}
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 rounded bg-emerald-500" />
-                            <div>
-                              <div className="text-sm font-bold text-zinc-900 dark:text-white">Winning Trades</div>
-                              <div className="text-xs text-zinc-500">{analyticsData?.winning_trades || 0} trades ({analyticsData?.win_rate?.toFixed(1) || 0}%)</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="w-4 h-4 rounded bg-red-500" />
-                            <div>
-                              <div className="text-sm font-bold text-zinc-900 dark:text-white">Losing Trades</div>
-                              <div className="text-xs text-zinc-500">{analyticsData?.losing_trades || 0} trades ({(100 - (analyticsData?.win_rate || 0)).toFixed(1)}%)</div>
-                            </div>
-                          </div>
-                        </div>
                       </div>
                     </div>
-                  </div>
-              </>
+                </>
               )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {activeTab === 'history' && <HistoryTable user={user} showConfirm={showConfirm} addToast={addToast} />}
-        </div>
-      </main >
+            {activeTab === 'history' && <HistoryTable user={user} showConfirm={showConfirm} addToast={addToast} />}
+          </div>
+        </main>
+      </>
     );
   }
 
