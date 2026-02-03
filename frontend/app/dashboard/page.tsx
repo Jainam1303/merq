@@ -127,7 +127,8 @@ export default function DashboardNewPage() {
             />
 
             {/* ===== DESKTOP VIEW (>= 1024px) ===== */}
-            <div className="hidden lg:block">
+            {/* ===== DESKTOP VIEW (>= 1024px) ===== */}
+            <div className="hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden">
                 <DashboardHeader
                     isSidebarOpen={isSidebarOpen}
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -139,7 +140,7 @@ export default function DashboardNewPage() {
                     isSystemRunning={isSystemRunning}
                 />
 
-                <div className="flex">
+                <div className="flex flex-1 overflow-hidden">
                     <DashboardSidebar
                         isOpen={isSidebarOpen}
                         onClose={() => setIsSidebarOpen(false)}
@@ -147,7 +148,7 @@ export default function DashboardNewPage() {
                         onTabChange={setActiveTab}
                     />
 
-                    <main className="flex-1 p-4 md:p-6 lg:p-8">
+                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                         <div className="mb-6">
                             <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
                             <p className="text-muted-foreground">

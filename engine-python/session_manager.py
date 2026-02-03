@@ -432,21 +432,46 @@ class TradingSession:
     def _check_signal(self, symbol, ltp):
         """Check if price breaks ORB levels and generate signal"""
         current_date = datetime.date.today()
-        current_time = datetime.datetime.now().time()
+        ist_now = self._get_ist_time()
+        current_time = ist_now.time()
         
-        # Only trade after 09:30
-        if current_time < datetime.time(9, 30):
-            return
-        
-        # Check if already triggered today
         today_key = f"{symbol}_{current_date}"
+        
+        # Check if already triggered today (Common for ALL strategies)
         if today_key in self.signals_triggered:
             return
-        
+
         # Check if position already open
         for p in self.positions:
             if p['symbol'] == symbol and p['status'] == 'OPEN':
                 return
+
+        # ==========================================
+        # STRATEGY: TEST (Immediate Buy)
+        # ==========================================
+        strategy_name = self.config.get('strategy', 'ORB').upper()
+        
+        if strategy_name == 'TEST':
+            # Buy immediately, no time check, no ORB check
+            capital = float(self.config.get('capital', 100000))
+            qty = int(capital / ltp) if ltp > 0 else 1
+            qty = max(1, qty)
+            
+            tp = round(ltp * 1.005, 2)  # 0.5% Target
+            sl = round(ltp * 0.995, 2)  # 0.5% SL
+            
+            self._place_order(symbol, "BUY", qty, ltp, tp, sl)
+            self.signals_triggered[today_key] = True
+            self.log(f"🧪 TEST STRATEGY: Immediate BUY for {symbol} @ {ltp}", "SUCCESS")
+            return
+
+        # ==========================================
+        # STRATEGY: ORB (Original Logic)
+        # ==========================================
+        
+        # Only trade after 09:30
+        if current_time < datetime.time(9, 30):
+            return
         
         orb = self.orb_levels.get(symbol)
         if not orb:

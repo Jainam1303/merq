@@ -57,7 +57,7 @@ function PositionCard({
     }
   };
 
-  const isProfitable = position.pnl >= 0;
+  const isProfitable = parseFloat(String(position.pnl ?? 0)) >= 0;
 
   return (
     <div className={cn(
@@ -88,7 +88,7 @@ function PositionCard({
             </Badge>
           </div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            {position.qty} @ ₹{position.entry.toFixed(2)} • {position.time}
+            {position.qty} @ ₹{parseFloat(String(position.entry ?? 0)).toFixed(2)} • {position.time}
           </div>
         </div>
 
@@ -98,7 +98,7 @@ function PositionCard({
             "text-lg font-bold tabular-nums",
             isProfitable ? "text-profit" : "text-loss"
           )}>
-            {isProfitable ? '+' : ''}₹{position.pnl.toFixed(2)}
+            {isProfitable ? '+' : ''}₹{parseFloat(String(position.pnl ?? 0)).toFixed(2)}
           </div>
           <div className="flex items-center justify-end gap-1 text-muted-foreground">
             {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -241,7 +241,7 @@ export function ActivePositions({
               "text-sm font-bold mt-1",
               totalPnl >= 0 ? "text-profit" : "text-loss"
             )}>
-              Total: {totalPnl >= 0 ? '+' : ''}₹{totalPnl.toFixed(2)}
+              Total: {parseFloat(String(totalPnl ?? 0)) >= 0 ? '+' : ''}₹{parseFloat(String(totalPnl ?? 0)).toFixed(2)}
             </div>
           )}
         </div>

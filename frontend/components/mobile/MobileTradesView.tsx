@@ -56,7 +56,7 @@ function TradeCard({
         setEditing(false);
     };
 
-    const isProfitable = trade.pnl >= 0;
+    const isProfitable = (Number(trade.pnl) || 0) >= 0;
 
     return (
         <div className={cn(
@@ -228,9 +228,9 @@ export function MobileTradesView({
                         <div className="text-sm text-zinc-500">{trades.length} Position{trades.length !== 1 ? 's' : ''}</div>
                         <div className={cn(
                             "text-xl font-bold tabular-nums",
-                            totalPnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                            (Number(totalPnl) || 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                         )}>
-                            {totalPnl >= 0 ? '+' : ''}₹{Number(totalPnl || 0).toFixed(2)}
+                            {(Number(totalPnl) || 0) >= 0 ? '+' : ''}₹{Number(totalPnl || 0).toFixed(2)}
                         </div>
                     </div>
                     {trades.length > 0 && (

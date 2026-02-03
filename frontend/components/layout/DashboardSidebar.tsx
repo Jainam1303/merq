@@ -61,7 +61,7 @@ export function DashboardSidebar({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-border bg-card transition-transform duration-300 md:relative md:top-0 md:translate-x-0 flex flex-col",
+          "fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 border-r border-border bg-card transition-transform duration-300 md:relative md:top-0 md:h-full md:translate-x-0 flex flex-col",
           isOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -93,7 +93,7 @@ export function DashboardSidebar({
         </nav>
 
         {/* Bottom section - Moved up below info */}
-        <div className="border-t border-border p-3 mt-4">
+        <div className="border-t border-border p-3 mt-auto">
           <div className="rounded-lg bg-secondary/50 p-3">
             <p className="text-xs font-medium text-muted-foreground">Current Plan</p>
             <p className="text-sm font-semibold text-primary">{planInfo.name}</p>

@@ -34,7 +34,7 @@ export function MobileAnalyticsView({
             label: 'Win Rate',
             value: `${Number(winRate || 0).toFixed(1)}%`,
             icon: Target,
-            color: winRate >= 50 ? 'blue' : 'orange',
+            color: Number(winRate || 0) >= 50 ? 'blue' : 'orange',
             bgColor: 'from-blue-50 to-blue-100/50 dark:from-blue-900/20 dark:to-blue-950/30',
             borderColor: 'border-blue-200 dark:border-blue-800/50'
         },
@@ -116,7 +116,7 @@ export function MobileAnalyticsView({
                 <div className="relative h-8 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <div
                         className="absolute top-0 left-0 h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all duration-500"
-                        style={{ width: `${winRate}%` }}
+                        style={{ width: `${Number(winRate || 0)}%` }}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-xs font-bold text-zinc-900 dark:text-white">
