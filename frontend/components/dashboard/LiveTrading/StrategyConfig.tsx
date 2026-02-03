@@ -392,6 +392,13 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
             </div>
           </div>
         </div>
+
+        {/* Auto Square-Off Notice */}
+        <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <p className="text-xs text-amber-400 leading-relaxed">
+            <span className="font-semibold">⚠️ Important:</span> All active positions will be auto squared off at <span className="font-bold">3:05 PM</span> if not squared off by the Algo or User manually. After <span className="font-bold">3:15 PM</span>, the Broker will square off remaining positions between <span className="font-bold">3:15 PM - 3:30 PM</span>.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
