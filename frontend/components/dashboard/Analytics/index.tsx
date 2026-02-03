@@ -10,6 +10,7 @@ export function Analytics() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [timePeriod, setTimePeriod] = useState<'7D' | '30D' | '90D'>('7D');
 
     useEffect(() => {
         const loadAnalytics = async () => {
@@ -70,6 +71,18 @@ export function Analytics() {
     const worstDay = data.worst_day ?? { pnl: 0, date: 'N/A' };
     const maxDrawdown = data.max_drawdown ?? 0;
     const dailyPnl = data.daily_pnl ?? [];
+
+    // Filter data based on time period
+    const getDaysCount = () => {
+        switch (timePeriod) {
+            case '7D': return 7;
+            case '30D': return 30;
+            case '90D': return 90;
+            default: return 7;
+        }
+    };
+
+    const filteredDailyPnl = dailyPnl.slice(-getDaysCount());
 
     const winLossData = [
         { name: 'Winning', value: winningTrades, color: '#22c55e' }, // green-500
@@ -170,11 +183,42 @@ export function Analytics() {
             {/* Charts */}
             <div className="grid gap-6 lg:grid-cols-2">
                 <Card>
-                    <CardHeader><CardTitle>Daily P&L (Last 7 Days)</CardTitle></CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                        <CardTitle>P&L Trend (Last {getDaysCount()} Days)</CardTitle>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setTimePeriod('7D')}
+                                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${timePeriod === '7D'
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    }`}
+                            >
+                                7D
+                            </button>
+                            <button
+                                onClick={() => setTimePeriod('30D')}
+                                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${timePeriod === '30D'
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    }`}
+                            >
+                                30D
+                            </button>
+                            <button
+                                onClick={() => setTimePeriod('90D')}
+                                className={`px-3 py-1 text-xs font-medium rounded transition-colors ${timePeriod === '90D'
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                                    }`}
+                            >
+                                90D
+                            </button>
+                        </div>
+                    </CardHeader>
                     <CardContent>
                         <div className="h-64">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={dailyPnl}>
+                                <BarChart data={filteredDailyPnl}>
                                     <CartesianGrid strokeDasharray="3 3" opacity={0.2} vertical={false} />
                                     <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={12} />
                                     <YAxis axisLine={false} tickLine={false} fontSize={12} tickFormatter={(val) => `₹${val / 1000}k`} />
@@ -183,7 +227,7 @@ export function Analytics() {
                                         contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
                                     />
                                     <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
-                                        {dailyPnl.map((entry: any, index: number) => (
+                                        {filteredDailyPnl.map((entry: any, index: number) => (
                                             <Cell key={`cell-${index}`} fill={(entry.pnl ?? 0) >= 0 ? '#22c55e' : '#ef4444'} />
                                         ))}
                                     </Bar>
