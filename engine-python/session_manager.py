@@ -1,4 +1,5 @@
 import threading
+import requests
 import time
 import pandas as pd
 from logzero import logger
@@ -638,6 +639,8 @@ class TradingSession:
             except Exception as e:
                 self.log(f"Order Failed: {e}", "ERROR")
 
+
+
     def _close_position(self, pos, price, reason):
         pos['status'] = "CLOSED"
         pos['exit'] = price
@@ -649,6 +652,32 @@ class TradingSession:
         self.pnl += pos['pnl']
         self.log(f"Closed {pos['symbol']} ({reason}) PnL: {pos['pnl']:.2f}", "INFO" if pos['pnl'] > 0 else "WARNING")
         
+        # ----------------------------------------------------
+        # PERSIST TO BACKEND DB (Fix for data loss)
+        # ----------------------------------------------------
+        try:
+            payload = {
+                "user_id": self.user_id,
+                "symbol": pos['symbol'],
+                "mode": pos['type'],
+                "qty": pos['qty'],
+                "entry": pos['entry'],
+                "exit": pos['exit'],
+                "tp": pos.get('tp', 0),
+                "sl": pos.get('sl', 0),
+                "pnl": round(pos['pnl'], 2),
+                "status": "COMPLETED",
+                "date": pos.get('date', datetime.date.today().strftime('%Y-%m-%d')),
+                "time": self._get_ist_time().strftime("%H:%M:%S"),
+                "trade_mode": self.mode,
+                "strategy": self.strategy_name.upper()
+            }
+            # Use backend internal URL (localhost)
+            requests.post('http://localhost:5001/webhook/save_trade', json=payload, timeout=2)
+            self.log(f"Synced {pos['symbol']} trade to DB", "DEBUG")
+        except Exception as e:
+            self.log(f"Failed to sync trade to DB: {e}", "ERROR")
+
         # Real Order Exit
         if self.mode == "LIVE":
             try:

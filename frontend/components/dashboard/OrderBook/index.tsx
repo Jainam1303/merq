@@ -195,7 +195,7 @@ export function OrderBook() {
       if (res.status === 'success') {
         const mapped = res.data.map((t: any) => {
           let exitPrice = 0;
-          if (t.status === 'COMPLETED' || t.pnl !== 0) {
+          if (t.status === 'COMPLETED' || t.status === 'CLOSED_SL' || t.status === 'CLOSED_TP' || t.status === 'CLOSED_MANUAL' || t.pnl !== 0) {
             const pnl = parseFloat(t.pnl || 0);
             const qty = parseInt(t.quantity || t.qty || 1);
             const entry = parseFloat(t.entry_price || t.entry || 0);
@@ -205,14 +205,9 @@ export function OrderBook() {
             exitPrice = parseFloat(t.exit);
           }
 
-          // Handle Date/Time (Backend sends date/time separately or timestamp)
-          let dateStr = '';
-          let timeStr = '';
-          if (t.date) dateStr = t.date;
-          else if (t.timestamp) dateStr = t.timestamp.split(' ')[0];
-
-          if (t.time) timeStr = t.time;
-          else if (t.timestamp) timeStr = t.timestamp.split(' ')[1] || '';
+          // Use direct date and time fields from API
+          const dateStr = t.date || '';
+          const timeStr = t.time || '';
 
           return {
             id: String(t.id),
@@ -226,7 +221,11 @@ export function OrderBook() {
             sl: parseFloat(t.sl || 0),
             exit: exitPrice,
             pnl: parseFloat(t.pnl || 0),
-            status: t.status === 'COMPLETED' ? 'Completed' : t.status === 'CANCELLED' ? 'Cancelled' : t.status
+            status: t.status === 'COMPLETED' ? 'Completed' :
+              t.status === 'CANCELLED' ? 'Cancelled' :
+                t.status === 'CLOSED_SL' ? 'CLOSED_SL' :
+                  t.status === 'CLOSED_TP' ? 'CLOSED_TP' :
+                    t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status
           };
         });
         setTrades(mapped);

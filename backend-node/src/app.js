@@ -13,9 +13,6 @@ app.use(cookieParser());
 const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://merq.vercel.app',
-    'https://merqprime.in',
-    'https://www.merqprime.in',
     process.env.FRONTEND_URL, // Allow Vercel URL
     process.env.NEXT_PUBLIC_API_URL
 ].filter(Boolean);
@@ -50,7 +47,42 @@ app.use('/api/auth', authRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
 
 // --- LEGACY ALIASES (For Frontend Proxy Support) ---
-// Note: Next.js proxies /api/:path* to /:path* on this server
+// Note: Next.js proxies /api/:path* to /:path* on// Webhook for Python Engine to save completed trades
+app.post('/webhook/save_trade', async (req, res) => {
+    try {
+        const { user_id, symbol, mode, qty, entry, exit, tp, sl, pnl, status, date, time, trade_mode, strategy } = req.body;
+
+        const { Trade } = require('./models');
+
+        // Check for duplicate (optional but good)
+        // const exists = await Trade.findOne({ where: { user_id, symbol, date, time } });
+        // if (exists) return res.json({ status: 'skipped' });
+
+        await Trade.create({
+            user_id,
+            symbol,
+            mode: mode || 'BUY',
+            quantity: qty || 1,
+            entry_price: entry || 0,
+            exit_price: exit || 0,
+            tp: tp || 0,
+            sl: sl || 0,
+            pnl: pnl || 0,
+            status: status || 'COMPLETED',
+            timestamp: `${date} ${time}`.trim(),
+            is_simulated: trade_mode === 'PAPER',
+            strategy: strategy || 'ORB'
+        });
+
+        console.log(`Saved trade via webhook: ${symbol} ${pnl}`);
+        res.json({ status: 'success' });
+    } catch (e) {
+        console.error("Save Trade Webhook Error:", e);
+        res.status(500).json({ status: 'error', message: e.message });
+    }
+});
+
+// Start Server
 
 app.post('/register', authController.register);
 app.post('/login', authController.login);
@@ -321,64 +353,93 @@ app.get('/orderbook', verifyToken, async (req, res) => {
         const engineService = require('./services/engineService');
         const userId = String(req.user.id);
 
+        // Get date filters
+        const { startDate, endDate } = req.query;
+
         // Get live trades from Python session
         const engineStatus = await engineService.getStatus(userId);
         const liveTradesRaw = engineStatus.trades_history || [];
 
-        // Map Python trades to expected format
-        const liveTrades = liveTradesRaw.map(t => ({
+        // Map Python trades to expected format (including tp, sl, date, time)
+        let liveTrades = liveTradesRaw.map(t => ({
             id: t.id,
+            date: t.date || '',
+            time: t.time || '',
             timestamp: `${t.date || ''} ${t.time || ''}`.trim(),
             symbol: t.symbol,
             mode: t.type,
             quantity: t.qty,
             entry_price: t.entry,
+            tp: t.tp || 0,
+            sl: t.sl || 0,
             pnl: t.pnl || 0,
             status: t.status,
             trade_mode: t.mode  // PAPER or LIVE
         }));
 
+        // Apply date filters if provided
+        if (startDate) {
+            liveTrades = liveTrades.filter(t => t.date >= startDate);
+        }
+        if (endDate) {
+            liveTrades = liveTrades.filter(t => t.date <= endDate);
+        }
+
         // Also try to get DB trades
         let dbTrades = [];
         try {
             const { Trade } = require('./models');
-            dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
-            dbTrades = dbTrades.map(t => t.toJSON());
+            const { Op } = require('sequelize');
+
+            let whereClause = { user_id: req.user.id };
+
+            // Apply date filters for DB trades
+            if (startDate || endDate) {
+                whereClause.timestamp = {};
+                // Since timestamp is string "YYYY-MM-DD HH:MM:SS", we can use string comparison
+                if (startDate) whereClause.timestamp[Op.gte] = `${startDate} 00:00:00`;
+                if (endDate) whereClause.timestamp[Op.lte] = `${endDate} 23:59:59`;
+            }
+
+            dbTrades = await Trade.findAll({
+                where: whereClause,
+                order: [['timestamp', 'DESC']] // Sort by trade date, not creation date
+            });
+            dbTrades = dbTrades.map(t => {
+                const tJson = t.toJSON();
+                // Parse date and time from timestamp string if available
+                let dateStr = '';
+                let timeStr = '';
+
+                if (tJson.timestamp) {
+                    const parts = tJson.timestamp.split(' ');
+                    dateStr = parts[0] || '';
+                    timeStr = parts[1] || '';
+                } else {
+                    // Fallback to createdAt if timestamp is missing
+                    const createdAt = new Date(tJson.createdAt);
+                    dateStr = createdAt.toISOString().split('T')[0];
+                    timeStr = createdAt.toTimeString().split(' ')[0];
+                }
+
+                return {
+                    ...tJson,
+                    date: dateStr,
+                    time: timeStr,
+                    tp: tJson.tp || 0,
+                    sl: tJson.sl || 0
+                };
+            });
         } catch (e) {
             // DB/model might not exist, that's ok
         }
 
-        // Combine (live first, then DB)
-        let allTrades = [...liveTrades, ...dbTrades];
-
-        // FILTER BY DATE
-        const { startDate, endDate } = req.query;
-        if (startDate || endDate) {
-            const start = startDate ? new Date(startDate) : null;
-            const end = endDate ? new Date(endDate) : null;
-            if (end) end.setHours(23, 59, 59, 999); // Include full end day
-
-            allTrades = allTrades.filter(t => {
-                let tradeDateStr = '';
-                if (t.timestamp) {
-                    if (t.timestamp instanceof Date) tradeDateStr = t.timestamp.toISOString().split('T')[0];
-                    else tradeDateStr = t.timestamp.split(' ')[0];
-                } else if (t.date) {
-                    tradeDateStr = t.date;
-                } else if (t.createdAt) {
-                    tradeDateStr = new Date(t.createdAt).toISOString().split('T')[0];
-                }
-
-                if (!tradeDateStr) return true; // Keep if no date (safety)
-
-                const tradeDate = new Date(tradeDateStr);
-
-                if (start && tradeDate < start) return false;
-                if (end && tradeDate > end) return false;
-
-                return true;
-            });
-        }
+        // Combine (live first, then DB) and sort by date desc
+        const allTrades = [...liveTrades, ...dbTrades].sort((a, b) => {
+            const dateA = `${a.date} ${a.time}`;
+            const dateB = `${b.date} ${b.time}`;
+            return dateB.localeCompare(dateA);
+        });
 
         res.json({ status: 'success', data: allTrades });
     } catch (e) {

@@ -205,6 +205,8 @@ export function Profile() {
                         if (verifyRes.status === 'success') {
                             toast.success("Upgrade Successful!");
                             loadProfile(); // Refresh plan status
+                            // Notify Sidebar to update
+                            window.dispatchEvent(new Event('plan-updated'));
                         } else {
                             toast.error("Verification Failed");
                         }

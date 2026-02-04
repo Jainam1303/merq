@@ -8,7 +8,7 @@ const Trade = require('./Trade');
 const BacktestResult = require('./BacktestResult');
 
 // User <-> Subscription
-User.hasOne(Subscription, { foreignKey: 'user_id' });
+User.hasMany(Subscription, { foreignKey: 'user_id' });
 Subscription.belongsTo(User, { foreignKey: 'user_id' });
 
 // Plan <-> Subscription
