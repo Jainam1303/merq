@@ -41,7 +41,7 @@ class TradingSession:
         self.symbol_tokens = {}  # {symbol: token}
 
     def log(self, message, type="INFO"):
-        timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+        timestamp = self._get_ist_time().strftime("%H:%M:%S")
         log_entry = f"{timestamp} - {type} - {message}"
         self.logs.append(log_entry)
         logger.info(log_entry)  # Also log to console
@@ -214,51 +214,60 @@ class TradingSession:
                 # Use IST for date
                 today = ist_now.date() 
                 
-                try:
-                    # Single quick attempt - no retries
-                    params = {
-                        "exchange": "NSE",
-                        "symboltoken": token,
-                        "interval": "FIVE_MINUTE",
-                        "fromdate": f"{today.strftime('%Y-%m-%d')} 09:15",
-                        "todate": f"{today.strftime('%Y-%m-%d')} 09:30"
-                    }
-                    
-                    time.sleep(0.3)  # Minimal delay
-                    res = self.smartApi.getCandleData(params)
-                    
-                    if res and res.get('status') and res.get('data'):
-                        df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                        or_high = float(df['high'].max())
-                        or_low = float(df['low'].min())
+                # RETRY LOGIC: Up to 3 attempts with increasing delays
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        params = {
+                            "exchange": "NSE",
+                            "symboltoken": token,
+                            "interval": "FIVE_MINUTE",
+                            "fromdate": f"{today.strftime('%Y-%m-%d')} 09:15",
+                            "todate": f"{today.strftime('%Y-%m-%d')} 09:30"
+                        }
                         
-                        self.orb_levels[symbol] = {
-                            'or_high': or_high,
-                            'or_low': or_low,
-                            'or_mid': (or_high + or_low) / 2,
-                            'collecting': False
-                        }
-                        success_count += 1
-                    else:
-                        # Failed to get history - we are blind for ORB
-                        # We cannot magically guess ORB from current price
-                        self.log(f"Could not fetch ORB for {symbol} - trading disabled for this symbol", "WARNING")
-                        # SAFETY: Do NOT trade without valid ORB levels
-                        # Set impossibly high/low values so no breakout triggers
-                        self.orb_levels[symbol] = {
-                            'or_high': 999999999,  # Price will never exceed this
-                            'or_low': 0,           # Price will never go below this
-                            'or_mid': 0,
-                            'collecting': False    # Do NOT collect - ORB window passed
-                        }
-                except Exception as e:
-                    self.log(f"Exception fetching ORB for {symbol}: {e} - trading disabled", "WARNING")
-                    self.orb_levels[symbol] = {
-                        'or_high': 999999999,
-                        'or_low': 0,
-                        'or_mid': 0,
-                        'collecting': False
-                    }
+                        delay = 0.5 * (attempt + 1)  # 0.5s, 1s, 1.5s
+                        time.sleep(delay)
+                        res = self.smartApi.getCandleData(params)
+                        
+                        if res and res.get('status') and res.get('data'):
+                            df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                            or_high = float(df['high'].max())
+                            or_low = float(df['low'].min())
+                            
+                            self.orb_levels[symbol] = {
+                                'or_high': or_high,
+                                'or_low': or_low,
+                                'or_mid': (or_high + or_low) / 2,
+                                'collecting': False
+                            }
+                            success_count += 1
+                            break  # Success, exit retry loop
+                        else:
+                            if attempt < max_retries - 1:
+                                self.log(f"Retry {attempt+1}/{max_retries} for {symbol}...", "INFO")
+                                continue  # Retry
+                            else:
+                                # All retries failed
+                                self.log(f"Could not fetch ORB for {symbol} after {max_retries} attempts - trading disabled", "WARNING")
+                                self.orb_levels[symbol] = {
+                                    'or_high': 999999999,
+                                    'or_low': 0,
+                                    'or_mid': 0,
+                                    'collecting': False
+                                }
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            self.log(f"Exception for {symbol} (attempt {attempt+1}): {e}", "WARNING")
+                            continue  # Retry
+                        else:
+                            self.log(f"Exception fetching ORB for {symbol}: {e} - trading disabled", "WARNING")
+                            self.orb_levels[symbol] = {
+                                'or_high': 999999999,
+                                'or_low': 0,
+                                'or_mid': 0,
+                                'collecting': False
+                            }
             
             if success_count > 0:
                 self.log(f"✓ Got ORB data for {success_count} symbols from API", "SUCCESS")
