@@ -85,6 +85,27 @@ app.post('/webhook/save_trade', async (req, res) => {
     }
 });
 
+// Real-time Tick/PnL Update Webhook
+app.post('/webhook/tick', (req, res) => {
+    try {
+        const { user_id, trades, pnl, token_data } = req.body;
+        const { sendUserUpdate } = require('./services/socketService');
+
+        // Broadcast to specific user via Socket.IO
+        // Frontend expects 'tick_update' event with { trades, pnl }
+        sendUserUpdate(user_id, 'tick_update', {
+            trades,
+            pnl,
+            timestamp: new Date().toISOString()
+        });
+
+        res.json({ status: 'ok' });
+    } catch (e) {
+        // console.error("Tick Webhook Error:", e.message);
+        res.status(500).json({ status: 'error' });
+    }
+});
+
 // Start Server
 
 app.post('/register', authController.register);
