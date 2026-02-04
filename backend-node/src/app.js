@@ -318,35 +318,79 @@ app.get('/orderbook', verifyToken, async (req, res) => {
         const engineService = require('./services/engineService');
         const userId = String(req.user.id);
 
+        // Get date filters
+        const { startDate, endDate } = req.query;
+
         // Get live trades from Python session
         const engineStatus = await engineService.getStatus(userId);
         const liveTradesRaw = engineStatus.trades_history || [];
 
-        // Map Python trades to expected format
-        const liveTrades = liveTradesRaw.map(t => ({
+        // Map Python trades to expected format (including tp, sl, date, time)
+        let liveTrades = liveTradesRaw.map(t => ({
             id: t.id,
+            date: t.date || '',
+            time: t.time || '',
             timestamp: `${t.date || ''} ${t.time || ''}`.trim(),
             symbol: t.symbol,
             mode: t.type,
             quantity: t.qty,
             entry_price: t.entry,
+            tp: t.tp || 0,
+            sl: t.sl || 0,
             pnl: t.pnl || 0,
             status: t.status,
             trade_mode: t.mode  // PAPER or LIVE
         }));
 
+        // Apply date filters if provided
+        if (startDate) {
+            liveTrades = liveTrades.filter(t => t.date >= startDate);
+        }
+        if (endDate) {
+            liveTrades = liveTrades.filter(t => t.date <= endDate);
+        }
+
         // Also try to get DB trades
         let dbTrades = [];
         try {
             const { Trade } = require('./models');
-            dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
-            dbTrades = dbTrades.map(t => t.toJSON());
+            const { Op } = require('sequelize');
+
+            let whereClause = { user_id: req.user.id };
+
+            // Apply date filters for DB trades
+            if (startDate || endDate) {
+                whereClause.createdAt = {};
+                if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);
+                if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate + 'T23:59:59');
+            }
+
+            dbTrades = await Trade.findAll({
+                where: whereClause,
+                order: [['createdAt', 'DESC']]
+            });
+            dbTrades = dbTrades.map(t => {
+                const tJson = t.toJSON();
+                // Parse date and time from createdAt if not separately stored
+                const createdAt = new Date(tJson.createdAt);
+                return {
+                    ...tJson,
+                    date: tJson.date || createdAt.toISOString().split('T')[0],
+                    time: tJson.time || createdAt.toTimeString().split(' ')[0],
+                    tp: tJson.tp || 0,
+                    sl: tJson.sl || 0
+                };
+            });
         } catch (e) {
             // DB/model might not exist, that's ok
         }
 
-        // Combine (live first, then DB)
-        const allTrades = [...liveTrades, ...dbTrades];
+        // Combine (live first, then DB) and sort by date desc
+        const allTrades = [...liveTrades, ...dbTrades].sort((a, b) => {
+            const dateA = `${a.date} ${a.time}`;
+            const dateB = `${b.date} ${b.time}`;
+            return dateB.localeCompare(dateA);
+        });
 
         res.json({ status: 'success', data: allTrades });
     } catch (e) {
