@@ -208,10 +208,11 @@ app.post('/update_safety_guard', verifyToken, tradingController.updateSafetyGuar
 app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
+// Basic error logging for Yahoo Finance
+const yahooFinance = require('yahoo-finance2').default || require('yahoo-finance2');
+
 app.get('/market_data', async (req, res) => {
     try {
-        const yahooFinance = require('yahoo-finance2').default;
-
         const symbolsMap = [
             { ticker: "^NSEI", label: "NIFTY 50" },
             { ticker: "^NSEBANK", label: "BANKNIFTY" },
@@ -220,16 +221,16 @@ app.get('/market_data', async (req, res) => {
             { ticker: "HDFCBANK.NS", label: "HDFCBANK" },
             { ticker: "INFY.NS", label: "INFY" },
             { ticker: "TCS.NS", label: "TCS" },
-            { ticker: "ADANIENT.NS", label: "ADANIENT" },
-            { ticker: "BAJFINANCE.NS", label: "BAJFINANCE" }
+            { ticker: "ADANIENT.NS", label: "ADANIENT" }
         ];
 
         const results = await Promise.all(symbolsMap.map(async (s) => {
             try {
-                const quote = await yahooFinance.quote(s.ticker);
-                const price = quote.regularMarketPrice || quote.postMarketPrice || 0;
+                // Extended timeout and options for stability on some servers
+                const quote = await yahooFinance.quote(s.ticker, { validateResult: false });
+                const price = quote.regularMarketPrice || quote.postMarketPrice || quote.bid || 0;
                 const prevClose = quote.regularMarketPreviousClose || price;
-                const changePct = ((price - prevClose) / prevClose) * 100;
+                const changePct = prevClose !== 0 ? ((price - prevClose) / prevClose) * 100 : 0;
 
                 return {
                     symbol: s.label,
@@ -250,11 +251,12 @@ app.get('/market_data', async (req, res) => {
             return res.json(validResults);
         }
 
-        throw new Error("No data fetched");
+        throw new Error("Yahoo returned no valid data for these symbols");
 
     } catch (e) {
-        console.error("Yahoo Finance Fetch Error:", e.message);
-        // Fallback to simulation if Yahoo fails
+        console.error("Yahoo Finance Final Error:", e.message);
+
+        // Fallback to simulation
         const baseData = [
             { symbol: "NIFTY 50", base: 24500 },
             { symbol: "BANKNIFTY", base: 52100 },
@@ -272,7 +274,8 @@ app.get('/market_data', async (req, res) => {
                 price: parseFloat(currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
                 change: `${changePct > 0 ? '+' : ''}${changePct}%`,
                 isGainer: parseFloat(changePct) >= 0,
-                source: 'SIMULATED_FALLBACK'
+                source: 'SIMULATED_FALLBACK',
+                debug_error: e.message // Send error back to frontend for debugging
             };
         });
         res.json(data);
