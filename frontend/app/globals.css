@@ -7,11 +7,12 @@
     html,
     body {
         overflow-x: hidden;
+        overflow-y: auto;
+        min-height: 100%;
         max-width: 100vw;
         touch-action: manipulation;
         -webkit-text-size-adjust: 100%;
-        overscroll-behavior-y: none;
-        /* Disables pull-to-refresh on mobile */
+        /* overscroll-behavior-y: none; Remove this as it can block scrolling on some setups */
     }
 
     /* Prevent auto-zoom on iOS inputs */
