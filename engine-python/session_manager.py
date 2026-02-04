@@ -242,21 +242,24 @@ class TradingSession:
                     else:
                         # Failed to get history - we are blind for ORB
                         # We cannot magically guess ORB from current price
-                        self.log(f"Could not fetch ORB for {symbol}", "WARNING")
-                        # Mark as NOT collecting, because we missed the window
-                        # Initialize with 0 so no trades are taken (safety)
+                        self.log(f"Could not fetch ORB for {symbol} - will calculate from live ticks", "WARNING")
+                        # Enable live collection - high will start at 0 (will be updated on first tick)
+                        # low will start high and be updated down
                         self.orb_levels[symbol] = {
                             'or_high': 0,
-                            'or_low': 0,
+                            'or_low': 999999999,
                             'or_mid': 0,
-                            'collecting': False
+                            'collecting': True,  # Enable live calculation
+                            'candles': []
                         }
                 except Exception as e:
+                    self.log(f"Exception fetching ORB for {symbol}: {e}", "WARNING")
                     self.orb_levels[symbol] = {
                         'or_high': 0,
-                        'or_low': 0,
+                        'or_low': 999999999,
                         'or_mid': 0,
-                        'collecting': False
+                        'collecting': True,
+                        'candles': []
                     }
             
             if success_count > 0:
