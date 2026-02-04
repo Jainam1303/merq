@@ -27,6 +27,7 @@ class TradingSession:
         # ORB State (per symbol)
         self.orb_levels = {}  # {symbol: {or_high, or_low, calculated: bool}}
         self.ltp_cache = {}   # {symbol: last_traded_price}
+        self.prev_ltp_cache = {}  # {symbol: previous_ltp} - for crossover detection
         
         # Connection
         self.smartApi = None
@@ -343,6 +344,10 @@ class TradingSession:
             if not symbol or ltp <= 0:
                 return
             
+            # Track previous LTP for crossover detection
+            prev_ltp = self.prev_ltp_cache.get(symbol, 0)
+            self.prev_ltp_cache[symbol] = ltp
+            
             # Update LTP cache
             self.ltp_cache[symbol] = ltp
             
@@ -372,7 +377,7 @@ class TradingSession:
                 
                 # Check for signals (only after ORB is ready)
                 if not orb.get('collecting', False) and orb.get('or_high', 0) > 0:
-                    self._check_signal(symbol, ltp, vwap)
+                    self._check_signal(symbol, ltp, vwap, prev_ltp)
                 
         except Exception as e:
             # Don't spam logs for every tick error
@@ -440,7 +445,7 @@ class TradingSession:
         self.log("WebSocket reconnection failed. Falling back to polling mode.", "WARNING")
         self._run_polling_loop()
 
-    def _check_signal(self, symbol, ltp, vwap=0):
+    def _check_signal(self, symbol, ltp, vwap=0, prev_ltp=0):
         """Check if price breaks ORB levels and generate signal"""
         current_date = datetime.date.today()
         ist_now = self._get_ist_time()
@@ -528,19 +533,24 @@ class TradingSession:
         if or_high <= 0 or or_low <= 0:
             return
         
+        # ==========================================
+        # CROSSOVER DETECTION (Critical Fix)
+        # ==========================================
+        # Only trigger if price CROSSES from inside range to outside
+        # This prevents false signals when price is already beyond ORB at startup
+        
+        # If we don't have a previous price yet (first tick), skip this tick
+        if prev_ltp <= 0:
+            return
+        
         # Calculate qty based on capital (no artificial cap)
         capital = float(self.config.get('capital', 100000))
         qty = int(capital / ltp) if ltp > 0 else 1
         qty = max(1, qty)  # At least 1 share
         
-        # DEBUG: Explain Logic
-        if ltp > or_high:
-             self.log(f"{symbol} CHECK: Price {ltp} > High {or_high}. VWAP={vwap}", "DEBUG")
-        elif ltp < or_low:
-             self.log(f"{symbol} CHECK: Price {ltp} < Low {or_low}. VWAP={vwap}", "DEBUG")
-        
-        # BUY Signal: Price breaks above ORB High AND Price > VWAP
-        if ltp > or_high:
+        # BUY Signal: Price CROSSES above ORB High (prev was below, now above)
+        # Condition: prev_ltp <= or_high AND ltp > or_high  AND ltp > vwap
+        if ltp > or_high and prev_ltp <= or_high:
             if vwap > 0 and ltp <= vwap:
                 return # Filtered by VWAP
 
@@ -549,10 +559,11 @@ class TradingSession:
             
             self._place_order(symbol, "BUY", qty, ltp, tp, sl)
             self.signals_triggered[today_key] = True
-            self.log(f"🟢 BUY SIGNAL: {symbol} @ {ltp:.2f} (High:{or_high}, VWAP:{vwap})", "SUCCESS")
+            self.log(f"🟢 BUY CROSSOVER: {symbol} @ {ltp:.2f} (crossed High:{or_high}, VWAP:{vwap})", "SUCCESS")
         
-        # SELL Signal: Price breaks below ORB Low AND Price < VWAP
-        elif ltp < or_low:
+        # SELL Signal: Price CROSSES below ORB Low (prev was above, now below)
+        # Condition: prev_ltp >= or_low AND ltp < or_low AND ltp < vwap
+        elif ltp < or_low and prev_ltp >= or_low:
             if vwap > 0 and ltp >= vwap:
                 return # Filtered by VWAP
                 
@@ -561,7 +572,7 @@ class TradingSession:
             
             self._place_order(symbol, "SELL", qty, ltp, tp, sl)
             self.signals_triggered[today_key] = True
-            self.log(f"🔴 SELL SIGNAL: {symbol} @ {ltp:.2f} (Low:{or_low}, VWAP:{vwap})", "SUCCESS")
+            self.log(f"🔴 SELL CROSSOVER: {symbol} @ {ltp:.2f} (crossed Low:{or_low}, VWAP:{vwap})", "SUCCESS")
 
     def _update_position_pnl(self, symbol, ltp):
         """Update unrealized PnL for open positions"""
