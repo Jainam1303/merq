@@ -395,23 +395,37 @@ app.get('/orderbook', verifyToken, async (req, res) => {
 
             // Apply date filters for DB trades
             if (startDate || endDate) {
-                whereClause.createdAt = {};
-                if (startDate) whereClause.createdAt[Op.gte] = new Date(startDate);
-                if (endDate) whereClause.createdAt[Op.lte] = new Date(endDate + 'T23:59:59');
+                whereClause.timestamp = {};
+                // Since timestamp is string "YYYY-MM-DD HH:MM:SS", we can use string comparison
+                if (startDate) whereClause.timestamp[Op.gte] = `${startDate} 00:00:00`;
+                if (endDate) whereClause.timestamp[Op.lte] = `${endDate} 23:59:59`;
             }
 
             dbTrades = await Trade.findAll({
                 where: whereClause,
-                order: [['createdAt', 'DESC']]
+                order: [['timestamp', 'DESC']] // Sort by trade date, not creation date
             });
             dbTrades = dbTrades.map(t => {
                 const tJson = t.toJSON();
-                // Parse date and time from createdAt if not separately stored
-                const createdAt = new Date(tJson.createdAt);
+                // Parse date and time from timestamp string if available
+                let dateStr = '';
+                let timeStr = '';
+
+                if (tJson.timestamp) {
+                    const parts = tJson.timestamp.split(' ');
+                    dateStr = parts[0] || '';
+                    timeStr = parts[1] || '';
+                } else {
+                    // Fallback to createdAt if timestamp is missing
+                    const createdAt = new Date(tJson.createdAt);
+                    dateStr = createdAt.toISOString().split('T')[0];
+                    timeStr = createdAt.toTimeString().split(' ')[0];
+                }
+
                 return {
                     ...tJson,
-                    date: tJson.date || createdAt.toISOString().split('T')[0],
-                    time: tJson.time || createdAt.toTimeString().split(' ')[0],
+                    date: dateStr,
+                    time: timeStr,
                     tp: tJson.tp || 0,
                     sl: tJson.sl || 0
                 };
