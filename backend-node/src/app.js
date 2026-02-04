@@ -209,10 +209,35 @@ app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
 app.get('/market_data', (req, res) => {
-    res.json([
-        { symbol: "NIFTY 50", price: "24,500.00", change: "+0.50%", isGainer: true },
-        { symbol: "BANKNIFTY", price: "52,100.00", change: "-0.20%", isGainer: false }
-    ]);
+    // Simulated "Live" Data - In a real app, this would fetch from an Exchange API or Database
+    const baseData = [
+        { symbol: "NIFTY 50", base: 24500 },
+        { symbol: "BANKNIFTY", base: 52100 },
+        { symbol: "SENSEX", base: 81500 },
+        { symbol: "FINNIFTY", base: 23200 },
+        { symbol: "MIDCPNIFTY", base: 10800 },
+        { symbol: "RELIANCE", base: 2980 },
+        { symbol: "HDFCBANK", base: 1650 },
+        { symbol: "INFY", base: 1420 },
+        { symbol: "TCS", base: 3950 },
+        { symbol: "ADANIENT", base: 3100 }
+    ];
+
+    const data = baseData.map(item => {
+        // Add random fluctuation (-0.5% to +0.5%) to simulate daily change
+        const changePct = (Math.random() * 2 - 1).toFixed(2);
+        const changeVal = (item.base * (parseFloat(changePct) / 100));
+        const currentPrice = (item.base + changeVal).toFixed(2);
+
+        return {
+            symbol: item.symbol,
+            price: parseFloat(currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+            change: `${changePct > 0 ? '+' : ''}${changePct}%`,
+            isGainer: parseFloat(changePct) >= 0
+        };
+    });
+
+    res.json(data);
 });
 
 app.get('/analytics', verifyToken, async (req, res) => {
