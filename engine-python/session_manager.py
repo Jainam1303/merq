@@ -242,24 +242,22 @@ class TradingSession:
                     else:
                         # Failed to get history - we are blind for ORB
                         # We cannot magically guess ORB from current price
-                        self.log(f"Could not fetch ORB for {symbol} - will calculate from live ticks", "WARNING")
-                        # Enable live collection - high will start at 0 (will be updated on first tick)
-                        # low will start high and be updated down
+                        self.log(f"Could not fetch ORB for {symbol} - trading disabled for this symbol", "WARNING")
+                        # SAFETY: Do NOT trade without valid ORB levels
+                        # Set impossibly high/low values so no breakout triggers
                         self.orb_levels[symbol] = {
-                            'or_high': 0,
-                            'or_low': 999999999,
+                            'or_high': 999999999,  # Price will never exceed this
+                            'or_low': 0,           # Price will never go below this
                             'or_mid': 0,
-                            'collecting': True,  # Enable live calculation
-                            'candles': []
+                            'collecting': False    # Do NOT collect - ORB window passed
                         }
                 except Exception as e:
-                    self.log(f"Exception fetching ORB for {symbol}: {e}", "WARNING")
+                    self.log(f"Exception fetching ORB for {symbol}: {e} - trading disabled", "WARNING")
                     self.orb_levels[symbol] = {
-                        'or_high': 0,
-                        'or_low': 999999999,
+                        'or_high': 999999999,
+                        'or_low': 0,
                         'or_mid': 0,
-                        'collecting': True,
-                        'candles': []
+                        'collecting': False
                     }
             
             if success_count > 0:
@@ -576,8 +574,8 @@ class TradingSession:
             "symbol": symbol,
             "type": type,
             "mode": self.mode,  # PAPER or LIVE
-            "time": datetime.datetime.now().strftime("%H:%M:%S"),
-            "date": datetime.datetime.now().strftime("%Y-%m-%d"),
+            "time": self._get_ist_time().strftime("%H:%M:%S"),
+            "date": self._get_ist_time().strftime("%Y-%m-%d"),
             "qty": qty,
             "entry": round(price, 2),
             "tp": round(tp, 2),
