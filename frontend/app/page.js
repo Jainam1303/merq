@@ -1140,7 +1140,10 @@ function MarketTicker() {
     const fetchData = () => {
       fetchJson('/market_data')
         .then(res => {
-          if (Array.isArray(res) && res.length > 0) setTickerData(res);
+          if (Array.isArray(res) && res.length > 0) {
+            setTickerData(res);
+            console.log(`[MarketTicker] Updated Data. Source: ${res[0].source || 'Unknown'}`);
+          }
         })
         .catch(e => {
           console.log("Ticker fetch failed, using fallback");
@@ -1153,8 +1156,17 @@ function MarketTicker() {
     return () => clearInterval(interval);
   }, []);
 
+  const isLive = tickerData[0]?.source === 'YAHOO_LIVE';
+
   return (
-    <div className="w-full bg-zinc-50 dark:bg-[#09090b] border-y border-zinc-200 dark:border-zinc-800 py-3 overflow-hidden relative">
+    <div className="w-full bg-zinc-50 dark:bg-[#09090b] border-y border-zinc-200 dark:border-zinc-800 py-3 overflow-hidden relative group">
+      {/* Data Source Indicator */}
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/80 backdrop-blur px-2 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 shadow-lg">
+        <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isLive ? 'text-emerald-500' : 'text-amber-500'}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+          {isLive ? 'LIVE DATA (Yahoo)' : 'SIMULATED'}
+        </div>
+      </div>
       <div className="flex animate-marquee whitespace-nowrap gap-12 min-w-full hover:[animation-play-state:paused]">
         {/* Duplicate array for seamless scrolling (requires 2 sets for -50% translation) */}
         {[...tickerData, ...tickerData, ...tickerData, ...tickerData].map((item, i) => (

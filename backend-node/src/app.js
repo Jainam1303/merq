@@ -235,7 +235,8 @@ app.get('/market_data', async (req, res) => {
                     symbol: s.label,
                     price: price.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
                     change: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`,
-                    isGainer: changePct >= 0
+                    isGainer: changePct >= 0,
+                    source: 'YAHOO_LIVE'
                 };
             } catch (err) {
                 console.error(`Failed to fetch ${s.label}:`, err.message);
@@ -270,7 +271,8 @@ app.get('/market_data', async (req, res) => {
                 symbol: item.symbol,
                 price: parseFloat(currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
                 change: `${changePct > 0 ? '+' : ''}${changePct}%`,
-                isGainer: parseFloat(changePct) >= 0
+                isGainer: parseFloat(changePct) >= 0,
+                source: 'SIMULATED_FALLBACK'
             };
         });
         res.json(data);
