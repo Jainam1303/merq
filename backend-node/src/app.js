@@ -346,7 +346,36 @@ app.get('/orderbook', verifyToken, async (req, res) => {
         }
 
         // Combine (live first, then DB)
-        const allTrades = [...liveTrades, ...dbTrades];
+        let allTrades = [...liveTrades, ...dbTrades];
+
+        // FILTER BY DATE
+        const { startDate, endDate } = req.query;
+        if (startDate || endDate) {
+            const start = startDate ? new Date(startDate) : null;
+            const end = endDate ? new Date(endDate) : null;
+            if (end) end.setHours(23, 59, 59, 999); // Include full end day
+
+            allTrades = allTrades.filter(t => {
+                let tradeDateStr = '';
+                if (t.timestamp) {
+                    if (t.timestamp instanceof Date) tradeDateStr = t.timestamp.toISOString().split('T')[0];
+                    else tradeDateStr = t.timestamp.split(' ')[0];
+                } else if (t.date) {
+                    tradeDateStr = t.date;
+                } else if (t.createdAt) {
+                    tradeDateStr = new Date(t.createdAt).toISOString().split('T')[0];
+                }
+
+                if (!tradeDateStr) return true; // Keep if no date (safety)
+
+                const tradeDate = new Date(tradeDateStr);
+
+                if (start && tradeDate < start) return false;
+                if (end && tradeDate > end) return false;
+
+                return true;
+            });
+        }
 
         res.json({ status: 'success', data: allTrades });
     } catch (e) {
