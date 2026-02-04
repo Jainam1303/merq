@@ -3408,7 +3408,6 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen flex flex-col bg-white dark:bg-[#09090b] text-zinc-900 dark:text-[#e0e0e0] font-sans transition-colors duration-300 ${theme}`}>
-      <style jsx global>{`@keyframes marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }`}</style>
       {isBacktesting && <LoadingOverlay progress={progress} />}
       {showProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in" onClick={(e) => { if (e.target === e.currentTarget) setShowProfile(false); }}>
