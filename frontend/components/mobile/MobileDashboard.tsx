@@ -159,10 +159,11 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         let socket: Socket | null = null;
 
         if (isSystemActive) {
-            socket = io({
+            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+            socket = io(socketUrl, {
                 path: '/socket.io',
                 withCredentials: true,
-                transports: ['polling'],
+                transports: ['websocket', 'polling'],
                 reconnectionAttempts: 5,
                 reconnectionDelay: 1000,
             });

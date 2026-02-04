@@ -142,8 +142,10 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
     // Only connect if system is active (Running)
     // Only connect if system is active (Running)
     if (isSystemActive) {
-      // Connect via Proxy (Vercel Rewrites handle this)
-      socket = io({
+      // Connect directly to Backend URL (Vercel cannot proxy WebSockets properly)
+      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+
+      socket = io(socketUrl, {
         path: '/socket.io',
         withCredentials: true,
         transports: ['websocket', 'polling'], // Try WS first, fall back to polling
