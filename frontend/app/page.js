@@ -2254,14 +2254,18 @@ export default function Home() {
     fetchJson('/symbols').then(setAllSymbols).catch(console.error);
 
     fetchJson('/status').then(d => {
-      if (d && d.status === 'RUNNING') {
+      // Backend returns { active: true } from Python, OR { status: 'RUNNING' } from some legacy paths
+      if (d && (d.status === 'RUNNING' || d.active === true)) {
         setStatus("RUNNING");
         fetchJson('/config').then(cfg => {
           if (cfg) {
             if (cfg.symbols) setLiveSymbols(cfg.symbols);
             if (cfg.interval) setLiveInterval(cfg.interval);
             if (cfg.capital) setInitialCapital(String(cfg.capital));
-            if (cfg.simulated !== undefined) setIsSimulated(cfg.simulated);
+            if (cfg.simulated !== undefined) {
+              const isSim = String(cfg.simulated) === 'true' || cfg.simulated === true;
+              setIsSimulated(isSim);
+            }
           }
         }).catch(console.error);
       }
