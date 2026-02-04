@@ -622,10 +622,16 @@ class TradingSession:
         # Real Order Placement (Angel One)
         if self.mode == "LIVE":
             try:
+                # Validate symbol token exists
+                token = self.symbol_tokens.get(symbol)
+                if not token:
+                    self.log(f"LIVE ORDER BLOCKED: No symbol token for {symbol}. Check token mapping.", "ERROR")
+                    return
+                
                 order_params = {
                     "variety": "NORMAL",
                     "tradingsymbol": symbol.replace("-EQ", ""),
-                    "symboltoken": self.symbol_tokens.get(symbol),
+                    "symboltoken": token,
                     "transactiontype": type,
                     "exchange": "NSE",
                     "ordertype": "MARKET",
@@ -633,11 +639,29 @@ class TradingSession:
                     "duration": "DAY",
                     "quantity": str(qty)
                 }
-                order_id = self.smartApi.placeOrder(order_params)
-                pos['order_id'] = order_id
-                self.log(f"Real Order Placed: {order_id}", "SUCCESS")
+                self.log(f"Placing REAL ORDER: {order_params}", "INFO")
+                
+                response = self.smartApi.placeOrder(order_params)
+                self.log(f"Angel API Response: {response}", "DEBUG")
+                
+                # Handle response - Angel API can return dict or order_id directly
+                if response:
+                    if isinstance(response, dict):
+                        if response.get('status') == True:
+                            order_id = response.get('data', {}).get('orderid')
+                            pos['order_id'] = order_id
+                            self.log(f"✅ REAL ORDER PLACED: {order_id}", "SUCCESS")
+                        else:
+                            self.log(f"❌ Order Rejected: {response.get('message', response)}", "ERROR")
+                    else:
+                        # Direct order_id returned
+                        pos['order_id'] = response
+                        self.log(f"✅ REAL ORDER PLACED: {response}", "SUCCESS")
+                else:
+                    self.log(f"❌ Order Failed: API returned None/Empty", "ERROR")
+                    
             except Exception as e:
-                self.log(f"Order Failed: {e}", "ERROR")
+                self.log(f"❌ Order Exception: {e}", "ERROR")
 
 
 
@@ -678,14 +702,19 @@ class TradingSession:
         except Exception as e:
             self.log(f"Failed to sync trade to DB: {e}", "ERROR")
 
-        # Real Order Exit
+        # Real Order Exit (Close position on Angel One)
         if self.mode == "LIVE":
             try:
+                token = self.symbol_tokens.get(pos['symbol'])
+                if not token:
+                    self.log(f"EXIT ORDER BLOCKED: No token for {pos['symbol']}", "ERROR")
+                    return
+                    
                 exit_type = "SELL" if pos['type'] == "BUY" else "BUY"
                 order_params = {
                     "variety": "NORMAL",
                     "tradingsymbol": pos['symbol'].replace("-EQ", ""),
-                    "symboltoken": self.symbol_tokens.get(pos['symbol']),
+                    "symboltoken": token,
                     "transactiontype": exit_type,
                     "exchange": "NSE",
                     "ordertype": "MARKET",
@@ -693,10 +722,24 @@ class TradingSession:
                     "duration": "DAY",
                     "quantity": str(pos['qty'])
                 }
-                order_id = self.smartApi.placeOrder(order_params)
-                self.log(f"Exit Order Placed: {order_id}", "SUCCESS")
+                self.log(f"Placing EXIT ORDER: {order_params}", "INFO")
+                
+                response = self.smartApi.placeOrder(order_params)
+                self.log(f"Exit API Response: {response}", "DEBUG")
+                
+                if response:
+                    if isinstance(response, dict) and response.get('status') == True:
+                        order_id = response.get('data', {}).get('orderid')
+                        self.log(f"✅ EXIT ORDER PLACED: {order_id}", "SUCCESS")
+                    elif isinstance(response, str):
+                        self.log(f"✅ EXIT ORDER PLACED: {response}", "SUCCESS")
+                    else:
+                        self.log(f"❌ Exit Order Issue: {response}", "WARNING")
+                else:
+                    self.log(f"❌ Exit Order Failed: API returned None", "ERROR")
+                    
             except Exception as e:
-                self.log(f"Exit Order Failed: {e}", "ERROR")
+                self.log(f"❌ Exit Order Exception: {e}", "ERROR")
 
     def _run_polling_loop(self):
         """Fallback polling mode if WebSocket fails"""
