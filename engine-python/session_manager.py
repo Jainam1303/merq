@@ -322,6 +322,7 @@ class TradingSession:
             # Message format: {subscription_mode, exchange_type, token, ltp, ...}
             token = str(message.get('token'))
             ltp = message.get('last_traded_price', 0) / 100  # Angel sends price * 100
+            vwap = message.get('average_traded_price', 0) / 100 # VWAP
             
             # Find symbol for this token
             symbol = None
@@ -362,7 +363,7 @@ class TradingSession:
                 
                 # Check for signals (only after ORB is ready)
                 if not orb.get('collecting', False) and orb.get('or_high', 0) > 0:
-                    self._check_signal(symbol, ltp)
+                    self._check_signal(symbol, ltp, vwap)
                 
         except Exception as e:
             # Don't spam logs for every tick error
@@ -430,7 +431,7 @@ class TradingSession:
         self.log("WebSocket reconnection failed. Falling back to polling mode.", "WARNING")
         self._run_polling_loop()
 
-    def _check_signal(self, symbol, ltp):
+    def _check_signal(self, symbol, ltp, vwap=0):
         """Check if price breaks ORB levels and generate signal"""
         current_date = datetime.date.today()
         ist_now = self._get_ist_time()
@@ -491,8 +492,8 @@ class TradingSession:
             qty = int(capital / ltp) if ltp > 0 else 1
             qty = max(1, qty)
             
-            tp = round(ltp * 1.005, 2)  # 0.5% Target
-            sl = round(ltp * 0.995, 2)  # 0.5% SL
+            tp = round(ltp * 1.006, 2)  # 0.6% Target (Updated)
+            sl = round(ltp * 0.99, 2)   # 1% SL
             
             self._place_order(symbol, "BUY", qty, ltp, tp, sl)
             self.signals_triggered[today_key] = True
@@ -502,7 +503,6 @@ class TradingSession:
         # ==========================================
         # STRATEGY: ORB (Original Logic)
         # ==========================================
-        
         # Only trade after 09:30
         if current_time < datetime.time(9, 30):
             return
@@ -513,6 +513,7 @@ class TradingSession:
         
         or_high = orb['or_high']
         or_low = orb['or_low']
+        or_mid = orb.get('or_mid', (or_high+or_low)/2)
         
         # SAFETY CHECK: If ORB levels are explicitly 0, it means initialization failed or is invalid
         if or_high <= 0 or or_low <= 0:
@@ -525,30 +526,33 @@ class TradingSession:
         
         # DEBUG: Explain Logic
         if ltp > or_high:
-             self.log(f"{symbol} BREAKOUT CHECK: {ltp} > {or_high} -> BUY!", "DEBUG")
+             self.log(f"{symbol} CHECK: Price {ltp} > High {or_high}. VWAP={vwap}", "DEBUG")
         elif ltp < or_low:
-             self.log(f"{symbol} BREAKDOWN CHECK: {ltp} < {or_low} -> SELL!", "DEBUG")
-        else:
-             # Log only occasionally to verify logic is running
-             import random
-             if random.random() < 0.01: 
-                 self.log(f"{symbol} Logic: {ltp} is inside range ({or_low} - {or_high})", "INFO")
+             self.log(f"{symbol} CHECK: Price {ltp} < Low {or_low}. VWAP={vwap}", "DEBUG")
         
-        # BUY Signal: Price breaks above ORB High
+        # BUY Signal: Price breaks above ORB High AND Price > VWAP
         if ltp > or_high:
-            tp = round(ltp * 1.01, 2)  # 1% target
-            sl = round(or_high * 0.99, 2)  # SL just below breakout
+            if vwap > 0 and ltp <= vwap:
+                return # Filtered by VWAP
+
+            tp = round(ltp * 1.006, 2)  # 0.6% target
+            sl = round(or_mid, 2)       # SL at OR Mid (User Logic)
+            
             self._place_order(symbol, "BUY", qty, ltp, tp, sl)
             self.signals_triggered[today_key] = True
-            self.log(f"🟢 BUY SIGNAL: {symbol} @ {ltp:.2f} (broke ORB High {or_high:.2f})", "SUCCESS")
+            self.log(f"🟢 BUY SIGNAL: {symbol} @ {ltp:.2f} (High:{or_high}, VWAP:{vwap})", "SUCCESS")
         
-        # SELL Signal: Price breaks below ORB Low
+        # SELL Signal: Price breaks below ORB Low AND Price < VWAP
         elif ltp < or_low:
-            tp = round(ltp * 0.99, 2)  # 1% target
-            sl = round(or_low * 1.01, 2)  # SL just above breakdown
+            if vwap > 0 and ltp >= vwap:
+                return # Filtered by VWAP
+                
+            tp = round(ltp * 0.994, 2)  # 0.6% target
+            sl = round(or_mid, 2)       # SL at OR Mid (User Logic)
+            
             self._place_order(symbol, "SELL", qty, ltp, tp, sl)
             self.signals_triggered[today_key] = True
-            self.log(f"🔴 SELL SIGNAL: {symbol} @ {ltp:.2f} (broke ORB Low {or_low:.2f})", "SUCCESS")
+            self.log(f"🔴 SELL SIGNAL: {symbol} @ {ltp:.2f} (Low:{or_low}, VWAP:{vwap})", "SUCCESS")
 
     def _update_position_pnl(self, symbol, ltp):
         """Update unrealized PnL for open positions"""
