@@ -1,8 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     async rewrites() {
-        const apiUrl = 'http://3.110.30.136:5000'; // Hardcoded for immediate fix
+        // Priority: Custom domain > Env var > Localhost
+        const apiUrl = process.env.API_URL ||
+            (process.env.NODE_ENV === 'production'
+                ? 'http://api.merqprime.in'
+                : 'http://localhost:3001');
+
         console.log(`[Next.js] Rewriting API calls to: ${apiUrl}`);
+
         return [
             {
                 source: '/api/:path*',
@@ -10,7 +16,7 @@ const nextConfig = {
             },
             {
                 source: '/socket.io',
-                destination: `${apiUrl}/socket.io/`,
+                destination: `${apiUrl}/socket.io`,
             },
             {
                 source: '/socket.io/:path*',
