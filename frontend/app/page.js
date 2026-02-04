@@ -923,16 +923,7 @@ function UserDropdown({ user, logout, onOpenProfile }) {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded-xl shadow-xl overflow-hidden z-50">
           <div className="p-2">
-            <button
-              onClick={() => {
-                onOpenProfile();
-                setIsOpen(false);
-              }}
-              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 cursor-pointer transition-colors"
-            >
-              <UserIcon size={16} className="text-zinc-600 dark:text-zinc-400" />
-              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Profile</span>
-            </button>
+
             <button
               onClick={() => {
                 logout();
