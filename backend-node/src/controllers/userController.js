@@ -31,7 +31,11 @@ exports.getProfile = async (req, res) => {
         // Handle both singular and plural nested properties from Sequelize
         const subData = userData.Subscription || userData.Subscriptions;
         const subs = Array.isArray(subData) ? subData : (subData ? [subData] : []);
-        const activeSub = subs.find(s => s && s.status === 'active');
+
+        // Find latest active subscription
+        const activeSub = subs
+            .sort((a, b) => new Date(b.end_date) - new Date(a.end_date))
+            .find(s => s && s.status === 'active');
 
         if (activeSub) {
             userData.plan_id = activeSub.plan_id;
