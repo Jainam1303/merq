@@ -28,21 +28,45 @@ export default function DashboardNewPage() {
         document.documentElement.classList.add('dark');
     }, []);
 
-    // Check Authentication on Mount
+    // Check Authentication & System Status on Mount
     useEffect(() => {
-        const checkAuth = async () => {
+        const checkAuthAndStatus = async () => {
             try {
+                // 1. Check Auth
                 const res = await fetchJson('/check_auth');
                 if (res.authenticated) {
                     setIsAuthenticated(true);
                     setUser({ username: res.user });
-                    // Fetch full profile for email/details
+
+                    // 2. Fetch Profile
                     try {
                         const profile = await fetchJson('/get_profile');
                         setUser((prev: any) => ({ ...prev, ...profile }));
                     } catch (err) {
                         console.error("Failed to load profile details", err);
                     }
+
+                    // 3. Fetch System Status & Mode
+                    try {
+                        const statusData = await fetchJson('/status');
+                        console.log("Initial Status Fetch:", statusData);
+
+                        if (statusData) {
+                            setIsSystemRunning(statusData.status === 'running');
+
+                            // Correctly set mode based on backend config
+                            // If backend explicitly says simulated=false, it's LIVE.
+                            // Otherwise default to PAPER (safest).
+                            if (statusData.config && statusData.config.simulated === false) {
+                                setTradingMode('LIVE');
+                            } else {
+                                setTradingMode('PAPER');
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Failed to load system status", err);
+                    }
+
                 } else {
                     router.push('/'); // Redirect to landing/login if not authenticated
                 }
@@ -51,7 +75,7 @@ export default function DashboardNewPage() {
                 router.push('/');
             }
         };
-        checkAuth();
+        checkAuthAndStatus();
     }, [router]);
 
     const handleLogout = async () => {
