@@ -1235,7 +1235,7 @@ function Landing({ onGetStarted }) {
               { label: "Uptime", val: "99.9%" },
               { label: "Execution Speed", val: "< 1ms" },
             ].map((s, i) => (
-              <div key={i} className="glass-card p-6 rounded-2xl hover:border-blue-400/50 transition-all group shadow-sm dark:shadow-none">
+              <div key={i} className="bg-white dark:bg-[#121214] border border-zinc-200 dark:border-zinc-800 p-6 rounded-2xl hover:border-blue-400/50 transition-all group shadow-sm dark:shadow-none">
                 <div className="text-2xl font-black text-zinc-900 dark:text-white mb-1 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">{s.val}</div>
                 <div className="text-xs text-zinc-500 font-bold uppercase tracking-wider">{s.label}</div>
               </div>

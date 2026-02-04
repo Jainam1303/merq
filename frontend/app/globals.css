@@ -333,7 +333,7 @@
     background-image:
         linear-gradient(to right, rgba(99, 102, 241, 0.08) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(99, 102, 241, 0.08) 1px, transparent 1px);
-    background-size: 80px 80px;
+    background-size: 60px 60px;
     pointer-events: none;
     z-index: 0;
 }
