@@ -126,9 +126,8 @@ export default function DashboardNewPage() {
                 onSystemStatusChange={setIsSystemRunning}
             />
 
-            {/* ===== DESKTOP VIEW (>= 1024px) ===== */}
-            {/* ===== DESKTOP VIEW (>= 1024px) ===== */}
-            <div className="hidden lg:flex lg:flex-col lg:h-screen lg:overflow-hidden">
+            {/* ===== DESKTOP VIEW (>= 768px) ===== */}
+            <div className="hidden md:flex md:flex-col md:h-screen md:overflow-hidden">
                 <DashboardHeader
                     isSidebarOpen={isSidebarOpen}
                     onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}

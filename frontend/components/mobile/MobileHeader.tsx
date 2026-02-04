@@ -34,7 +34,7 @@ export function MobileHeader({
     };
 
     return (
-        <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-200 dark:border-zinc-800 safe-area-pt">
+        <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-200 dark:border-zinc-800 safe-area-pt">
             <div className="flex items-center justify-between h-16 px-4">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2">

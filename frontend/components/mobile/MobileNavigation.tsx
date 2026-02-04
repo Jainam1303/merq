@@ -27,7 +27,7 @@ export function MobileNavigation({
     ];
 
     return (
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-200 dark:border-zinc-800 safe-area-pb">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-lg border-t border-zinc-200 dark:border-zinc-800 safe-area-pb">
             {/* Quick Status Bar - Always visible on mobile */}
             <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-100 dark:border-zinc-800/50">
                 <div className="flex items-center gap-2">
@@ -54,7 +54,7 @@ export function MobileNavigation({
                             key={tab.id}
                             onClick={() => onTabChange(tab.id)}
                             className={cn(
-                                "flex flex-col items-center justify-center min-h-[48px] min-w-[60px] rounded-xl transition-all duration-200",
+                                "flex flex-col items-center justify-center min-h-[48px] min-w-[60px] rounded-xl transition-all duration-200 active:scale-95",
                                 isActive
                                     ? "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400"
                                     : "text-zinc-500 dark:text-zinc-400 active:bg-zinc-100 dark:active:bg-zinc-800"

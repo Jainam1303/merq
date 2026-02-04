@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     MobileNavigation,
     MobileStatusView,
@@ -443,7 +444,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
     const [showPlans, setShowPlans] = useState(false);
 
     return (
-        <div className="lg:hidden min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <div className="md:hidden min-h-screen bg-zinc-50 dark:bg-zinc-950">
             {/* Mobile Header */}
             <MobileHeader
                 isSystemActive={isSystemActive}
@@ -462,76 +463,128 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 }}
             />
 
-            {/* Order Book Modal */}
-            {showOrderBook && (
-                <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-950">
-                    <div className="h-16 flex items-center px-4 border-b border-zinc-200 dark:border-zinc-800">
-                        <button
+            {/* Order Book Modal - Animated Slide Up */}
+            <AnimatePresence>
+                {showOrderBook && (
+                    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                             onClick={() => setShowOrderBook(false)}
-                            className="text-zinc-600 dark:text-zinc-400 font-medium"
+                        />
+                        {/* Sheet */}
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 500 }}
+                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl"
                         >
-                            ← Back
-                        </button>
+                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
+                                <button
+                                    onClick={() => setShowOrderBook(false)}
+                                    className="text-zinc-600 dark:text-zinc-400 font-medium active:scale-95 transition-transform"
+                                >
+                                    ← Back
+                                </button>
+                                <span className="text-lg font-bold text-zinc-900 dark:text-white">Order Book</span>
+                                <div className="w-12" />
+                            </div>
+                            <MobileOrderBookView
+                                orders={orderBook}
+                                onDeleteOrders={async (ids) => {
+                                    try {
+                                        await fetchJson('/delete_orders', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ ids })
+                                        });
+                                        setOrderBook(prev => prev.filter(o => !ids.includes(o.id)));
+                                        toast.success(`Deleted ${ids.length} order(s)`);
+                                    } catch (err) {
+                                        toast.error('Failed to delete orders');
+                                    }
+                                }}
+                            />
+                        </motion.div>
                     </div>
-                    <MobileOrderBookView
-                        orders={orderBook}
-                        onDeleteOrders={async (ids) => {
-                            try {
-                                await fetchJson('/delete_orders', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ ids })
-                                });
-                                setOrderBook(prev => prev.filter(o => !ids.includes(o.id)));
-                                toast.success(`Deleted ${ids.length} order(s)`);
-                            } catch (err) {
-                                toast.error('Failed to delete orders');
-                            }
-                        }}
-                    />
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
-            {/* Plans Modal */}
-            {showPlans && (
-                <div className="fixed inset-0 z-50 bg-white dark:bg-zinc-950">
-                    <div className="h-16 flex items-center px-4 border-b border-zinc-200 dark:border-zinc-800">
-                        <button
+            {/* Plans Modal - Animated Slide Up */}
+            <AnimatePresence>
+                {showPlans && (
+                    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                             onClick={() => setShowPlans(false)}
-                            className="text-zinc-600 dark:text-zinc-400 font-medium"
+                        />
+                        {/* Sheet */}
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 500 }}
+                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl"
                         >
-                            ← Back
-                        </button>
+                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
+                                <button
+                                    onClick={() => setShowPlans(false)}
+                                    className="text-zinc-600 dark:text-zinc-400 font-medium active:scale-95 transition-transform"
+                                >
+                                    ← Back
+                                </button>
+                                <span className="text-lg font-bold text-zinc-900 dark:text-white">Plans</span>
+                                <div className="w-12" />
+                            </div>
+                            <MobilePlansView
+                                plans={plans}
+                                currentPlan={profile?.plan || null}
+                                onSubscribe={async (planId) => {
+                                    try {
+                                        const result = await fetchJson('/subscribe', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ plan_id: planId })
+                                        });
+                                        if (result.status === 'success') {
+                                            toast.success('Subscription initiated!');
+                                            const profileData = await fetchJson('/get_profile');
+                                            setProfile(profileData);
+                                        } else {
+                                            toast.error(result.message || 'Subscription failed');
+                                        }
+                                    } catch (err) {
+                                        toast.error('Failed to subscribe');
+                                    }
+                                }}
+                            />
+                        </motion.div>
                     </div>
-                    <MobilePlansView
-                        plans={plans}
-                        currentPlan={profile?.plan || null}
-                        onSubscribe={async (planId) => {
-                            try {
-                                const result = await fetchJson('/subscribe', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ plan_id: planId })
-                                });
-                                if (result.status === 'success') {
-                                    toast.success('Subscription initiated!');
-                                    // Refresh profile
-                                    const profileData = await fetchJson('/get_profile');
-                                    setProfile(profileData);
-                                } else {
-                                    toast.error(result.message || 'Subscription failed');
-                                }
-                            } catch (err) {
-                                toast.error('Failed to subscribe');
-                            }
-                        }}
-                    />
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
-            {/* Content */}
-            <main className="pt-16 has-mobile-nav">
-                {renderContent()}
+            {/* Content - Animated Tab Transitions */}
+            <main className="pt-16 has-mobile-nav overflow-hidden">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2, ease: "easeInOut" }}
+                        className="h-full"
+                    >
+                        {renderContent()}
+                    </motion.div>
+                </AnimatePresence>
             </main>
 
             {/* Bottom Navigation */}
