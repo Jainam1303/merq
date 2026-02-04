@@ -36,12 +36,23 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const [planInfo, setPlanInfo] = useState({ name: 'Loading...', expiry: null });
 
-  useEffect(() => {
+  const fetchPlanInfo = () => {
     fetchJson('/get_profile').then(data => {
       if (data && data.plan_name) {
         setPlanInfo({ name: data.plan_name, expiry: data.plan_expiry });
       }
     }).catch(() => setPlanInfo({ name: 'Free', expiry: null }));
+  };
+
+  useEffect(() => {
+    fetchPlanInfo();
+
+    // Listen for plan updates from Profile component
+    window.addEventListener('plan-updated', fetchPlanInfo);
+
+    return () => {
+      window.removeEventListener('plan-updated', fetchPlanInfo);
+    };
   }, []);
   const handleTabClick = (tabId: string) => {
     onTabChange(tabId);
