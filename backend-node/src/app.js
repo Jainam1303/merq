@@ -13,9 +13,6 @@ app.use(cookieParser());
 const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://merq.vercel.app',
-    'https://merqprime.in',
-    'https://www.merqprime.in',
     process.env.FRONTEND_URL, // Allow Vercel URL
     process.env.NEXT_PUBLIC_API_URL
 ].filter(Boolean);
@@ -333,9 +330,6 @@ app.get('/orderbook', verifyToken, async (req, res) => {
             mode: t.type,
             quantity: t.qty,
             entry_price: t.entry,
-            exit: t.exit || 0, // Map exit price
-            tp: t.tp || 0,     // Map TP
-            sl: t.sl || 0,     // Map SL
             pnl: t.pnl || 0,
             status: t.status,
             trade_mode: t.mode  // PAPER or LIVE
@@ -346,50 +340,13 @@ app.get('/orderbook', verifyToken, async (req, res) => {
         try {
             const { Trade } = require('./models');
             dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
-            dbTrades = dbTrades.map(t => {
-                const json = t.toJSON();
-                return {
-                    ...json,
-                    exit: json.exit_price || 0, // Normalize exit_price to exit
-                    tp: json.tp || 0,
-                    sl: json.sl || 0
-                };
-            });
+            dbTrades = dbTrades.map(t => t.toJSON());
         } catch (e) {
             // DB/model might not exist, that's ok
         }
 
         // Combine (live first, then DB)
-        let allTrades = [...liveTrades, ...dbTrades];
-
-        // FILTER BY DATE
-        const { startDate, endDate } = req.query;
-        if (startDate || endDate) {
-            const start = startDate ? new Date(startDate) : null;
-            const end = endDate ? new Date(endDate) : null;
-            if (end) end.setHours(23, 59, 59, 999); // Include full end day
-
-            allTrades = allTrades.filter(t => {
-                let tradeDateStr = '';
-                if (t.timestamp) {
-                    if (t.timestamp instanceof Date) tradeDateStr = t.timestamp.toISOString().split('T')[0];
-                    else tradeDateStr = t.timestamp.split(' ')[0];
-                } else if (t.date) {
-                    tradeDateStr = t.date;
-                } else if (t.createdAt) {
-                    tradeDateStr = new Date(t.createdAt).toISOString().split('T')[0];
-                }
-
-                if (!tradeDateStr) return true; // Keep if no date (safety)
-
-                const tradeDate = new Date(tradeDateStr);
-
-                if (start && tradeDate < start) return false;
-                if (end && tradeDate > end) return false;
-
-                return true;
-            });
-        }
+        const allTrades = [...liveTrades, ...dbTrades];
 
         res.json({ status: 'success', data: allTrades });
     } catch (e) {
@@ -463,8 +420,6 @@ app.post('/import_orderbook', verifyToken, async (req, res) => {
                     quantity: trade.qty || 1,
                     entry_price: trade.entry || 0,
                     exit_price: trade.exit || 0,
-                    tp: trade.tp || 0,
-                    sl: trade.sl || 0,
                     pnl: pnl,
                     status: trade.status || 'COMPLETED',
                     timestamp: trade.date && trade.time

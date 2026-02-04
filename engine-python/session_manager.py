@@ -578,7 +578,6 @@ class TradingSession:
         """Update unrealized PnL for open positions"""
         for p in self.positions:
             if p['symbol'] == symbol and p['status'] == 'OPEN':
-                p['current_price'] = ltp  # Store current price for frontend visibility
                 if p['type'] == 'BUY':
                     p['pnl'] = (ltp - p['entry']) * p['qty']
                 else:
