@@ -209,6 +209,7 @@ app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
 // Basic error logging for Yahoo Finance
+const MARKET_DATA_VERSION = "1.0.6";
 const yahooFinance = require('yahoo-finance2').default || require('yahoo-finance2');
 
 app.get('/market_data', async (req, res) => {
@@ -237,7 +238,8 @@ app.get('/market_data', async (req, res) => {
                     price: price.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
                     change: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`,
                     isGainer: changePct >= 0,
-                    source: 'YAHOO_LIVE'
+                    source: 'YAHOO_LIVE',
+                    v: MARKET_DATA_VERSION
                 };
             } catch (err) {
                 console.error(`Failed to fetch ${s.label}:`, err.message);
@@ -275,7 +277,8 @@ app.get('/market_data', async (req, res) => {
                 change: `${changePct > 0 ? '+' : ''}${changePct}%`,
                 isGainer: parseFloat(changePct) >= 0,
                 source: 'SIMULATED_FALLBACK',
-                debug_error: e.message // Send error back to frontend for debugging
+                v: MARKET_DATA_VERSION,
+                debug_error: e.message
             };
         });
         res.json(data);
