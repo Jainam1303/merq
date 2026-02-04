@@ -514,6 +514,10 @@ class TradingSession:
         or_high = orb['or_high']
         or_low = orb['or_low']
         
+        # SAFETY CHECK: If ORB levels are explicitly 0, it means initialization failed or is invalid
+        if or_high <= 0 or or_low <= 0:
+            return
+        
         # Calculate qty based on capital (no artificial cap)
         capital = float(self.config.get('capital', 100000))
         qty = int(capital / ltp) if ltp > 0 else 1
