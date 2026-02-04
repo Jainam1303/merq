@@ -116,7 +116,7 @@ class TradingSession:
                 if p['status'] == 'OPEN':
                      # Map fields to match what frontend expects
                      clean_trades.append({
-                         "entry_order_id": p.get('entry_order_id', f"pos_{p['symbol']}"),
+                         "entry_order_id": p.get('order_id', p.get('id', f"pos_{p['symbol']}")),
                          "symbol": p['symbol'],
                          "quantity": p['qty'],
                          "entry_price": p['entry'],
@@ -124,9 +124,8 @@ class TradingSession:
                          "sl": p.get('sl'),
                          "pnl": round(p['pnl'], 2),
                          "status": p['status'],
-                         "type": p['type'],
-                         "date": p.get('date'),
-                         "time": p.get('time')
+                         "mode": p['type'], # matches frontend expectation
+                         "timestamp": f"{p.get('date')} {p.get('time')}"
                      })
 
             payload = {
