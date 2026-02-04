@@ -13,6 +13,9 @@ app.use(cookieParser());
 const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'https://merq.vercel.app',
+    'https://merqprime.in',
+    'https://www.merqprime.in',
     process.env.FRONTEND_URL, // Allow Vercel URL
     process.env.NEXT_PUBLIC_API_URL
 ].filter(Boolean);

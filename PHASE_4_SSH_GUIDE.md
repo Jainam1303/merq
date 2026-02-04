@@ -35,7 +35,7 @@ npm install
     ```bash
     nano .env
     ```
-2.  **Paste the following configuration** (Right-click in the terminal usually pastes):
+2.  **Paste the following configuration** (Replace FRONTEND_URL with your Vercel URL):
     ```env
     # Database Configuration (AWS RDS)
     DATABASE_URL=postgresql://postgres:Jainam0911@merq-db.cr6wci82gjyg.ap-south-1.rds.amazonaws.com:5432/merq_prime
@@ -52,15 +52,17 @@ npm install
     RAZORPAY_KEY_SECRET=ECEzLJN5dBr5vpe7XHfljyx0
     
     # Frontend URLs
-    FRONTEND_URL=https://your-vercel-app.vercel.app
+    FRONTEND_URL=https://merq.vercel.app
     NEXT_PUBLIC_API_URL=http://3.110.30.136:5000
     ```
-3.  Press **Ctrl+O**, **Enter** (to save), then **Ctrl+X** (to exit).
+3.  Press **Ctrl+O**, **Enter**, **Ctrl+X**.
 
 ## Step 5: Start Node Server
 ```bash
+# IMPORTANT: Start server.js, NOT app.js
 pm2 start server.js --name "merq-backend"
 ```
+*Note: Make sure Port 5000 is open in AWS Security Group!*
 
 ## Step 6: Configure Python Engine
 ```bash

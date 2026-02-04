@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     async rewrites() {
-        const apiUrl = 'http://3.110.30.136:5000'; // Hardcoded for immediate fix
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in'; // Default to Prod Subdomain
         console.log(`[Next.js] Rewriting API calls to: ${apiUrl}`);
         return [
             {
