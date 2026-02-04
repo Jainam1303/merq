@@ -333,6 +333,9 @@ app.get('/orderbook', verifyToken, async (req, res) => {
             mode: t.type,
             quantity: t.qty,
             entry_price: t.entry,
+            exit: t.exit || 0, // Map exit price
+            tp: t.tp || 0,     // Map TP
+            sl: t.sl || 0,     // Map SL
             pnl: t.pnl || 0,
             status: t.status,
             trade_mode: t.mode  // PAPER or LIVE
@@ -343,7 +346,15 @@ app.get('/orderbook', verifyToken, async (req, res) => {
         try {
             const { Trade } = require('./models');
             dbTrades = await Trade.findAll({ where: { user_id: req.user.id } });
-            dbTrades = dbTrades.map(t => t.toJSON());
+            dbTrades = dbTrades.map(t => {
+                const json = t.toJSON();
+                return {
+                    ...json,
+                    exit: json.exit_price || 0, // Normalize exit_price to exit
+                    tp: json.tp || 0,
+                    sl: json.sl || 0
+                };
+            });
         } catch (e) {
             // DB/model might not exist, that's ok
         }
@@ -452,6 +463,8 @@ app.post('/import_orderbook', verifyToken, async (req, res) => {
                     quantity: trade.qty || 1,
                     entry_price: trade.entry || 0,
                     exit_price: trade.exit || 0,
+                    tp: trade.tp || 0,
+                    sl: trade.sl || 0,
                     pnl: pnl,
                     status: trade.status || 'COMPLETED',
                     timestamp: trade.date && trade.time
