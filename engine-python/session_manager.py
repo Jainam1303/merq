@@ -41,6 +41,9 @@ class TradingSession:
         
         # Symbol Token Mapping
         self.symbol_tokens = {}  # {symbol: token}
+        
+        # Sync Throttle
+        self.last_sync_time = 0
 
     def log(self, message, type="INFO"):
         timestamp = self._get_ist_time().strftime("%H:%M:%S")
@@ -97,6 +100,47 @@ class TradingSession:
         
         # 4. Start WebSocket for Live Data
         self._start_websocket()
+
+    def _sync_to_backend(self):
+        """Send live PnL and trades to Node.js backend via webhook"""
+        try:
+            # Throttle: Max 1 update per second
+            if time.time() - self.last_sync_time < 1.0:
+                return
+
+            total_pnl = sum([p['pnl'] for p in self.positions if p['status'] == 'OPEN'])
+            
+            # Format trades for frontend
+            clean_trades = []
+            for p in self.positions:
+                if p['status'] == 'OPEN':
+                     # Map fields to match what frontend expects
+                     clean_trades.append({
+                         "entry_order_id": p.get('entry_order_id', f"pos_{p['symbol']}"),
+                         "symbol": p['symbol'],
+                         "quantity": p['qty'],
+                         "entry_price": p['entry'],
+                         "tp": p.get('tp'),
+                         "sl": p.get('sl'),
+                         "pnl": round(p['pnl'], 2),
+                         "status": p['status'],
+                         "type": p['type'],
+                         "date": p.get('date'),
+                         "time": p.get('time')
+                     })
+
+            payload = {
+                "user_id": self.user_id,
+                "pnl": round(total_pnl, 2),
+                "trades": clean_trades
+            }
+            
+            # Use backend internal URL
+            requests.post('http://localhost:5001/webhook/tick', json=payload, timeout=0.5)
+            self.last_sync_time = time.time()
+            
+        except Exception:
+            pass # Silent fail to avoid interrupting trading loop
         
         # 5. Keep thread alive while active
         while self.active and not self.stop_event.is_set():
@@ -354,6 +398,9 @@ class TradingSession:
             
             # Update positions with live PnL
             self._update_position_pnl(symbol, ltp)
+            
+            # Sync to backend (Live PnL to UI)
+            self._sync_to_backend()
             
             # DYNAMIC ORB: Update ORB levels from WebSocket if we're collecting
             if symbol in self.orb_levels:
