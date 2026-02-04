@@ -1123,25 +1123,34 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
 }
 
 const MARKET_TICKER_DATA = [
-  { symbol: "NIFTY 50", price: "22,450.30", change: "+0.85%", isGainer: true },
-  { symbol: "BANKNIFTY", price: "47,850.15", change: "+1.20%", isGainer: true },
-  { symbol: "ADANI PORTS", price: "1,340.50", change: "+4.20%", isGainer: true },
-  { symbol: "COAL INDIA", price: "480.25", change: "+3.50%", isGainer: true },
-  { symbol: "NTPC", price: "360.80", change: "+2.80%", isGainer: true },
-  { symbol: "LTIM", price: "4,950.10", change: "-2.50%", isGainer: false },
-  { symbol: "INFY", price: "1,420.40", change: "-1.80%", isGainer: false },
-  { symbol: "WIPRO", price: "445.60", change: "-1.50%", isGainer: false },
+  { symbol: "NIFTY 50", price: "24,500.00", change: "+0.50%", isGainer: true },
+  { symbol: "BANKNIFTY", price: "52,100.00", change: "+0.80%", isGainer: true },
+  { symbol: "RELIANCE", price: "2,980.50", change: "+1.20%", isGainer: true },
+  { symbol: "HDFCBANK", price: "1,650.25", change: "-0.50%", isGainer: false },
+  { symbol: "INFY", price: "1,420.00", change: "+0.30%", isGainer: true },
+  { symbol: "TCS", price: "3,950.00", change: "-0.20%", isGainer: false },
+  { symbol: "ADANIENT", price: "3,100.00", change: "+2.50%", isGainer: true },
+  { symbol: "BAJFINANCE", price: "7,200.00", change: "+1.10%", isGainer: true },
 ];
 
 function MarketTicker() {
   const [tickerData, setTickerData] = useState(MARKET_TICKER_DATA);
 
   useEffect(() => {
-    fetchJson('/market_data')
-      .then(res => {
-        if (Array.isArray(res) && res.length > 0) setTickerData(res);
-      })
-      .catch(e => console.log("Ticker fetch failed, using fallback"));
+    const fetchData = () => {
+      fetchJson('/market_data')
+        .then(res => {
+          if (Array.isArray(res) && res.length > 0) setTickerData(res);
+        })
+        .catch(e => {
+          console.log("Ticker fetch failed, using fallback");
+          // Optional: Simulate random movement on fallback if backend fails
+        });
+    };
+
+    fetchData(); // Initial Fetch
+    const interval = setInterval(fetchData, 60000); // Poll every 60s
+    return () => clearInterval(interval);
   }, []);
 
   return (
