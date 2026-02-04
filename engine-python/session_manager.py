@@ -135,7 +135,7 @@ class TradingSession:
             }
             
             # Use backend internal URL
-            requests.post('http://localhost:5001/webhook/tick', json=payload, timeout=0.5)
+            requests.post('http://localhost:5001/webhook/tick', json=payload, timeout=2.0)
             self.last_sync_time = time.time()
             
         except Exception:
@@ -143,6 +143,7 @@ class TradingSession:
         
         # 5. Keep thread alive while active
         while self.active and not self.stop_event.is_set():
+            self._sync_to_backend()
             time.sleep(1)
 
     def _load_symbol_tokens(self):
@@ -397,9 +398,6 @@ class TradingSession:
             
             # Update positions with live PnL
             self._update_position_pnl(symbol, ltp)
-            
-            # Sync to backend (Live PnL to UI)
-            self._sync_to_backend()
             
             # DYNAMIC ORB: Update ORB levels from WebSocket if we're collecting
             if symbol in self.orb_levels:
