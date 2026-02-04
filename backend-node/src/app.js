@@ -208,36 +208,73 @@ app.post('/update_safety_guard', verifyToken, tradingController.updateSafetyGuar
 app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
-app.get('/market_data', (req, res) => {
-    // Simulated "Live" Data - In a real app, this would fetch from an Exchange API or Database
-    const baseData = [
-        { symbol: "NIFTY 50", base: 24500 },
-        { symbol: "BANKNIFTY", base: 52100 },
-        { symbol: "SENSEX", base: 81500 },
-        { symbol: "FINNIFTY", base: 23200 },
-        { symbol: "MIDCPNIFTY", base: 10800 },
-        { symbol: "RELIANCE", base: 2980 },
-        { symbol: "HDFCBANK", base: 1650 },
-        { symbol: "INFY", base: 1420 },
-        { symbol: "TCS", base: 3950 },
-        { symbol: "ADANIENT", base: 3100 }
-    ];
+app.get('/market_data', async (req, res) => {
+    try {
+        const yahooFinance = require('yahoo-finance2').default;
 
-    const data = baseData.map(item => {
-        // Add random fluctuation (-0.5% to +0.5%) to simulate daily change
-        const changePct = (Math.random() * 2 - 1).toFixed(2);
-        const changeVal = (item.base * (parseFloat(changePct) / 100));
-        const currentPrice = (item.base + changeVal).toFixed(2);
+        const symbolsMap = [
+            { ticker: "^NSEI", label: "NIFTY 50" },
+            { ticker: "^NSEBANK", label: "BANKNIFTY" },
+            { ticker: "^BSESN", label: "SENSEX" },
+            { ticker: "RELIANCE.NS", label: "RELIANCE" },
+            { ticker: "HDFCBANK.NS", label: "HDFCBANK" },
+            { ticker: "INFY.NS", label: "INFY" },
+            { ticker: "TCS.NS", label: "TCS" },
+            { ticker: "ADANIENT.NS", label: "ADANIENT" },
+            { ticker: "BAJFINANCE.NS", label: "BAJFINANCE" }
+        ];
 
-        return {
-            symbol: item.symbol,
-            price: parseFloat(currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-            change: `${changePct > 0 ? '+' : ''}${changePct}%`,
-            isGainer: parseFloat(changePct) >= 0
-        };
-    });
+        const results = await Promise.all(symbolsMap.map(async (s) => {
+            try {
+                const quote = await yahooFinance.quote(s.ticker);
+                const price = quote.regularMarketPrice || quote.postMarketPrice || 0;
+                const prevClose = quote.regularMarketPreviousClose || price;
+                const changePct = ((price - prevClose) / prevClose) * 100;
 
-    res.json(data);
+                return {
+                    symbol: s.label,
+                    price: price.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+                    change: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`,
+                    isGainer: changePct >= 0
+                };
+            } catch (err) {
+                console.error(`Failed to fetch ${s.label}:`, err.message);
+                return null;
+            }
+        }));
+
+        const validResults = results.filter(r => r !== null);
+
+        if (validResults.length > 0) {
+            return res.json(validResults);
+        }
+
+        throw new Error("No data fetched");
+
+    } catch (e) {
+        console.error("Yahoo Finance Fetch Error:", e.message);
+        // Fallback to simulation if Yahoo fails
+        const baseData = [
+            { symbol: "NIFTY 50", base: 24500 },
+            { symbol: "BANKNIFTY", base: 52100 },
+            { symbol: "SENSEX", base: 81500 },
+            { symbol: "RELIANCE", base: 2980 },
+            { symbol: "HDFCBANK", base: 1650 }
+        ];
+
+        const data = baseData.map(item => {
+            const changePct = (Math.random() * 2 - 1).toFixed(2);
+            const changeVal = (item.base * (parseFloat(changePct) / 100));
+            const currentPrice = (item.base + changeVal).toFixed(2);
+            return {
+                symbol: item.symbol,
+                price: parseFloat(currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+                change: `${changePct > 0 ? '+' : ''}${changePct}%`,
+                isGainer: parseFloat(changePct) >= 0
+            };
+        });
+        res.json(data);
+    }
 });
 
 app.get('/analytics', verifyToken, async (req, res) => {
