@@ -47,7 +47,42 @@ app.use('/api/auth', authRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
 
 // --- LEGACY ALIASES (For Frontend Proxy Support) ---
-// Note: Next.js proxies /api/:path* to /:path* on this server
+// Note: Next.js proxies /api/:path* to /:path* on// Webhook for Python Engine to save completed trades
+app.post('/webhook/save_trade', async (req, res) => {
+    try {
+        const { user_id, symbol, mode, qty, entry, exit, tp, sl, pnl, status, date, time, trade_mode, strategy } = req.body;
+
+        const { Trade } = require('./models');
+
+        // Check for duplicate (optional but good)
+        // const exists = await Trade.findOne({ where: { user_id, symbol, date, time } });
+        // if (exists) return res.json({ status: 'skipped' });
+
+        await Trade.create({
+            user_id,
+            symbol,
+            mode: mode || 'BUY',
+            quantity: qty || 1,
+            entry_price: entry || 0,
+            exit_price: exit || 0,
+            tp: tp || 0,
+            sl: sl || 0,
+            pnl: pnl || 0,
+            status: status || 'COMPLETED',
+            timestamp: `${date} ${time}`.trim(),
+            is_simulated: trade_mode === 'PAPER',
+            strategy: strategy || 'ORB'
+        });
+
+        console.log(`Saved trade via webhook: ${symbol} ${pnl}`);
+        res.json({ status: 'success' });
+    } catch (e) {
+        console.error("Save Trade Webhook Error:", e);
+        res.status(500).json({ status: 'error', message: e.message });
+    }
+});
+
+// Start Server
 
 app.post('/register', authController.register);
 app.post('/login', authController.login);
