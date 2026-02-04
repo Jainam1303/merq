@@ -209,11 +209,20 @@ app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
 // Basic error logging for Yahoo Finance
-const MARKET_DATA_VERSION = "1.0.6";
-const yahooFinance = require('yahoo-finance2').default || require('yahoo-finance2');
+const MARKET_DATA_VERSION = "1.0.7";
 
 app.get('/market_data', async (req, res) => {
+    let yahooFinance;
     try {
+        // Load library dynamically to prevent server crash if missing/incompatible
+        yahooFinance = require('yahoo-finance2').default || require('yahoo-finance2');
+    } catch (err) {
+        console.error("Critical: Failed to load yahoo-finance2 library:", err.message);
+    }
+
+    try {
+        if (!yahooFinance) throw new Error("Yahoo Finance Library not loaded");
+
         const symbolsMap = [
             { ticker: "^NSEI", label: "NIFTY 50" },
             { ticker: "^NSEBANK", label: "BANKNIFTY" },
