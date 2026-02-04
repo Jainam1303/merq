@@ -159,7 +159,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         let socket: Socket | null = null;
 
         if (isSystemActive) {
-            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
             socket = io(socketUrl, {
                 path: '/socket.io',
                 withCredentials: true,

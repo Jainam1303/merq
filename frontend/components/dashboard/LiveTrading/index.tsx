@@ -143,7 +143,7 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
     // Only connect if system is active (Running)
     if (isSystemActive) {
       // Connect directly to Backend URL (Vercel cannot proxy WebSockets properly)
-      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
+      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
 
       socket = io(socketUrl, {
         path: '/socket.io',
