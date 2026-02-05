@@ -1034,7 +1034,7 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
         </nav>
 
         <div className="flex items-center gap-4">
-          {user && (
+          {user && activePage === 'dashboard' && (
             <div className="hidden md:flex items-center gap-2 rounded-full border border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 px-3 py-1.5 mr-2">
               <span className={cn("text-xs font-bold transition-colors", isSimulated ? "text-blue-500" : "text-zinc-500")}>PAPER</span>
               <Switch
@@ -1229,7 +1229,7 @@ function Landing({ onGetStarted }) {
             <button className="h-12 px-8 rounded-full bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] text-zinc-900 dark:text-white font-bold text-sm hover:border-blue-400 dark:hover:border-blue-600 transition-all flex items-center gap-2 shadow-sm"><Play size={16} fill="currentColor" /> Watch Demo</button>
           </div>
 
-          <div className="relative mt-20 mb-8 mx-auto max-w-[1000px] perspective-[2000px] group">
+          <div className="relative mt-20 mb-8 mx-auto max-w-[1000px] perspective-2000 group">
             {/* Glow backing */}
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
 
