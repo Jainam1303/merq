@@ -14,15 +14,21 @@ router.post('/test_order', async (req, res) => {
         // Get userId from authenticated user (set by verifyToken middleware)
         const userId = req.user.id;
 
-        // Get user credentials from database
-        const userQuery = 'SELECT angel_api_key, angel_client_code, angel_password, angel_totp FROM users WHERE id = $1';
-        const userResult = await req.app.locals.pool.query(userQuery, [userId]);
+        // Get user credentials from database using Sequelize
+        const { User } = require('../models');
+        const user = await User.findByPk(userId);
 
-        if (!userResult.rows.length) {
-            return res.status(404).json({ success: false, message: 'User credentials not found' });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        const credentials = userResult.rows[0];
+        // Validate API credentials exist
+        if (!user.angel_api_key || !user.angel_client_code || !user.angel_password || !user.angel_totp) {
+            return res.status(400).json({
+                success: false,
+                message: 'Angel One API credentials are missing. Please configure them in Settings > API Keys.'
+            });
+        }
 
         // Forward request to Python engine for execution
         const pythonResponse = await axios.post('http://localhost:5002/execute_test_order', {
@@ -33,10 +39,10 @@ router.post('/test_order', async (req, res) => {
             tp,
             sl,
             credentials: {
-                apiKey: credentials.angel_api_key,
-                clientCode: credentials.angel_client_code,
-                password: credentials.angel_password,
-                totp: credentials.angel_totp
+                apiKey: user.angel_api_key,
+                clientCode: user.angel_client_code,
+                password: user.angel_password,
+                totp: user.angel_totp
             }
         }, { timeout: 30000 });
 
