@@ -331,9 +331,26 @@ app.get('/analytics', verifyToken, async (req, res) => {
 
             allTrades = dbTrades.map(t => {
                 let dateStr = 'Unknown';
-                if (t.timestamp && t.timestamp.includes(' ')) {
-                    dateStr = t.timestamp.split(' ')[0];
-                } else if (t.createdAt) {
+
+                // Robustly extract date from timestamp
+                if (t.timestamp) {
+                    if (typeof t.timestamp === 'string') {
+                        // Handle "YYYY-MM-DD ..." or "YYYY-MM-DDT..."
+                        // Use regex to capture the date part
+                        const match = t.timestamp.match(/^(\d{4}-\d{2}-\d{2})/);
+                        if (match) {
+                            dateStr = match[1];
+                        } else {
+                            // Fallback for other string formats
+                            dateStr = t.timestamp.split(' ')[0];
+                        }
+                    } else if (t.timestamp instanceof Date) {
+                        dateStr = t.timestamp.toISOString().split('T')[0];
+                    }
+                }
+
+                // Fallback to createdAt only if calculation failed
+                if ((dateStr === 'Unknown' || !dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) && t.createdAt) {
                     dateStr = t.createdAt.toISOString().split('T')[0];
                 }
 
