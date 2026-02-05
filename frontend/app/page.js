@@ -230,10 +230,26 @@ const TESTIMONIALS = [
 ];
 
 function TickerMarquee() {
+  const [tickers, setTickers] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/ticker')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setTickers(data);
+        }
+      })
+      .catch(err => console.error("Marquee Fetch Error:", err));
+  }, []);
+
+  // Use real data if available, else mock data (as loading state)
+  const displayData = tickers.length > 0 ? tickers : MOCK_TICKERS;
+
   return (
     <div className="w-full border-y border-zinc-200 dark:border-white/5 py-3 overflow-hidden flex relative z-20 backdrop-blur-sm bg-white/50 dark:bg-black/50">
       <div className="flex animate-marquee whitespace-nowrap gap-12 items-center">
-        {[...MOCK_TICKERS, ...MOCK_TICKERS, ...MOCK_TICKERS].map((t, i) => (
+        {[...displayData, ...displayData, ...displayData].map((t, i) => (
           <div key={i} className="flex items-center gap-3 text-sm font-mono">
             <span className="font-bold text-zinc-800 dark:text-white">{t.symbol}</span>
             <span className="text-zinc-500 dark:text-zinc-400">{t.price}</span>
