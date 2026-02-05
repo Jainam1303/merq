@@ -224,46 +224,37 @@ exports.saveBacktestResult = async (req, res) => {
         const userId = req.user.id;
         const { results, interval, fromDate, toDate, strategy } = req.body;
 
-        // Calculate summary metrics from results
-        // Backtest results array contains objects like:
-        // { Symbol, "Total Trades", "Win Rate %", "Total P&L", "Final Capital", ... }
-        let summary = { totalTrades: 0, winRate: 0, totalPnL: 0 };
-
         if (Array.isArray(results) && results.length > 0) {
-            // Sum across all symbol results
-            let totalTradesSum = 0;
-            let totalPnLSum = 0;
-            let winRateSum = 0;
-
-            results.forEach(r => {
-                // Extract values, handling commas and % symbols
+            const records = results.map(r => {
                 const trades = parseInt((r['Total Trades'] || '0').toString().replace(/,/g, '')) || 0;
                 const pnl = parseFloat((r['Total P&L'] || '0').toString().replace(/,/g, '').replace(/₹/g, '')) || 0;
                 const winRate = parseFloat((r['Win Rate %'] || r['Win Rate'] || '0').toString().replace(/%/g, '')) || 0;
+                const symbol = r['Symbol'] || r['symbol'] || 'Unknown';
+                const finalCap = parseFloat((r['Final Capital'] || '0').toString().replace(/,/g, '').replace(/₹/g, '')) || 0;
 
-                totalTradesSum += trades;
-                totalPnLSum += pnl;
-                winRateSum += winRate;
+                return {
+                    user_id: userId,
+                    strategy: strategy || 'ORB',
+                    interval: interval || '5',
+                    from_date: fromDate,
+                    to_date: toDate,
+                    trade_data: [r], // Store just this result
+                    summary: {
+                        totalTrades: trades,
+                        winRate: winRate,
+                        totalPnL: pnl,
+                        symbol: symbol,
+                        finalCapital: finalCap
+                    }
+                };
             });
 
-            summary = {
-                totalTrades: totalTradesSum,
-                winRate: results.length > 0 ? (winRateSum / results.length) : 0, // Average win rate across symbols
-                totalPnL: totalPnLSum
-            };
+            await BacktestResult.bulkCreate(records);
+            res.json({ status: 'success', message: `Saved ${records.length} results to history` });
+        } else {
+            res.status(400).json({ status: 'error', message: 'No results to save' });
         }
 
-        const saved = await BacktestResult.create({
-            user_id: userId,
-            strategy: strategy || 'ORB',
-            interval: interval || '5',
-            from_date: fromDate,
-            to_date: toDate,
-            trade_data: results,
-            summary: summary
-        });
-
-        res.json({ status: 'success', message: 'Backtest result saved', id: saved.id });
     } catch (error) {
         console.error('Save Backtest Error:', error);
         res.status(500).json({ status: 'error', message: 'Failed to save backtest result' });

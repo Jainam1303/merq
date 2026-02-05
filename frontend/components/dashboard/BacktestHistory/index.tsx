@@ -55,6 +55,7 @@ export function BacktestHistory() {
                     <TableHeader>
                         <TableRow>
                             <TableHead>Date</TableHead>
+                            <TableHead>Symbol</TableHead>
                             <TableHead>Interval</TableHead>
                             <TableHead>Strategy</TableHead>
                             <TableHead className="text-right">Trades</TableHead>
@@ -67,6 +68,7 @@ export function BacktestHistory() {
                         {paginatedHistory.map((h) => (
                             <TableRow key={h.id}>
                                 <TableCell>{new Date(h.createdAt).toLocaleDateString()}</TableCell>
+                                <TableCell className="font-medium text-white">{h.summary?.symbol || 'Multi-Script'}</TableCell>
                                 <TableCell>{h.interval}</TableCell>
                                 <TableCell>{h.strategy || 'N/A'}</TableCell>
                                 <TableCell className="text-right">{h.summary?.totalTrades || 0}</TableCell>
