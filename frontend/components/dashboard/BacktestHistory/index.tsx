@@ -61,6 +61,7 @@ export function BacktestHistory() {
                             <TableHead className="text-right">Trades</TableHead>
                             <TableHead className="text-right">Win Rate</TableHead>
                             <TableHead className="text-right">P&L</TableHead>
+                            <TableHead className="text-right">Final Cap</TableHead>
                             <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -76,6 +77,9 @@ export function BacktestHistory() {
                                 <TableCell className={`text-right font-bold ${(h.summary?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                                     {(h.summary?.totalPnL || 0) >= 0 ? '+' : ''}₹{parseFloat(h.summary?.totalPnL || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                 </TableCell>
+                                <TableCell className="text-right font-mono">
+                                    ₹{parseFloat(h.summary?.finalCapital || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </TableCell>
                                 <TableCell className="text-right">
                                     <Button variant="ghost" size="icon" onClick={() => handleDelete(h.id)}>
                                         <Trash2 className="h-4 w-4 text-destructive" />
@@ -83,7 +87,7 @@ export function BacktestHistory() {
                                 </TableCell>
                             </TableRow>
                         ))}
-                        {history.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-4">No backtests found</TableCell></TableRow>}
+                        {history.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-4">No backtests found</TableCell></TableRow>}
                     </TableBody>
                 </Table>
 
