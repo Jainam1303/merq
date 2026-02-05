@@ -382,18 +382,19 @@ app.get('/analytics', verifyToken, async (req, res) => {
         }
 
         // Calculate statistics
+        // Calculate statistics
         const winningTrades = allTrades.filter(t => t.pnl > 0);
         const losingTrades = allTrades.filter(t => t.pnl < 0);
 
         const totalPnL = allTrades.reduce((sum, t) => sum + t.pnl, 0);
-        const winRate = (winningTrades.length / allTrades.length) * 100;
-        const avgProfit = totalPnL / allTrades.length;
+        const winRate = allTrades.length > 0 ? (winningTrades.length / allTrades.length) * 100 : 0;
+        const avgProfit = allTrades.length > 0 ? totalPnL / allTrades.length : 0;
 
         const totalProfit = winningTrades.reduce((sum, t) => sum + t.pnl, 0);
         const totalLoss = Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0));
-        const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : totalProfit > 0 ? Infinity : 0;
+        const profitFactor = totalLoss > 0 ? totalProfit / totalLoss : (totalProfit > 0 ? Infinity : 0);
 
-        // Group by day
+        // Group by day for Chart
         const dailyMap = {};
         allTrades.forEach(t => {
             const day = t.date || 'Unknown';
@@ -405,13 +406,12 @@ app.get('/analytics', verifyToken, async (req, res) => {
         const dailyPnL = Object.entries(dailyMap)
             .map(([day, pnl]) => ({ day, pnl }))
             .sort((a, b) => {
-                // Sort by date (oldest first)
                 if (a.day === 'Unknown') return 1;
                 if (b.day === 'Unknown') return -1;
                 return new Date(a.day) - new Date(b.day);
             });
 
-        // Initialize with first day or defaults
+        // Best/Worst Day
         let bestDay = dailyPnL.length > 0 ? { ...dailyPnL[0] } : { pnl: 0, date: '-' };
         let worstDay = dailyPnL.length > 0 ? { ...dailyPnL[0] } : { pnl: 0, date: '-' };
 
@@ -420,19 +420,23 @@ app.get('/analytics', verifyToken, async (req, res) => {
             if (d.pnl < worstDay.pnl) worstDay = { pnl: d.pnl, date: d.day };
         });
 
-        // Max Drawdown Calculation
-        // Assumption: Base Capital = 100,000 (Adjust as needed or fetch from config)
-        let currentEquity = 100000;
+        // Max Drawdown Calculation (Per Trade for accuracy)
+        let currentEquity = 100000; // Base Capital
         let peakEquity = currentEquity;
         let maxDrawdownPct = 0;
 
-        dailyPnL.forEach(d => {
-            currentEquity += d.pnl;
+        // Ensure trades are sorted chronologically for Drawdown calc
+        // We already requested sort by 'createdAt' ASC from DB
+        allTrades.forEach(t => {
+            currentEquity += t.pnl;
+
             if (currentEquity > peakEquity) {
                 peakEquity = currentEquity;
             }
-            const drawdown = peakEquity - currentEquity;
-            const drawdownPct = (drawdown / peakEquity) * 100;
+
+            const drawdownRaw = peakEquity - currentEquity;
+            const drawdownPct = peakEquity > 0 ? (drawdownRaw / peakEquity) * 100 : 0;
+
             if (drawdownPct > maxDrawdownPct) {
                 maxDrawdownPct = drawdownPct;
             }
@@ -560,11 +564,91 @@ app.get('/orderbook', verifyToken, async (req, res) => {
             // DB/model might not exist, that's ok
         }
 
-        // Combine (live first, then DB) and sort by date desc
-        const allTrades = [...liveTrades, ...dbTrades].sort((a, b) => {
-            const dateA = `${a.date} ${a.time}`;
-            const dateB = `${b.date} ${b.time}`;
-            return dateB.localeCompare(dateA);
+        // Combine (Favors DB trades over Live trades if ID matches or is duplicate)
+        // Issue: Deleted trades might still be in 'liveTrades' from Python memory.
+        // If we delete from DB, we don't want them showing up from Python.
+        // However, Python engine doesn't know about DB deletions.
+        // STRATEGY: 
+        // 1. If we have DB trades, assume they are the source of truth for historical/completed trades.
+        // 2. Filter out 'liveTrades' that are already in 'dbTrades' (by ID or Symbol+Time).
+        // 3. BUT, if a trade was DELETED from DB, it might still be in 'liveTrades'.
+        //    We can't easily know if it was deleted or just hasn't been saved yet.
+        //    
+        //    Fix: Use DB trades as primary. Only add Live trades if they represent *active* or *very recent* unsaved trades.
+        //    Actually, imported trades ONLY exist in DB. Live trades are only from current session.
+
+        // Create a map of DB trades for easy lookup
+        const dbTradeIds = new Set(dbTrades.map(t => t.id));
+        const dbTradeKeys = new Set(dbTrades.map(t => `${t.symbol}|${t.timestamp}`));
+
+        // Filter live trades:
+        // Exclude if it has an ID that is in DB (already handled)
+        // Exclude if Symbol+Time is in DB (already saved)
+        // Exclude if it has a fake/temp ID but matches a saved trade
+        const uniqueLiveTrades = liveTrades.filter(t => {
+            // If live trade has a real UUID and it's not in DB ids, it might be a deleted trade re-appearing?
+            // Python usually keeps trades in memory.
+            // If user deleted it from DB, we should technically hide it. 
+            // But we don't track "deleted IDs".
+            // 
+            // Best effort: Deduplicate based on content.
+            // If a live trade matches a DB trade, skip the live one (show the DB one).
+            const key = `${t.symbol}|${t.timestamp}`;
+            if (dbTradeKeys.has(key)) return false;
+
+            // If live trade has ID (e.g. from DB load in Python) and that ID is NOT in DB result,
+            // it implies it was deleted from DB?
+            // If Python loaded stats from DB on startup, its 'trades_history' might have old IDs.
+            // If we now browse orderbook and see it missing from DB, we should probably ignore the Python copy 
+            // if we assume DB is master.
+            // However, for *active* day trading, Python has the latest.
+
+            // Compromise: If trade is "COMPLETED" and older than 1 minute, assume it SHOULD be in DB. 
+            // If it's not in DB, it was deleted.
+            // (This is a heuristic).
+
+            // For now, strict dedupe is safer.
+            return true;
+        });
+
+        // Actually, the simpler fix for "Deleted trades come back" is:
+        // The user says "entries should be treated like normal".
+        // If they import CSV, it goes to DB.
+        // If they delete, it deletes from DB.
+        // Python engine knows nothing about CSV imports. 
+        // So Imported trades are SAFE in DB.
+
+        // The problem is likely "Live" trades from the current session that were saved to DB, then deleted from DB, 
+        // but are STILL in Python memory.
+        // We should filtering out `liveTrades` that overlap with the user's deletion intent.
+        // But we don't know deletion intent.
+
+        // ALTERNATIVE: Just merge them by ID if available. 
+        // If Python sends a trade with ID 'X', and DB doesn't have 'X', 
+        // it means either (A) it's new/unsaved, or (B) it was deleted.
+        // 
+        // Valid approach:
+        // Use a "deduplication" based on unique properties (Symbol, Time, Type, Price).
+        // If we find duplicates, prioritize DB version.
+
+        const combined = [...dbTrades];
+        const existingSignatures = new Set(dbTrades.map(t => `${t.symbol}-${t.timestamp}-${t.mode}-${t.entry_price}`));
+
+        liveTrades.forEach(t => {
+            const signature = `${t.symbol}-${t.timestamp}-${t.mode}-${t.entry_price}`;
+            if (!existingSignatures.has(signature)) {
+                combined.push(t);
+                existingSignatures.add(signature);
+            }
+        });
+
+        const allTrades = combined.sort((a, b) => {
+            const dateA = new Date(a.date + ' ' + a.time);
+            const dateB = new Date(b.date + ' ' + b.time);
+            // Fallback if date parsing fails
+            if (isNaN(dateA)) return 1;
+            if (isNaN(dateB)) return -1;
+            return dateB - dateA;
         });
 
         res.json({ status: 'success', data: allTrades });
@@ -589,9 +673,27 @@ app.get('/history', verifyToken, async (req, res) => {
 });
 
 
-app.post('/delete_orders', verifyToken, (req, res) => {
-    const { order_ids } = req.body;
-    res.json({ status: 'success', message: `Deleted ${order_ids?.length || 0} orders` });
+app.post('/delete_orders', verifyToken, async (req, res) => {
+    try {
+        const { order_ids } = req.body;
+        if (!order_ids || !Array.isArray(order_ids) || order_ids.length === 0) {
+            return res.json({ status: 'success', message: 'No orders to delete' });
+        }
+
+        const { Trade } = require('./models');
+        const deleted = await Trade.destroy({
+            where: {
+                id: order_ids,
+                user_id: req.user.id
+            }
+        });
+
+        console.log(`[OrderBook] Deleted ${deleted} trades for user ${req.user.id}`);
+        res.json({ status: 'success', message: `Deleted ${deleted} orders` });
+    } catch (e) {
+        console.error("Delete orders error:", e);
+        res.status(500).json({ status: 'error', message: 'Failed to delete orders' });
+    }
 });
 
 // Import Order Book from CSV
