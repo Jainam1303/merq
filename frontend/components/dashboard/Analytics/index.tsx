@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { fetchJson } from "@/lib/api";
 import { TrendingUp, TrendingDown, Target, Activity, Trophy, AlertTriangle, ArrowDown, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,29 +14,41 @@ export function Analytics() {
     const [error, setError] = useState<string | null>(null);
     const [timePeriod, setTimePeriod] = useState<'7D' | '30D' | '90D'>('7D');
 
+    const hasLoadedRef = useRef(false);
+
     useEffect(() => {
         const loadAnalytics = async () => {
             try {
                 const res = await fetchJson('/analytics');
-                console.log('[Analytics] Received data:', res);
 
                 // Check if response has error status
                 if (res.status === 'error') {
-                    throw new Error(res.message || 'Failed to load analytics');
+                    console.warn('[Analytics] API reported error:', res.message);
+                    if (!hasLoadedRef.current) {
+                        setError(res.message || 'Failed to load analytics');
+                    }
+                    return;
                 }
 
                 setData(res);
                 setError(null);
+                hasLoadedRef.current = true;
             } catch (e: any) {
                 console.error('[Analytics] Error:', e);
-                const errorMsg = e.message || 'Failed to load analytics';
-                setError(errorMsg);
-                toast.error(errorMsg);
+                // Only show error screen if we haven't loaded data yet
+                if (!hasLoadedRef.current) {
+                    const errorMsg = e.message || 'Failed to load analytics';
+                    setError(errorMsg);
+                }
             } finally {
                 setLoading(false);
             }
         };
+
         loadAnalytics();
+        const interval = setInterval(loadAnalytics, 5000); // 5s Polling
+
+        return () => clearInterval(interval);
     }, []);
 
     if (loading) return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
