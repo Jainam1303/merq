@@ -285,373 +285,398 @@ export function Backtesting() {
                                         {formData.from_date ? format(new Date(formData.from_date), "dd-MM-yyyy HH:mm") : <span>Pick date & time</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <div className="p-3 bg-background border-b border-border">
-                                        <div className="flex items-center justify-between gap-2 mb-2">
-                                            <Label className="text-xs text-muted-foreground w-12">Time</Label>
-                                            <div className="flex gap-1 items-center flex-1">
-                                                {/* Hour */}
-                                                <select
-                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
-                                                    value={(() => {
-                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
-                                                        let h = d.getHours();
-                                                        if (h === 0) h = 12;
-                                                        else if (h > 12) h -= 12;
-                                                        return h.toString().padStart(2, '0');
-                                                    })()}
-                                                    onChange={(e) => {
-                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
-                                                        let h = parseInt(e.target.value);
-                                                        const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
-                                                        if (ampm === 'PM' && h !== 12) h += 12;
-                                                        if (ampm === 'AM' && h === 12) h = 0;
-                                                        d.setHours(h);
-                                                        setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
-                                                    }}
-                                                >
+                                <div className="p-3 bg-background border-b border-border">
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <Label className="text-xs text-muted-foreground w-12">Time</Label>
+                                        <div className="flex gap-1 items-center flex-1">
+                                            {/* Hour */}
+                                            <Select
+                                                value={(() => {
+                                                    const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                    let h = d.getHours();
+                                                    if (h === 0) h = 12;
+                                                    else if (h > 12) h -= 12;
+                                                    return h.toString().padStart(2, '0');
+                                                })()}
+                                                onValueChange={(val) => {
+                                                    const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                    let h = parseInt(val);
+                                                    const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+                                                    if (ampm === 'PM' && h !== 12) h += 12;
+                                                    if (ampm === 'AM' && h === 12) h = 0;
+                                                    d.setHours(h);
+                                                    setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8 w-[70px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent position="popper" className="max-h-[200px] overflow-y-auto">
                                                     {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
-                                                        <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
+                                                        <SelectItem key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</SelectItem>
                                                     ))}
-                                                </select>
-                                                <span className="text-muted-foreground text-sm">:</span>
-                                                {/* Minute */}
-                                                <select
-                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
-                                                    value={(formData.from_date ? new Date(formData.from_date) : new Date()).getMinutes().toString().padStart(2, '0')}
-                                                    onChange={(e) => {
-                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
-                                                        d.setMinutes(parseInt(e.target.value));
-                                                        setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
-                                                    }}
-                                                >
+                                                </SelectContent>
+                                            </Select>
+                                            <span className="text-muted-foreground text-sm">:</span>
+                                            {/* Minute */}
+                                            <Select
+                                                value={(formData.from_date ? new Date(formData.from_date) : new Date()).getMinutes().toString().padStart(2, '0')}
+                                                onValueChange={(val) => {
+                                                    const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                    d.setMinutes(parseInt(val));
+                                                    setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8 w-[70px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent position="popper" className="max-h-[200px] overflow-y-auto">
                                                     {Array.from({ length: 60 }, (_, i) => i).map(m => (
-                                                        <option key={m} value={m.toString().padStart(2, '0')}>{m.toString().padStart(2, '0')}</option>
+                                                        <SelectItem key={m} value={m.toString().padStart(2, '0')}>{m.toString().padStart(2, '0')}</SelectItem>
                                                     ))}
-                                                </select>
-                                                {/* AM/PM */}
-                                                <select
-                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8 ml-1"
-                                                    value={(formData.from_date ? new Date(formData.from_date) : new Date()).getHours() >= 12 ? 'PM' : 'AM'}
-                                                    onChange={(e) => {
-                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
-                                                        let h = d.getHours();
-                                                        if (e.target.value === 'AM' && h >= 12) h -= 12;
-                                                        if (e.target.value === 'PM' && h < 12) h += 12;
-                                                        d.setHours(h);
-                                                        setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
-                                                    }}
-                                                >
-                                                    <option value="AM">AM</option>
-                                                    <option value="PM">PM</option>
-                                                </select>
-                                            </div>
+                                                </SelectContent>
+                                            </Select>
+                                            {/* AM/PM */}
+                                            <Select
+                                                value={(formData.from_date ? new Date(formData.from_date) : new Date()).getHours() >= 12 ? 'PM' : 'AM'}
+                                                onValueChange={(val) => {
+                                                    const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                    let h = d.getHours();
+                                                    if (val === 'AM' && h >= 12) h -= 12;
+                                                    if (val === 'PM' && h < 12) h += 12;
+                                                    d.setHours(h);
+                                                    setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8 w-[70px] ml-1">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent position="popper">
+                                                    <SelectItem value="AM">AM</SelectItem>
+                                                    <SelectItem value="PM">PM</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
-                                    <Calendar
-                                        mode="single"
-                                        selected={formData.from_date ? new Date(formData.from_date) : undefined}
-                                        onSelect={(date) => {
-                                            if (!date) return;
-                                            const current = formData.from_date ? new Date(formData.from_date) : new Date();
-                                            date.setHours(current.getHours());
-                                            date.setMinutes(current.getMinutes());
-                                            setFormData({ ...formData, from_date: format(date, "yyyy-MM-dd HH:mm") });
-                                        }}
-                                        initialFocus
-                                        captionLayout="dropdown-buttons"
-                                        fromYear={2020}
-                                        toYear={new Date().getFullYear() + 5}
-                                    />
-                                </PopoverContent>
-                            </Popover>
+                                </div>
+                                <Calendar
+                                    mode="single"
+                                    selected={formData.from_date ? new Date(formData.from_date) : undefined}
+                                    onSelect={(date) => {
+                                        if (!date) return;
+                                        const current = formData.from_date ? new Date(formData.from_date) : new Date();
+                                        date.setHours(current.getHours());
+                                        date.setMinutes(current.getMinutes());
+                                        setFormData({ ...formData, from_date: format(date, "yyyy-MM-dd HH:mm") });
+                                    }}
+                                    initialFocus
+                                    captionLayout="dropdown-buttons"
+                                    fromYear={2020}
+                                    toYear={new Date().getFullYear() + 5}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                    <div className="space-y-1">
+                        <Label>To Date & Time</Label>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                        "w-full justify-start text-left font-normal",
+                                        !formData.to_date && "text-muted-foreground"
+                                    )}
+                                >
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    {formData.to_date ? format(new Date(formData.to_date), "dd-MM-yyyy HH:mm") : <span>Pick date & time</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <div className="p-3 bg-background border-b border-border">
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <Label className="text-xs text-muted-foreground w-12">Time</Label>
+                                        <div className="flex gap-1 items-center flex-1">
+                                            {/* Hour */}
+                                            <Select
+                                                value={(() => {
+                                                    const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                    let h = d.getHours();
+                                                    if (h === 0) h = 12;
+                                                    else if (h > 12) h -= 12;
+                                                    return h.toString().padStart(2, '0');
+                                                })()}
+                                                onValueChange={(val) => {
+                                                    const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                    let h = parseInt(val);
+                                                    const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+                                                    if (ampm === 'PM' && h !== 12) h += 12;
+                                                    if (ampm === 'AM' && h === 12) h = 0;
+                                                    d.setHours(h);
+                                                    setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8 w-[70px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent position="popper" className="max-h-[200px] overflow-y-auto">
+                                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                                                        <SelectItem key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <span className="text-muted-foreground text-sm">:</span>
+                                            {/* Minute */}
+                                            <Select
+                                                value={(formData.to_date ? new Date(formData.to_date) : new Date()).getMinutes().toString().padStart(2, '0')}
+                                                onValueChange={(val) => {
+                                                    const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                    d.setMinutes(parseInt(val));
+                                                    setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8 w-[70px]">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent position="popper" className="max-h-[200px] overflow-y-auto">
+                                                    {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                                                        <SelectItem key={m} value={m.toString().padStart(2, '0')}>{m.toString().padStart(2, '0')}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {/* AM/PM */}
+                                            <Select
+                                                value={(formData.to_date ? new Date(formData.to_date) : new Date()).getHours() >= 12 ? 'PM' : 'AM'}
+                                                onValueChange={(val) => {
+                                                    const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                    let h = d.getHours();
+                                                    if (val === 'AM' && h >= 12) h -= 12;
+                                                    if (val === 'PM' && h < 12) h += 12;
+                                                    d.setHours(h);
+                                                    setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            >
+                                                <SelectTrigger className="h-8 w-[70px] ml-1">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent position="popper">
+                                                    <SelectItem value="AM">AM</SelectItem>
+                                                    <SelectItem value="PM">PM</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Calendar
+                                    mode="single"
+                                    selected={formData.to_date ? new Date(formData.to_date) : undefined}
+                                    onSelect={(date) => {
+                                        if (!date) return;
+                                        const current = formData.to_date ? new Date(formData.to_date) : new Date();
+                                        date.setHours(current.getHours());
+                                        date.setMinutes(current.getMinutes());
+                                        setFormData({ ...formData, to_date: format(date, "yyyy-MM-dd HH:mm") });
+                                    }}
+                                    initialFocus
+                                    captionLayout="dropdown-buttons"
+                                    fromYear={2020}
+                                    toYear={new Date().getFullYear() + 5}
+                                />
+                            </PopoverContent>
+                        </Popover>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label>Stock Selection (Multi-Select)</Label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                placeholder="Search stocks (e.g. RELIANCE, TCS)..."
+                                value={searchQuery}
+                                onChange={e => {
+                                    setSearchQuery(e.target.value);
+                                    if (e.target.value.trim().length > 0) setShowDropdown(true);
+                                }}
+                                onFocus={() => {
+                                    if (searchQuery.trim().length > 0) setShowDropdown(true);
+                                }}
+                                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                                className="pl-9 min-h-[44px]"
+                            />
+                            {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+
+                            {/* Unified Dropdown */}
+                            {showDropdown && searchQuery.trim().length > 0 && (
+                                <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground">
+                                    {(() => {
+                                        const localMatches = savedStocks.filter(s =>
+                                            !searchQuery || s.toLowerCase().includes(searchQuery.toLowerCase())
+                                        );
+                                        const showLocal = localMatches.length > 0;
+                                        const localSet = new Set(localMatches.map(s => s));
+                                        const uniqueApiResults = searchResults.filter(r => !localSet.has(r.symbol));
+
+                                        if (!showLocal && uniqueApiResults.length === 0 && searchQuery.length >= 2 && !searching) {
+                                            return <div className="p-3 text-sm text-center text-muted-foreground">No stocks found</div>;
+                                        }
+
+                                        return (
+                                            <>
+                                                {/* Local Matches */}
+                                                {showLocal && (
+                                                    <div className="mb-1">
+                                                        <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">My Stocklist</div>
+                                                        {localMatches.slice(0, 50).map(s => (
+                                                            <div
+                                                                key={`local-${s}`}
+                                                                onClick={() => {
+                                                                    // Local saved list is just string[] for now (simple cache)
+                                                                    // But to get Token, we usually need the full object.
+                                                                    // ISSUE: 'savedStocks' is string[] so we don't have tokens for these unless we lookup.
+                                                                    // If the user clicks a "Saved" stock, we must treat it as having unknown token unless we re-fetch.
+                                                                    // For now, pass null token, backend will fallback.
+                                                                    // Ideally, savedStocks should be objects too.
+                                                                    addStock({ symbol: s, token: null, exchange: 'NSE' });
+                                                                }}
+                                                                className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
+                                                            >
+                                                                <span className="font-medium">{s}</span>
+                                                                <span className="text-xs text-muted-foreground">Saved</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* API Results */}
+                                                {uniqueApiResults.length > 0 && (
+                                                    <div>
+                                                        <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">Global Search</div>
+                                                        {uniqueApiResults.map(s => (
+                                                            <div
+                                                                key={`api-${s.token || s.symbol}`}
+                                                                onClick={() => addStock(s)}
+                                                                className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
+                                                            >
+                                                                <span className="font-bold">{s.symbol}</span>
+                                                                <span className="text-xs text-muted-foreground">{s.exchange || 'NSE'}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
+                                </div>
+                            )}
                         </div>
-                        <div className="space-y-1">
-                            <Label>To Date & Time</Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant={"outline"}
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !formData.to_date && "text-muted-foreground"
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {formData.to_date ? format(new Date(formData.to_date), "dd-MM-yyyy HH:mm") : <span>Pick date & time</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                    <div className="p-3 bg-background border-b border-border">
-                                        <div className="flex items-center justify-between gap-2 mb-2">
-                                            <Label className="text-xs text-muted-foreground w-12">Time</Label>
-                                            <div className="flex gap-1 items-center flex-1">
-                                                {/* Hour */}
-                                                <select
-                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
-                                                    value={(() => {
-                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
-                                                        let h = d.getHours();
-                                                        if (h === 0) h = 12;
-                                                        else if (h > 12) h -= 12;
-                                                        return h.toString().padStart(2, '0');
-                                                    })()}
-                                                    onChange={(e) => {
-                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
-                                                        let h = parseInt(e.target.value);
-                                                        const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
-                                                        if (ampm === 'PM' && h !== 12) h += 12;
-                                                        if (ampm === 'AM' && h === 12) h = 0;
-                                                        d.setHours(h);
-                                                        setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
-                                                    }}
-                                                >
-                                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
-                                                        <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
-                                                    ))}
-                                                </select>
-                                                <span className="text-muted-foreground text-sm">:</span>
-                                                {/* Minute */}
-                                                <select
-                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
-                                                    value={(formData.to_date ? new Date(formData.to_date) : new Date()).getMinutes().toString().padStart(2, '0')}
-                                                    onChange={(e) => {
-                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
-                                                        d.setMinutes(parseInt(e.target.value));
-                                                        setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
-                                                    }}
-                                                >
-                                                    {Array.from({ length: 60 }, (_, i) => i).map(m => (
-                                                        <option key={m} value={m.toString().padStart(2, '0')}>{m.toString().padStart(2, '0')}</option>
-                                                    ))}
-                                                </select>
-                                                {/* AM/PM */}
-                                                <select
-                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8 ml-1"
-                                                    value={(formData.to_date ? new Date(formData.to_date) : new Date()).getHours() >= 12 ? 'PM' : 'AM'}
-                                                    onChange={(e) => {
-                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
-                                                        let h = d.getHours();
-                                                        if (e.target.value === 'AM' && h >= 12) h -= 12;
-                                                        if (e.target.value === 'PM' && h < 12) h += 12;
-                                                        d.setHours(h);
-                                                        setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
-                                                    }}
-                                                >
-                                                    <option value="AM">AM</option>
-                                                    <option value="PM">PM</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <Calendar
-                                        mode="single"
-                                        selected={formData.to_date ? new Date(formData.to_date) : undefined}
-                                        onSelect={(date) => {
-                                            if (!date) return;
-                                            const current = formData.to_date ? new Date(formData.to_date) : new Date();
-                                            date.setHours(current.getHours());
-                                            date.setMinutes(current.getMinutes());
-                                            setFormData({ ...formData, to_date: format(date, "yyyy-MM-dd HH:mm") });
-                                        }}
-                                        initialFocus
-                                        captionLayout="dropdown-buttons"
-                                        fromYear={2020}
-                                        toYear={new Date().getFullYear() + 5}
-                                    />
-                                </PopoverContent>
-                            </Popover>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept=".csv,.txt"
+                                onChange={handleFileUpload}
+                            />
+                            <Button
+                                variant="outline"
+                                className="h-11 gap-2"
+                                onClick={() => fileInputRef.current?.click()}
+                                title="Import CSV"
+                            >
+                                <Upload className="h-4 w-4" />
+                                <span className="hidden sm:inline">Import CSV</span>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => setSelectedStocks([])}
+                                disabled={selectedStocks.length === 0}
+                                title="Clear Selection"
+                                className="h-11 w-11 shrink-0"
+                            >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+
+                            <Button
+                                onClick={handleRunBacktest}
+                                disabled={running || selectedStocks.length === 0}
+                                className="h-11 min-w-[130px]"
+                            >
+                                {running ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running...</> : <><Play className="mr-2 h-4 w-4" /> Run Backtest</>}
+                            </Button>
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Stock Selection (Multi-Select)</Label>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    placeholder="Search stocks (e.g. RELIANCE, TCS)..."
-                                    value={searchQuery}
-                                    onChange={e => {
-                                        setSearchQuery(e.target.value);
-                                        if (e.target.value.trim().length > 0) setShowDropdown(true);
-                                    }}
-                                    onFocus={() => {
-                                        if (searchQuery.trim().length > 0) setShowDropdown(true);
-                                    }}
-                                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-                                    className="pl-9 min-h-[44px]"
+                    {/* Selected Stocks Chips */}
+                    <div className="flex flex-wrap gap-2">
+                        {selectedStocks.map(stock => (
+                            <Badge key={stock.symbol} variant="secondary" className="pl-2 pr-1 py-1 gap-1 text-sm">
+                                {stock.symbol}
+                                <X
+                                    className="h-3 w-3 hover:text-destructive cursor-pointer"
+                                    onClick={() => removeStock(stock.symbol)}
                                 />
-                                {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+                            </Badge>
+                        ))}
+                        {selectedStocks.length === 0 && <span className="text-sm text-muted-foreground italic">No stocks selected</span>}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
 
-                                {/* Unified Dropdown */}
-                                {showDropdown && searchQuery.trim().length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg text-popover-foreground">
-                                        {(() => {
-                                            const localMatches = savedStocks.filter(s =>
-                                                !searchQuery || s.toLowerCase().includes(searchQuery.toLowerCase())
-                                            );
-                                            const showLocal = localMatches.length > 0;
-                                            const localSet = new Set(localMatches.map(s => s));
-                                            const uniqueApiResults = searchResults.filter(r => !localSet.has(r.symbol));
-
-                                            if (!showLocal && uniqueApiResults.length === 0 && searchQuery.length >= 2 && !searching) {
-                                                return <div className="p-3 text-sm text-center text-muted-foreground">No stocks found</div>;
-                                            }
-
-                                            return (
-                                                <>
-                                                    {/* Local Matches */}
-                                                    {showLocal && (
-                                                        <div className="mb-1">
-                                                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">My Stocklist</div>
-                                                            {localMatches.slice(0, 50).map(s => (
-                                                                <div
-                                                                    key={`local-${s}`}
-                                                                    onClick={() => {
-                                                                        // Local saved list is just string[] for now (simple cache)
-                                                                        // But to get Token, we usually need the full object.
-                                                                        // ISSUE: 'savedStocks' is string[] so we don't have tokens for these unless we lookup.
-                                                                        // If the user clicks a "Saved" stock, we must treat it as having unknown token unless we re-fetch.
-                                                                        // For now, pass null token, backend will fallback.
-                                                                        // Ideally, savedStocks should be objects too.
-                                                                        addStock({ symbol: s, token: null, exchange: 'NSE' });
-                                                                    }}
-                                                                    className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
-                                                                >
-                                                                    <span className="font-medium">{s}</span>
-                                                                    <span className="text-xs text-muted-foreground">Saved</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {/* API Results */}
-                                                    {uniqueApiResults.length > 0 && (
-                                                        <div>
-                                                            <div className="px-2 py-1 text-xs font-semibold text-muted-foreground bg-accent/50">Global Search</div>
-                                                            {uniqueApiResults.map(s => (
-                                                                <div
-                                                                    key={`api-${s.token || s.symbol}`}
-                                                                    onClick={() => addStock(s)}
-                                                                    className="flex cursor-pointer items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground text-sm"
-                                                                >
-                                                                    <span className="font-bold">{s.symbol}</span>
-                                                                    <span className="text-xs text-muted-foreground">{s.exchange || 'NSE'}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </>
-                                            );
-                                        })()}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Action Buttons */}
-                            <div className="flex gap-2">
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    className="hidden"
-                                    accept=".csv,.txt"
-                                    onChange={handleFileUpload}
-                                />
-                                <Button
-                                    variant="outline"
-                                    className="h-11 gap-2"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    title="Import CSV"
-                                >
-                                    <Upload className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Import CSV</span>
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={() => setSelectedStocks([])}
-                                    disabled={selectedStocks.length === 0}
-                                    title="Clear Selection"
-                                    className="h-11 w-11 shrink-0"
-                                >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-
-                                <Button
-                                    onClick={handleRunBacktest}
-                                    disabled={running || selectedStocks.length === 0}
-                                    className="h-11 min-w-[130px]"
-                                >
-                                    {running ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running...</> : <><Play className="mr-2 h-4 w-4" /> Run Backtest</>}
-                                </Button>
-                            </div>
-                        </div>
-
-                        {/* Selected Stocks Chips */}
-                        <div className="flex flex-wrap gap-2">
-                            {selectedStocks.map(stock => (
-                                <Badge key={stock.symbol} variant="secondary" className="pl-2 pr-1 py-1 gap-1 text-sm">
-                                    {stock.symbol}
-                                    <X
-                                        className="h-3 w-3 hover:text-destructive cursor-pointer"
-                                        onClick={() => removeStock(stock.symbol)}
-                                    />
-                                </Badge>
-                            ))}
-                            {selectedStocks.length === 0 && <span className="text-sm text-muted-foreground italic">No stocks selected</span>}
-                        </div>
+            {/* Results Section */ }
+    {
+        rawResults && rawResults.length > 0 && (
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between py-4">
+                    <CardTitle>Results</CardTitle>
+                    <Button onClick={handleSaveResult} variant="outline" size="sm" className="gap-2">
+                        <Save className="h-4 w-4" /> Save to History
+                    </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="border-border hover:bg-transparent">
+                                    <TableHead className="text-muted-foreground font-semibold">SYMBOL</TableHead>
+                                    <TableHead className="text-muted-foreground font-semibold text-center">TRADES</TableHead>
+                                    <TableHead className="text-muted-foreground font-semibold text-center">WIN RATE</TableHead>
+                                    <TableHead className="text-muted-foreground font-semibold text-right">P&L</TableHead>
+                                    <TableHead className="text-muted-foreground font-semibold text-right">FINAL CAP</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {rawResults.map((r: any, index: number) => {
+                                    const pnl = parseFloat((r['Total P&L'] || '0').toString().replace(/,/g, '').replace(/%/g, ''));
+                                    const winRate = parseFloat((r['Win Rate %'] || '0').toString().replace(/%/g, ''));
+                                    return (
+                                        <TableRow key={index} className="border-border">
+                                            <TableCell className="font-bold">{r['Symbol'] || r['symbol'] || '-'}</TableCell>
+                                            <TableCell className="text-center">{r['Total Trades'] || '0'}</TableCell>
+                                            <TableCell className="text-center">{winRate.toFixed(2)}%</TableCell>
+                                            <TableCell className={`text-right font-mono font-medium ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                {pnl >= 0 ? '' : ''}{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono">
+                                                {parseFloat(r['Final Capital'] || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
                     </div>
                 </CardContent>
             </Card>
-
-            {/* Results Section */}
-            {rawResults && rawResults.length > 0 && (
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between py-4">
-                        <CardTitle>Results</CardTitle>
-                        <Button onClick={handleSaveResult} variant="outline" size="sm" className="gap-2">
-                            <Save className="h-4 w-4" /> Save to History
-                        </Button>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="border-border hover:bg-transparent">
-                                        <TableHead className="text-muted-foreground font-semibold">SYMBOL</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold text-center">TRADES</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold text-center">WIN RATE</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold text-right">P&L</TableHead>
-                                        <TableHead className="text-muted-foreground font-semibold text-right">FINAL CAP</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {rawResults.map((r: any, index: number) => {
-                                        const pnl = parseFloat((r['Total P&L'] || '0').toString().replace(/,/g, '').replace(/%/g, ''));
-                                        const winRate = parseFloat((r['Win Rate %'] || '0').toString().replace(/%/g, ''));
-                                        return (
-                                            <TableRow key={index} className="border-border">
-                                                <TableCell className="font-bold">{r['Symbol'] || r['symbol'] || '-'}</TableCell>
-                                                <TableCell className="text-center">{r['Total Trades'] || '0'}</TableCell>
-                                                <TableCell className="text-center">{winRate.toFixed(2)}%</TableCell>
-                                                <TableCell className={`text-right font-mono font-medium ${pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                                    {pnl >= 0 ? '' : ''}{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </TableCell>
-                                                <TableCell className="text-right font-mono">
-                                                    {parseFloat(r['Final Capital'] || '0').toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+        )
+    }
 
 
-        </div>
+        </div >
     );
 }
