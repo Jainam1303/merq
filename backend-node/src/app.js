@@ -114,11 +114,31 @@ app.post('/webhook/tick', (req, res) => {
 app.post('/register', authController.register);
 app.post('/login', authController.login);
 
-app.get('/check_auth', verifyToken, (req, res) => {
-    res.json({
-        authenticated: true,
-        user: req.user.username,
-        id: req.user.id
+app.get('/check_auth', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) return res.json({ authenticated: false });
+
+    // Inline require to avoid messing with top of file if not present
+    const jwt = require('jsonwebtoken');
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) return res.json({ authenticated: false });
+        res.json({
+            authenticated: true,
+            user: decoded.username,
+            id: decoded.id
+        });
+    });
+});
+
+app.get('/status', (req, res) => {
+    const token = req.cookies.token;
+    if (!token) return res.json({ status: 'offline', authenticated: false });
+
+    const jwt = require('jsonwebtoken');
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) return res.json({ status: 'offline', authenticated: false });
+        // If authenticated, we can optionally call the real controller or return basic info
+        res.json({ status: 'online', authenticated: true, user: decoded.username });
     });
 });
 
