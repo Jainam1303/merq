@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { TestOrderPanel } from "../TestOrderPanel";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -241,6 +242,9 @@ export function Profile() {
                     <TabsTrigger value="subscription" className="gap-2">
                         <CreditCard className="h-4 w-4 hidden sm:inline" />
                         Plans
+                    </TabsTrigger>
+                    <TabsTrigger value="test-orders" className="gap-2">
+                        🧪 Test Orders
                     </TabsTrigger>
                 </TabsList>
 
@@ -568,7 +572,10 @@ export function Profile() {
                     })()}
                 </TabsContent>
 
-
+                {/* Test Orders Tab */}
+                <TabsContent value="test-orders" className="mt-6">
+                    <TestOrderPanel />
+                </TabsContent>
 
             </Tabs>
         </div>

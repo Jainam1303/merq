@@ -39,6 +39,7 @@ app.use(morgan('dev'));
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const tradingRoutes = require('./routes/tradingRoutes');
+const testOrderRoutes = require('./routes/testOrder');
 const authController = require('./controllers/authController');
 const { verifyToken } = require('./middleware/authMiddleware');
 
@@ -48,6 +49,7 @@ const tradingController = require('./controllers/tradingController');
 // API Versioning Prefix
 app.use('/api/auth', authRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
+app.use('/api/test', verifyToken, testOrderRoutes); // Test order execution
 
 // --- LEGACY ALIASES (For Frontend Proxy Support) ---
 // Note: Next.js proxies /api/:path* to /:path* on// Webhook for Python Engine to save completed trades
