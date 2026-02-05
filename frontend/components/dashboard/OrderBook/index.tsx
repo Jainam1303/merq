@@ -365,6 +365,9 @@ export function OrderBook() {
                       selected={startDate}
                       onSelect={setStartDate}
                       initialFocus
+                      captionLayout="dropdown-buttons"
+                      fromYear={2020}
+                      toYear={new Date().getFullYear() + 5}
                     />
                   </PopoverContent>
                 </Popover>
@@ -388,6 +391,9 @@ export function OrderBook() {
                       selected={endDate}
                       onSelect={setEndDate}
                       initialFocus
+                      captionLayout="dropdown-buttons"
+                      fromYear={2020}
+                      toYear={new Date().getFullYear() + 5}
                     />
                   </PopoverContent>
                 </Popover>
