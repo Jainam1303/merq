@@ -867,44 +867,46 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
                 </div>
               )}
 
-              <div>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Available Plans</h3>
-                <div className="grid grid-cols-4 gap-4">
-                  {plans.map((plan) => (
-                    <div
-                      key={plan.id}
-                      className={`bg-white dark:bg-zinc-900/50 border rounded-xl p-4 transition-all hover:scale-105 ${profile?.plan?.name === plan.name
-                        ? 'border-blue-500 ring-2 ring-blue-500/20'
-                        : 'border-zinc-200 dark:border-zinc-800'
-                        }`}
-                    >
-                      <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{plan.name}</h4>
-                      <p className="text-2xl font-bold text-blue-400 mb-4">
-                        ₹{plan.price}
-                        <span className="text-sm text-zinc-500 dark:text-zinc-400">{plan.duration_days === 90 ? '/ 3 Months' : plan.duration_days === 180 ? '/ 6 Months' : plan.duration_days === 365 && plan.price > 0 ? '/ Year' : '/ Month'}</span>
-                      </p>
-                      <ul className="space-y-2 mb-4 text-xs">
-                        {plan.features && (Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features)).slice(0, 3).map((feature, idx) => (
-                          <li key={idx} className="flex items-start gap-2 text-zinc-600 dark:text-zinc-400">
-                            <span className="text-blue-400 mt-0.5">✓</span>
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <button
-                        onClick={() => handleSubscribePlan(plan.id)}
-                        disabled={profile?.plan?.name === plan.name}
-                        className={`w-full py-2 rounded-lg text-sm font-medium transition-colors ${profile?.plan?.name === plan.name
-                          ? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-500 text-white'
-                          }`}
-                      >
-                        {profile?.plan?.name === plan.name ? 'Current' : 'Subscribe'}
-                      </button>
+              {(() => {
+                const currentPrice = Number(profile?.plan?.price || 0);
+                const upgrades = plans.filter(p => Number(p.price) > currentPrice);
+
+                if (upgrades.length === 0) return null;
+
+                return (
+                  <div>
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Upgrade Your Plan</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {upgrades.map((plan) => (
+                        <div
+                          key={plan.id}
+                          className="bg-white dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 transition-all hover:scale-105 hover:border-blue-500 hover:shadow-lg relative group"
+                        >
+                          <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">{plan.name}</h4>
+                          <p className="text-2xl font-bold text-blue-400 mb-4">
+                            ₹{plan.price}
+                            <span className="text-sm text-zinc-500 dark:text-zinc-400">{plan.duration_days === 90 ? '/ 3 Months' : plan.duration_days === 180 ? '/ 6 Months' : plan.duration_days === 365 && plan.price > 0 ? '/ Year' : '/ Month'}</span>
+                          </p>
+                          <ul className="space-y-2 mb-4 text-xs">
+                            {plan.features && (Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features)).slice(0, 3).map((feature, idx) => (
+                              <li key={idx} className="flex items-start gap-2 text-zinc-600 dark:text-zinc-400">
+                                <span className="text-blue-400 mt-0.5">✓</span>
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <button
+                            onClick={() => handleSubscribePlan(plan.id)}
+                            className="w-full py-2 rounded-lg text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white transition-colors shadow-lg shadow-blue-500/20"
+                          >
+                            Upgrade
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
