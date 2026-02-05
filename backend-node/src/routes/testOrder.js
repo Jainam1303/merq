@@ -30,8 +30,8 @@ router.post('/test_order', async (req, res) => {
             });
         }
 
-        // Forward request to Python engine for execution
-        const pythonResponse = await axios.post('http://localhost:5002/execute_test_order', {
+        // Forward request to Python engine (existing service on port 5002)
+        const pythonResponse = await axios.post('http://localhost:5002/engine/test_order', {
             symbol,
             qty,
             orderType,

@@ -113,5 +113,120 @@ def exit_position(data: dict):
         return {"status": "exited" if success else "not_found"}
     return {"status": "no_session"}
 
+@app.post("/engine/test_order")
+def execute_test_order(data: dict):
+    """
+    Execute a test order directly via Angel API
+    Bypasses all strategy logic for diagnostic purposes
+    """
+    try:
+        from SmartApi import SmartConnect
+        import pyotp
+        
+        # Extract request data
+        symbol = data.get("symbol")
+        qty = int(data.get("qty", 1))
+        order_type = data.get("orderType", "BUY")
+        credentials = data.get("credentials", {})
+        
+        # Initialize Angel API
+        api_key = credentials.get("apiKey")
+        client_code = credentials.get("clientCode")
+        password = credentials.get("password")
+        totp_key = credentials.get("totp")
+        
+        if not all([api_key, client_code, password, totp_key]):
+            raise HTTPException(status_code=400, detail="Missing Angel API credentials")
+        
+        smart_api = SmartConnect(api_key=api_key)
+        
+        # Generate TOTP and login
+        totp = pyotp.TOTP(totp_key).now()
+        session_data = smart_api.generateSession(client_code, password, totp)
+        
+        if not session_data or not session_data.get('status'):
+            return {
+                "success": False,
+                "message": f"Login failed: {session_data.get('message', 'Unknown error')}"
+            }
+        
+        # Get symbol token
+        clean_symbol = symbol.upper().replace("-EQ", "")
+        search_result = smart_api.searchScrip("NSE", clean_symbol)
+        
+        if not search_result or not search_result.get('status') or not search_result.get('data'):
+            return {
+                "success": False,
+                "message": f"Symbol {symbol} not found in NSE"
+            }
+        
+        symbol_token = search_result['data'][0]['symboltoken']
+        trading_symbol = search_result['data'][0]['tradingsymbol']
+        
+        # Place market order
+        order_params = {
+            "variety": "NORMAL",
+            "tradingsymbol": trading_symbol,
+            "symboltoken": str(symbol_token),
+            "transactiontype": order_type,
+            "exchange": "NSE",
+            "ordertype": "MARKET",
+            "producttype": "INTRADAY",
+            "duration": "DAY",
+            "price": "0",
+            "squareoff": "0",
+            "stoploss": "0",
+            "quantity": str(qty)
+        }
+        
+        response = smart_api.placeOrder(order_params)
+        
+        if not response:
+            return {
+                "success": False,
+                "message": "Angel API returned empty response",
+                "orderParams": order_params
+            }
+        
+        # Parse response
+        if isinstance(response, dict):
+            if response.get('status') == True:
+                order_id = response.get('data', {}).get('orderid')
+                return {
+                    "success": True,
+                    "orderId": order_id,
+                    "symbol": symbol,
+                    "quantity": qty,
+                    "type": order_type,
+                    "message": f"✅ Order placed successfully. OrderID: {order_id}",
+                    "apiResponse": response
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": response.get('message', 'Order rejected'),
+                    "errorCode": response.get('errorcode', 'Unknown'),
+                    "apiResponse": response
+                }
+        else:
+            # String response (order ID)
+            return {
+                "success": True,
+                "orderId": str(response),
+                "symbol": symbol,
+                "quantity": qty,
+                "type": order_type,
+                "message": f"✅ Order placed successfully. OrderID: {response}"
+            }
+            
+    except Exception as e:
+        import traceback
+        return {
+            "success": False,
+            "message": str(e),
+            "traceback": traceback.format_exc()
+        }
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5002)
