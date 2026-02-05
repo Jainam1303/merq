@@ -539,34 +539,48 @@ export function Profile() {
                                     </div>
                                 )}
 
-                                <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Upgrade Your Plan</h3>
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                                    {plans.map((plan) => (
-                                        <Card key={plan.id} className={plan.id === currentPlanId ? "border-blue-500/50 bg-blue-500/5" : ""}>
-                                            <CardHeader>
-                                                <CardTitle>{plan.plan}</CardTitle>
-                                                <CardDescription>{plan.duration}</CardDescription>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <p className="text-2xl font-bold">₹{plan.price}</p>
-                                                <ul className="mt-4 space-y-2 text-sm">
-                                                    {(plan.features ? (Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features)) : []).slice(0, 3).map((f: string, i: number) => (
-                                                        <li key={i} className="flex gap-2"><Check className="h-4 w-4 text-green-500" /> {f}</li>
-                                                    ))}
-                                                </ul>
-                                                <Button
-                                                    className={`w-full mt-4 ${plan.id === currentPlanId ? 'bg-zinc-800' : ''}`}
-                                                    variant={plan.id === currentPlanId ? "secondary" : "default"}
-                                                    onClick={() => handleUpgrade(plan)}
-                                                    disabled={plan.id === currentPlanId}
-                                                >
-                                                    {plan.id === currentPlanId ? 'Current Plan' : 'Upgrade'}
-                                                </Button>
-                                            </CardContent>
-                                        </Card>
-                                    ))}
-                                    {plans.length === 0 && <p className="text-muted-foreground p-4">No plans available.</p>}
-                                </div>
+                                {(() => {
+                                    const currentPrice = activePlan ? Number(activePlan.price) : 0;
+                                    const filteredUpgrades = plans.filter(p => Number(p.price) > currentPrice);
+
+                                    if (filteredUpgrades.length === 0) {
+                                        return (
+                                            <div className="p-8 text-center bg-zinc-50 dark:bg-[#09090b] border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                                                <p className="text-zinc-500 dark:text-zinc-400">✨ You are on the highest tier plan!</p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <>
+                                            <h3 className="text-lg font-semibold mb-4 text-zinc-900 dark:text-zinc-100">Available Upgrades</h3>
+                                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                                                {filteredUpgrades.map((plan) => (
+                                                    <Card key={plan.id} className="hover:border-blue-500/50 transition-colors">
+                                                        <CardHeader>
+                                                            <CardTitle>{plan.plan}</CardTitle>
+                                                            <CardDescription>{plan.duration}</CardDescription>
+                                                        </CardHeader>
+                                                        <CardContent>
+                                                            <p className="text-2xl font-bold">₹{plan.price}</p>
+                                                            <ul className="mt-4 space-y-2 text-sm">
+                                                                {(plan.features ? (Array.isArray(plan.features) ? plan.features : JSON.parse(plan.features)) : []).slice(0, 3).map((f: string, i: number) => (
+                                                                    <li key={i} className="flex gap-2"><Check className="h-4 w-4 text-green-500" /> {f}</li>
+                                                                ))}
+                                                            </ul>
+                                                            <Button
+                                                                className="w-full mt-4"
+                                                                onClick={() => handleUpgrade(plan)}
+                                                            >
+                                                                Upgrade
+                                                            </Button>
+                                                        </CardContent>
+                                                    </Card>
+                                                ))}
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </>
                         );
                     })()}
