@@ -37,8 +37,8 @@ export function Backtesting() {
         strategy: 'orb',
         interval: '5',
         capital: 100000,
-        from_date: '2025-01-01',
-        to_date: '2025-03-01'
+        from_date: '2025-01-01 09:15',
+        to_date: '2025-01-31 15:30'
     });
     const [selectedStocks, setSelectedStocks] = useState<any[]>([]);
     const [savedStocks, setSavedStocks] = useState<string[]>([]);
@@ -288,20 +288,64 @@ export function Backtesting() {
                                 <PopoverContent className="w-auto p-0" align="start">
                                     <div className="p-3 bg-background border-b border-border">
                                         <div className="flex items-center justify-between gap-2 mb-2">
-                                            <Label className="text-xs text-muted-foreground">Time</Label>
-                                            <Input
-                                                type="time"
-                                                className="h-8 w-full"
-                                                value={formData.from_date ? format(new Date(formData.from_date), "HH:mm") : "09:15"}
-                                                onChange={(e) => {
-                                                    const time = e.target.value;
-                                                    const current = formData.from_date ? new Date(formData.from_date) : new Date();
-                                                    const [hours, minutes] = time.split(':').map(Number);
-                                                    current.setHours(hours);
-                                                    current.setMinutes(minutes);
-                                                    setFormData({ ...formData, from_date: format(current, "yyyy-MM-dd HH:mm") });
-                                                }}
-                                            />
+                                            <Label className="text-xs text-muted-foreground w-12">Time</Label>
+                                            <div className="flex gap-1 items-center flex-1">
+                                                {/* Hour */}
+                                                <select
+                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
+                                                    value={(() => {
+                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                        let h = d.getHours();
+                                                        if (h === 0) h = 12;
+                                                        else if (h > 12) h -= 12;
+                                                        return h.toString().padStart(2, '0');
+                                                    })()}
+                                                    onChange={(e) => {
+                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                        let h = parseInt(e.target.value);
+                                                        const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+                                                        if (ampm === 'PM' && h !== 12) h += 12;
+                                                        if (ampm === 'AM' && h === 12) h = 0;
+                                                        d.setHours(h);
+                                                        setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                    }}
+                                                >
+                                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                                                        <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-muted-foreground text-sm">:</span>
+                                                {/* Minute */}
+                                                <select
+                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
+                                                    value={(formData.from_date ? new Date(formData.from_date) : new Date()).getMinutes().toString().padStart(2, '0')}
+                                                    onChange={(e) => {
+                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                        d.setMinutes(parseInt(e.target.value));
+                                                        setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                    }}
+                                                >
+                                                    {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                                                        <option key={m} value={m.toString().padStart(2, '0')}>{m.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                {/* AM/PM */}
+                                                <select
+                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8 ml-1"
+                                                    value={(formData.from_date ? new Date(formData.from_date) : new Date()).getHours() >= 12 ? 'PM' : 'AM'}
+                                                    onChange={(e) => {
+                                                        const d = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                        let h = d.getHours();
+                                                        if (e.target.value === 'AM' && h >= 12) h -= 12;
+                                                        if (e.target.value === 'PM' && h < 12) h += 12;
+                                                        d.setHours(h);
+                                                        setFormData({ ...formData, from_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                    }}
+                                                >
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                     <Calendar
@@ -340,20 +384,64 @@ export function Backtesting() {
                                 <PopoverContent className="w-auto p-0" align="start">
                                     <div className="p-3 bg-background border-b border-border">
                                         <div className="flex items-center justify-between gap-2 mb-2">
-                                            <Label className="text-xs text-muted-foreground">Time</Label>
-                                            <Input
-                                                type="time"
-                                                className="h-8 w-full"
-                                                value={formData.to_date ? format(new Date(formData.to_date), "HH:mm") : "15:30"}
-                                                onChange={(e) => {
-                                                    const time = e.target.value;
-                                                    const current = formData.to_date ? new Date(formData.to_date) : new Date();
-                                                    const [hours, minutes] = time.split(':').map(Number);
-                                                    current.setHours(hours);
-                                                    current.setMinutes(minutes);
-                                                    setFormData({ ...formData, to_date: format(current, "yyyy-MM-dd HH:mm") });
-                                                }}
-                                            />
+                                            <Label className="text-xs text-muted-foreground w-12">Time</Label>
+                                            <div className="flex gap-1 items-center flex-1">
+                                                {/* Hour */}
+                                                <select
+                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
+                                                    value={(() => {
+                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                        let h = d.getHours();
+                                                        if (h === 0) h = 12;
+                                                        else if (h > 12) h -= 12;
+                                                        return h.toString().padStart(2, '0');
+                                                    })()}
+                                                    onChange={(e) => {
+                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                        let h = parseInt(e.target.value);
+                                                        const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+                                                        if (ampm === 'PM' && h !== 12) h += 12;
+                                                        if (ampm === 'AM' && h === 12) h = 0;
+                                                        d.setHours(h);
+                                                        setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                    }}
+                                                >
+                                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                                                        <option key={h} value={h.toString().padStart(2, '0')}>{h.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-muted-foreground text-sm">:</span>
+                                                {/* Minute */}
+                                                <select
+                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8"
+                                                    value={(formData.to_date ? new Date(formData.to_date) : new Date()).getMinutes().toString().padStart(2, '0')}
+                                                    onChange={(e) => {
+                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                        d.setMinutes(parseInt(e.target.value));
+                                                        setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                    }}
+                                                >
+                                                    {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                                                        <option key={m} value={m.toString().padStart(2, '0')}>{m.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                {/* AM/PM */}
+                                                <select
+                                                    className="bg-transparent border border-input rounded-md px-2 py-1 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer h-8 ml-1"
+                                                    value={(formData.to_date ? new Date(formData.to_date) : new Date()).getHours() >= 12 ? 'PM' : 'AM'}
+                                                    onChange={(e) => {
+                                                        const d = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                        let h = d.getHours();
+                                                        if (e.target.value === 'AM' && h >= 12) h -= 12;
+                                                        if (e.target.value === 'PM' && h < 12) h += 12;
+                                                        d.setHours(h);
+                                                        setFormData({ ...formData, to_date: format(d, "yyyy-MM-dd HH:mm") });
+                                                    }}
+                                                >
+                                                    <option value="AM">AM</option>
+                                                    <option value="PM">PM</option>
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                     <Calendar
