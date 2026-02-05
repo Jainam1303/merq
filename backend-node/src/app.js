@@ -50,6 +50,7 @@ const tradingController = require('./controllers/tradingController');
 app.use('/api/auth', authRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
 app.use('/api/test', verifyToken, testOrderRoutes); // Test order execution
+app.use('/test', verifyToken, testOrderRoutes); // Legacy alias for Next.js proxy
 
 // --- LEGACY ALIASES (For Frontend Proxy Support) ---
 // Note: Next.js proxies /api/:path* to /:path* on// Webhook for Python Engine to save completed trades
