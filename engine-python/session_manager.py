@@ -225,16 +225,33 @@ class TradingSession:
                 search = self.smartApi.searchScrip("NSE", clean)
                 
                 if search and search.get('status') and search.get('data'):
-                    # Find exact match
-                    for item in search['data']:
-                        if item.get('tradingsymbol') == clean or item.get('tradingsymbol') == f"{clean}-EQ":
-                            self.symbol_tokens[sym] = item['symboltoken']
-                            self.log(f"✓ {sym} -> Token: {item['symboltoken']}", "DEBUG")
+                    data_list = search['data']
+                    selected_script = None
+                    
+                    # 1. Try finding exact trading symbol match (e.g. "IGL-EQ")
+                    target_symbol = f"{clean}-EQ"
+                    for scrip in data_list:
+                        if scrip['tradingsymbol'] == target_symbol:
+                            selected_script = scrip
                             break
-                    else:
-                        # No exact match, use first result
-                        self.symbol_tokens[sym] = search['data'][0]['symboltoken']
-                        self.log(f"✓ {sym} -> Token: {search['data'][0]['symboltoken']} (first match)", "DEBUG")
+                            
+                    # 2. If not found, try just exact name match on symbol name
+                    if not selected_script:
+                        for scrip in data_list:
+                            if scrip['symboltoken'] and scrip['tradingsymbol'].endswith('-EQ'):
+                                selected_script = scrip
+                                break
+                    
+                    # 3. Fallback to first result but log warning
+                    if not selected_script:
+                        selected_script = data_list[0]
+                        self.log(f"⚠️ Precise match not found for {sym}, using: {selected_script['tradingsymbol']}", "WARNING")
+
+                    self.symbol_tokens[sym] = selected_script['symboltoken']
+                    # ALSO store the actual trading symbol to use in orders
+                    self.symbol_tokens[f"{sym}_TS"] = selected_script['tradingsymbol'] 
+                    
+                    self.log(f"✓ {sym} -> {selected_script['tradingsymbol']} (Token: {selected_script['symboltoken']})", "DEBUG")
                 else:
                     self.log(f"⚠️ Could not find token for {sym}: {search}", "WARNING")
                     
@@ -713,7 +730,11 @@ class TradingSession:
                 return False
             
             # Clean trading symbol (remove -EQ suffix)
-            trading_symbol = symbol.replace("-EQ", "")
+            # Use exact trading symbol from token map if available (best practice)
+            trading_symbol = self.symbol_tokens.get(f"{symbol}_TS")
+            if not trading_symbol:
+                trading_symbol = symbol.replace("-EQ", "")
+                self.log(f"⚠️ Using fallback symbol logic: {trading_symbol}", "WARNING")
             
             # Build order params - SmartAPI v2 format
             order_params = {
@@ -951,7 +972,11 @@ class TradingSession:
                 self.log(f"EXIT ORDER BLOCKED: No token for {pos['symbol']}", "ERROR")
                 return False
             
-            trading_symbol = pos['symbol'].replace("-EQ", "")
+            # Use exact trading symbol from token map if available (best practice)
+            trading_symbol = self.symbol_tokens.get(f"{pos['symbol']}_TS")
+            if not trading_symbol:
+                trading_symbol = pos['symbol'].replace("-EQ", "")
+                self.log(f"⚠️ Using fallback symbol logic for exit: {trading_symbol}", "WARNING")
             exit_type = "SELL" if pos['type'] == "BUY" else "BUY"
             
             order_params = {
