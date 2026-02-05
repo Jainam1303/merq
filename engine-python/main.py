@@ -67,8 +67,10 @@ def stop_engine(data: dict):
 
 @app.post("/backtest")
 def run_backtest(data: dict):
-    from backtest_runner import login_and_run_backtest
-    results = login_and_run_backtest(data)
+    import importlib
+    import backtest_runner
+    importlib.reload(backtest_runner)
+    results = backtest_runner.login_and_run_backtest(data)
     return {
         "status": "success",
         "results": results

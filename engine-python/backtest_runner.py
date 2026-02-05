@@ -53,8 +53,17 @@ def login_and_run_backtest(data):
     try:
         strategy_name = data.get("strategy", "orb").lower()
         selected_symbols = data.get("symbols", [])
-        start_date = data.get("from_date", "2024-01-01") + " 09:15"
-        end_date = data.get("to_date", "2024-01-31") + " 15:30"
+        
+        # Handle Date Inputs - Avoid double time concatenation
+        raw_from = data.get("from_date", "2024-01-01")
+        raw_to = data.get("to_date", "2024-01-31")
+        
+        # If input doesn't look like it has time (length < 11), append default time
+        start_date = raw_from if len(str(raw_from)) > 11 else f"{raw_from} 09:15"
+        end_date = raw_to if len(str(raw_to)) > 11 else f"{raw_to} 15:30"
+        
+        logger.info(f"[Backtest] Date Range: {start_date} to {end_date}")
+        
         interval = data.get("interval", "5")
         
         # CREDENTIALS
@@ -70,9 +79,9 @@ def login_and_run_backtest(data):
                 import pyotp
                 smartApi = SmartConnect(api_key=api_key)
                 totp = pyotp.TOTP(totp_key).now()
-                data = smartApi.generateSession(client_code, password, totp)
-                if not data['status']:
-                    logger.error(f"Login Failed: {data['message']}")
+                session_data = smartApi.generateSession(client_code, password, totp)
+                if not session_data['status']:
+                    logger.error(f"Login Failed: {session_data['message']}")
                     smartApi = None
                 else:
                     logger.info("Angel One Login Successful for Backtest")
@@ -88,6 +97,8 @@ def login_and_run_backtest(data):
         # 2. Dynamic lookup via SmartAPI
         
         import time
+        from datetime import datetime
+        
         for symbol_data in selected_symbols:
             try:
                 # Rate limit for iteration
@@ -167,26 +178,55 @@ def login_and_run_backtest(data):
                 # FALLBACK SIMULATION (Only if Real Fetch Fails or No Creds)
                 if df.empty:
                     logger.warning(f"Using Simulation for {symbol} due to missing data/creds.")
-                    dates = pd.date_range(start=start_date.split(' ')[0], end=end_date.split(' ')[0], freq='5min')
+                    
+                    # Create timestamps based on full start/end range
+                    full_range = pd.date_range(start=start_date, end=end_date, freq=f'{interval}min')
+                    
                     seed_val = abs(hash(symbol)) % (2**32)
                     np.random.seed(seed_val)
                     price = 1000.0
                     data_list = []
-                    days_list = sorted(list(set([d.date() for d in dates])))
-                    for day_date in days_list:
-                        day_profile = np.random.choice([0, 1, 1, 2, 2, 3]) 
-                        day_times = [d for d in dates if d.date() == day_date]
-                        for i, d in enumerate(day_times):
-                            if d.time() < pd.to_datetime("09:15").time() or d.time() > pd.to_datetime("15:30").time(): continue
-                            noise = np.random.normal(0, 1.0)
-                            trend = 0.5 if day_profile == 1 else (-0.5 if day_profile == 2 else 0)
-                            is_spike = np.random.random() > 0.85
-                            if is_spike: price += np.random.choice([-3, 3])
-                            price += trend + noise
-                            high = price + abs(np.random.normal(0, 1)) + (2 if is_spike else 0)
-                            low = price - abs(np.random.normal(0, 1)) - (2 if is_spike else 0)
-                            vol = np.random.randint(15000, 50000) if is_spike else np.random.randint(1000, 8000)
-                            data_list.append({"timestamp": d, "open": price-(trend+noise), "high": high, "low": low, "close": price, "volume": vol})
+                    
+                    # Parse start/end times for daily window logic (Market Hours Only)
+                    market_open = pd.to_datetime("09:15").time()
+                    market_close = pd.to_datetime("15:30").time()
+                    
+                    for d in full_range:
+                        # Only generate data during market hours
+                        if d.time() < market_open or d.time() > market_close:
+                            continue
+                            
+                        # Important: Also respect the specific user start/end requested
+                        if d < pd.to_datetime(start_date) or d > pd.to_datetime(end_date):
+                            continue
+                            
+                        # Simulation Logic
+                        noise = np.random.normal(0, 1.0)
+                        # More variance
+                        is_dynamic = np.random.random() > 0.5
+                        trend = 0
+                        if is_dynamic:
+                            trend = np.random.choice([-0.5, 0.5, 0.2, -0.2])
+                        
+                        is_spike = np.random.random() > 0.95
+                        if is_spike: price += np.random.choice([-3, 3])
+                        
+                        price += trend + noise
+                        if price < 10: price = 10 # Floor
+                        
+                        high = price + abs(np.random.normal(0, 1)) + (2 if is_spike else 0)
+                        low = price - abs(np.random.normal(0, 1)) - (2 if is_spike else 0)
+                        vol = np.random.randint(15000, 50000) if is_spike else np.random.randint(1000, 8000)
+                        
+                        data_list.append({
+                            "timestamp": d, 
+                            "open": round(price-(trend+noise), 2), 
+                            "high": round(high, 2), 
+                            "low": round(low, 2), 
+                            "close": round(price, 2), 
+                            "volume": vol
+                        })
+                        
                     df = pd.DataFrame(data_list)
 
                 # RUN STRATEGY
