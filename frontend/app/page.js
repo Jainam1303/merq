@@ -868,14 +868,21 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
               )}
 
               {(() => {
-                const currentPrice = Number(profile?.plan?.price || 0);
-                const upgrades = plans.filter(p => Number(p.price) > currentPrice);
+                const currentPrice = profile?.plan ? Number(profile.plan.price) : 0;
+                console.log("Plans Debug:", { currentPrice, plansCount: plans.length, profilePlan: profile?.plan });
 
-                if (upgrades.length === 0) return null;
+                const upgrades = plans.filter(p => Number(p.price) > currentPrice);
+                console.log("Computed Upgrades:", upgrades);
+
+                if (upgrades.length === 0) return (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <p className="text-zinc-500 font-medium">✨ You are on the highest tier plan!</p>
+                  </div>
+                );
 
                 return (
                   <div>
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Upgrade Your Plan</h3>
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">Available Upgrades</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       {upgrades.map((plan) => (
                         <div
