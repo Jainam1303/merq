@@ -81,15 +81,10 @@ def login_and_run_backtest(data):
         
         summary_results = []
 
-        # Token Map (Fallback if DB tokens missing in frontend request, but ideally frontend sends tokens)
-        # In this flow, we might need to lookup tokens if only symbols provided.
-        # Ideally, we should fetch master contract or use a small local map.
-        # For now, we assume standard map or fallback.
-        token_map = {
-            "ADANIPOWER-EQ": "17388", "IDEA-EQ": "14366", "RELIANCE-EQ": "2885", 
-            "TCS-EQ": "11536", "INFY-EQ": "1594", "HDFCBANK-EQ": "1333", 
-            "SBIN-EQ": "3045", "5PAISA-EQ": "445", "BANKNIFTY": "99992000"
-        }
+        # Token Map - Removed hardcoded values as requested. 
+        # We rely strictly on:
+        # 1. User providing token in request
+        # 2. Dynamic lookup via SmartAPI
         
         for symbol_data in selected_symbols:
             # Determine if input is object (new) or string (old)
@@ -103,37 +98,46 @@ def login_and_run_backtest(data):
             else:
                 symbol_name = str(symbol_data)
             
-            # If no token yet, try map or dynamic search
-            if not market_token:
-                clean_sym = symbol_name.replace("-EQ", "") + "-EQ"
-                market_token = token_map.get(clean_sym, None)
-                
-                # Dynamic Search via API if map fails
-                if not market_token and smartApi:
-                    try:
-                        clean_search = symbol_name.upper().replace("-EQ", "")
-                        search_res = smartApi.searchScrip("NSE", clean_search)
-                        if search_res and search_res.get('status') and search_res.get('data'):
-                            # Priority Logic: 1. Exact Match, 2. Ends with -EQ, 3. First Found
-                            found_scrip = None
+            # Dynamic Search via API if token not provided
+            if not market_token and smartApi:
+                try:
+                    clean_search = symbol_name.upper().replace("-EQ", "")
+                    search_res = smartApi.searchScrip("NSE", clean_search)
+                    if search_res and search_res.get('status') and search_res.get('data'):
+                        # Priority Logic: 1. Exact Match, 2. Ends with -EQ, 3. First Found
+                        found_scrip = None
+                        
+                        # 1. Exact match with -EQ suffix (Best for Equity)
+                        target_eq = f"{clean_search}-EQ"
+                        for scrip in search_res['data']:
+                            if scrip['tradingsymbol'] == target_eq:
+                                found_scrip = scrip
+                                break
+                        
+                        # 2. Exact match on raw symbol name (some indices/futures)
+                        if not found_scrip:
                             for scrip in search_res['data']:
-                                if scrip['tradingsymbol'] == f"{clean_search}-EQ":
+                                if scrip['tradingsymbol'] == clean_search:
                                     found_scrip = scrip
                                     break
+                                    
+                        # 3. Fallback: Ends with -EQ
+                        if not found_scrip:
+                            for scrip in search_res['data']:
+                                if scrip['tradingsymbol'].endswith('-EQ'):
+                                    found_scrip = scrip
+                                    break
+                                    
+                        # 4. First result (Last resort)
+                        if not found_scrip:
+                            found_scrip = search_res['data'][0]
                             
-                            if not found_scrip:
-                                for scrip in search_res['data']:
-                                    if scrip['tradingsymbol'].endswith('-EQ'):
-                                        found_scrip = scrip
-                                        break
-                                        
-                            if not found_scrip:
-                                found_scrip = search_res['data'][0]
-                                
-                            market_token = found_scrip['symboltoken']
-                            logger.info(f"Dynamic Token Found: {symbol_name} -> {market_token}")
-                    except Exception as ex:
-                        logger.error(f"Dynamic Search Failed for {symbol_name}: {ex}")
+                        market_token = found_scrip['symboltoken']
+                        # Update symbol name to match the official trading symbol
+                        symbol_name = found_scrip['tradingsymbol'] 
+                        logger.info(f"Dynamic Token Found: {symbol_name} -> {market_token}")
+                except Exception as ex:
+                    logger.error(f"Dynamic Search Failed for {symbol_name}: {ex}")
             
             # Use the resolved symbol name for logging and results
             symbol = symbol_name
