@@ -1154,16 +1154,23 @@ function MarketTicker() {
 
   useEffect(() => {
     const fetchData = () => {
-      fetchJson('/market_data')
-        .then(res => {
-          if (Array.isArray(res) && res.length > 0) {
-            setTickerData(res);
-            console.log(`[MarketTicker] Updated Data. Source: ${res[0].source || 'Unknown'}`);
+      fetch('/api/ticker')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data) && data.length > 0) {
+            const formatted = data.map(d => ({
+              symbol: d.symbol,
+              price: d.price,
+              change: d.change,
+              isGainer: d.change.startsWith('+'),
+              source: 'YAHOO_LIVE'
+            }));
+            setTickerData(formatted);
+            console.log(`[MarketTicker] Updated Data. Source: LIVE_API`);
           }
         })
         .catch(e => {
-          console.log("Ticker fetch failed, using fallback");
-          // Optional: Simulate random movement on fallback if backend fails
+          console.log("Ticker fetch failed, using fallback", e);
         });
     };
 
