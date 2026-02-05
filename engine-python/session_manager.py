@@ -716,6 +716,15 @@ class TradingSession:
             if response is None:
                 self.log(f"⚠️ SDK returned None. Trying direct API call...", "WARNING")
                 response = self._place_order_direct_api(order_params)
+                
+                # If direct API also returns Invalid Token, refresh session and retry
+                if response and isinstance(response, dict):
+                    error_code = response.get('errorcode', '')
+                    if error_code in ['AG8001', 'AB1010'] and retry_count < 2:
+                        self.log(f"⚠️ Token error from direct API. Refreshing session...", "WARNING")
+                        time.sleep(2)
+                        if self._refresh_session():
+                            return self._execute_live_order(pos, symbol, order_type, qty, price, retry_count + 1)
             
             # Handle response
             if response is None:
@@ -745,8 +754,8 @@ class TradingSession:
                     error_code = response.get('errorcode', 'Unknown')
                     self.log(f"❌ Order Rejected [{error_code}]: {error_msg}", "ERROR")
                     
-                    # Check for session expiry errors
-                    if error_code in ['AB1010', 'AB1004', 'AG8002'] and retry_count < 2:
+                    # Check for session expiry/token errors - AG8001 = Invalid Token
+                    if error_code in ['AB1010', 'AB1004', 'AG8002', 'AG8001'] and retry_count < 2:
                         time.sleep(2)
                         if self._refresh_session():
                             return self._execute_live_order(pos, symbol, order_type, qty, price, retry_count + 1)
@@ -766,7 +775,15 @@ class TradingSession:
             self.log(f"Traceback: {traceback.format_exc()}", "DEBUG")
             return False
 
-    def _place_order_direct_api(self, order_params):
+    def _get_current_token(self):
+        """Get the current valid JWT token - prefer SDK's internal token"""
+        # Try to get token from SDK's internal state
+        if hasattr(self.smartApi, 'access_token') and self.smartApi.access_token:
+            return self.smartApi.access_token
+        # Fallback to our stored token
+        return self.auth_token
+
+    def _place_order_direct_api(self, order_params, use_fresh_token=False):
         """
         Fallback: Place order using direct HTTP API call
         This bypasses the SDK to get actual error messages
@@ -774,10 +791,17 @@ class TradingSession:
         try:
             import requests as req
             
+            # Get fresh token if requested or use current
+            current_token = self._get_current_token()
+            
+            if not current_token:
+                self.log("❌ No valid auth token available", "ERROR")
+                return None
+            
             url = "https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/placeOrder"
             
             headers = {
-                "Authorization": f"Bearer {self.auth_token}",
+                "Authorization": f"Bearer {current_token}",
                 "Content-Type": "application/json",
                 "Accept": "application/json",
                 "X-UserType": "USER",
@@ -788,7 +812,7 @@ class TradingSession:
                 "X-PrivateKey": self.credentials.get('apiKey', '')
             }
             
-            self.log(f"📡 Direct API call to: {url}", "DEBUG")
+            self.log(f"📡 Direct API call with token: {current_token[:20]}...", "DEBUG")
             
             resp = req.post(url, json=order_params, headers=headers, timeout=30)
             
@@ -796,7 +820,17 @@ class TradingSession:
             self.log(f"📥 Direct API Response: {resp.text}", "DEBUG")
             
             if resp.status_code == 200:
-                return resp.json()
+                json_resp = resp.json()
+                # Check if it's an error response
+                if json_resp.get('success') == False:
+                    error_code = json_resp.get('errorCode', 'Unknown')
+                    # Return as dict with error info for proper handling
+                    return {
+                        'status': False,
+                        'message': json_resp.get('message', 'Unknown error'),
+                        'errorcode': error_code
+                    }
+                return json_resp
             else:
                 self.log(f"❌ Direct API Error: {resp.status_code} - {resp.text}", "ERROR")
                 return None
