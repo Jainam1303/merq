@@ -34,7 +34,7 @@ export function Backtesting() {
     const [rawResults, setRawResults] = useState<any[]>([]); // Full result data for saving
 
     const [formData, setFormData] = useState({
-        strategy: 'ORB',
+        strategy: 'orb',
         interval: '5',
         capital: 100000,
         from_date: '2025-01-01',
@@ -271,7 +271,7 @@ export function Backtesting() {
                             </Select>
                         </div>
                         <div className="space-y-1">
-                            <Label>From Date</Label>
+                            <Label>From Date & Time</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -282,21 +282,48 @@ export function Backtesting() {
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {formData.from_date ? format(new Date(formData.from_date), "dd-MM-yyyy") : <span>Pick a date</span>}
+                                        {formData.from_date ? format(new Date(formData.from_date), "dd-MM-yyyy HH:mm") : <span>Pick date & time</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <div className="p-3 bg-background border-b border-border">
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                            <Label className="text-xs text-muted-foreground">Time</Label>
+                                            <Input
+                                                type="time"
+                                                className="h-8 w-full"
+                                                value={formData.from_date ? format(new Date(formData.from_date), "HH:mm") : "09:15"}
+                                                onChange={(e) => {
+                                                    const time = e.target.value;
+                                                    const current = formData.from_date ? new Date(formData.from_date) : new Date();
+                                                    const [hours, minutes] = time.split(':').map(Number);
+                                                    current.setHours(hours);
+                                                    current.setMinutes(minutes);
+                                                    setFormData({ ...formData, from_date: format(current, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
                                     <Calendar
                                         mode="single"
                                         selected={formData.from_date ? new Date(formData.from_date) : undefined}
-                                        onSelect={(date) => date && setFormData({ ...formData, from_date: format(date, 'yyyy-MM-dd') })}
+                                        onSelect={(date) => {
+                                            if (!date) return;
+                                            const current = formData.from_date ? new Date(formData.from_date) : new Date();
+                                            date.setHours(current.getHours());
+                                            date.setMinutes(current.getMinutes());
+                                            setFormData({ ...formData, from_date: format(date, "yyyy-MM-dd HH:mm") });
+                                        }}
                                         initialFocus
+                                        captionLayout="dropdown-buttons"
+                                        fromYear={2020}
+                                        toYear={new Date().getFullYear() + 5}
                                     />
                                 </PopoverContent>
                             </Popover>
                         </div>
                         <div className="space-y-1">
-                            <Label>To Date</Label>
+                            <Label>To Date & Time</Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -307,15 +334,42 @@ export function Backtesting() {
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 h-4 w-4" />
-                                        {formData.to_date ? format(new Date(formData.to_date), "dd-MM-yyyy") : <span>Pick a date</span>}
+                                        {formData.to_date ? format(new Date(formData.to_date), "dd-MM-yyyy HH:mm") : <span>Pick date & time</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0">
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <div className="p-3 bg-background border-b border-border">
+                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                            <Label className="text-xs text-muted-foreground">Time</Label>
+                                            <Input
+                                                type="time"
+                                                className="h-8 w-full"
+                                                value={formData.to_date ? format(new Date(formData.to_date), "HH:mm") : "15:30"}
+                                                onChange={(e) => {
+                                                    const time = e.target.value;
+                                                    const current = formData.to_date ? new Date(formData.to_date) : new Date();
+                                                    const [hours, minutes] = time.split(':').map(Number);
+                                                    current.setHours(hours);
+                                                    current.setMinutes(minutes);
+                                                    setFormData({ ...formData, to_date: format(current, "yyyy-MM-dd HH:mm") });
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
                                     <Calendar
                                         mode="single"
                                         selected={formData.to_date ? new Date(formData.to_date) : undefined}
-                                        onSelect={(date) => date && setFormData({ ...formData, to_date: format(date, 'yyyy-MM-dd') })}
+                                        onSelect={(date) => {
+                                            if (!date) return;
+                                            const current = formData.to_date ? new Date(formData.to_date) : new Date();
+                                            date.setHours(current.getHours());
+                                            date.setMinutes(current.getMinutes());
+                                            setFormData({ ...formData, to_date: format(date, "yyyy-MM-dd HH:mm") });
+                                        }}
                                         initialFocus
+                                        captionLayout="dropdown-buttons"
+                                        fromYear={2020}
+                                        toYear={new Date().getFullYear() + 5}
                                     />
                                 </PopoverContent>
                             </Popover>
