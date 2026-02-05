@@ -51,8 +51,9 @@ export default function DashboardNewPage() {
                         const statusData = await fetchJson('/status');
                         console.log("Initial Status Fetch:", statusData);
 
+
                         if (statusData) {
-                            setIsSystemRunning(statusData.status === 'running');
+                            setIsSystemRunning(statusData.active === true);
 
                             // Correctly set mode based on backend config
                             // If backend explicitly says simulated=false, it's LIVE.
@@ -77,6 +78,33 @@ export default function DashboardNewPage() {
         };
         checkAuthAndStatus();
     }, [router]);
+
+    // Poll system status to ensure lock is active even if user switches tabs
+    useEffect(() => {
+        if (!isAuthenticated) return;
+
+        const pollStatus = async () => {
+            try {
+                const statusData = await fetchJson('/status');
+                if (statusData && statusData.active !== undefined) {
+                    setIsSystemRunning(statusData.active === true);
+
+                    // Sync mode if running
+                    if (statusData.active === true && statusData.config) {
+                        const serverMode = statusData.config.simulated === false ? 'LIVE' : 'PAPER';
+                        if (serverMode !== tradingMode) {
+                            setTradingMode(serverMode);
+                        }
+                    }
+                }
+            } catch (e) {
+                // ignore
+            }
+        };
+
+        const interval = setInterval(pollStatus, 5000); // 5 seconds
+        return () => clearInterval(interval);
+    }, [isAuthenticated, tradingMode]);
 
     const handleLogout = async () => {
         try {

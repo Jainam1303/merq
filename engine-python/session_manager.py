@@ -665,47 +665,117 @@ class TradingSession:
         
         # Real Order Placement (Angel One)
         if self.mode == "LIVE":
-            try:
-                # Validate symbol token exists
-                token = self.symbol_tokens.get(symbol)
-                if not token:
-                    self.log(f"LIVE ORDER BLOCKED: No symbol token for {symbol}. Check token mapping.", "ERROR")
-                    return
+            self._execute_live_order(pos, symbol, type, qty, price)
+
+    def _execute_live_order(self, pos, symbol, type, qty, price, retry_count=0):
+        """Execute a live order on Angel One with retry and re-auth logic"""
+        try:
+            # Validate symbol token exists
+            token = self.symbol_tokens.get(symbol)
+            if not token:
+                self.log(f"LIVE ORDER BLOCKED: No symbol token for {symbol}. Check token mapping.", "ERROR")
+                return False
+            
+            # Clean trading symbol (remove -EQ suffix)
+            trading_symbol = symbol.replace("-EQ", "")
+            
+            # Build order params - SmartAPI v2 format
+            # Note: For MARKET orders, price=0 but we still include it
+            order_params = {
+                "variety": "NORMAL",
+                "tradingsymbol": trading_symbol,
+                "symboltoken": str(token),
+                "transactiontype": type,  # BUY or SELL
+                "exchange": "NSE",
+                "ordertype": "MARKET",
+                "producttype": "INTRADAY",  # MIS for intraday
+                "duration": "DAY",
+                "price": "0",  # Required even for MARKET orders
+                "squareoff": "0",
+                "stoploss": "0",
+                "quantity": str(qty)
+            }
+            
+            self.log(f"📤 Placing LIVE ORDER: {order_params}", "INFO")
+            
+            # Place the order
+            response = self.smartApi.placeOrder(order_params)
+            
+            self.log(f"📥 Angel API Raw Response: {response}", "DEBUG")
+            
+            # Handle response
+            if response is None:
+                # API returned None - likely session expired or API issue
+                self.log(f"⚠️ API returned None. Attempting re-authentication...", "WARNING")
                 
-                order_params = {
-                    "variety": "NORMAL",
-                    "tradingsymbol": symbol.replace("-EQ", ""),
-                    "symboltoken": token,
-                    "transactiontype": type,
-                    "exchange": "NSE",
-                    "ordertype": "MARKET",
-                    "producttype": "INTRADAY",
-                    "duration": "DAY",
-                    "quantity": str(qty)
-                }
-                self.log(f"Placing REAL ORDER: {order_params}", "INFO")
-                
-                response = self.smartApi.placeOrder(order_params)
-                self.log(f"Angel API Response: {response}", "DEBUG")
-                
-                # Handle response - Angel API can return dict or order_id directly
-                if response:
-                    if isinstance(response, dict):
-                        if response.get('status') == True:
-                            order_id = response.get('data', {}).get('orderid')
-                            pos['order_id'] = order_id
-                            self.log(f"✅ REAL ORDER PLACED: {order_id}", "SUCCESS")
-                        else:
-                            self.log(f"❌ Order Rejected: {response.get('message', response)}", "ERROR")
+                if retry_count < 2:
+                    # Try to re-authenticate
+                    if self._refresh_session():
+                        self.log(f"🔄 Session refreshed. Retrying order...", "INFO")
+                        return self._execute_live_order(pos, symbol, type, qty, price, retry_count + 1)
                     else:
-                        # Direct order_id returned
-                        pos['order_id'] = response
-                        self.log(f"✅ REAL ORDER PLACED: {response}", "SUCCESS")
+                        self.log(f"❌ Re-authentication failed. Order not placed.", "ERROR")
+                        return False
                 else:
-                    self.log(f"❌ Order Failed: API returned None/Empty", "ERROR")
+                    self.log(f"❌ Max retries reached. Order failed.", "ERROR")
+                    return False
+            
+            # Parse response
+            if isinstance(response, dict):
+                if response.get('status') == True:
+                    order_id = response.get('data', {}).get('orderid')
+                    pos['order_id'] = order_id
+                    self.log(f"✅ LIVE ORDER PLACED: OrderID={order_id}", "SUCCESS")
+                    return True
+                else:
+                    error_msg = response.get('message', str(response))
+                    error_code = response.get('errorcode', 'Unknown')
+                    self.log(f"❌ Order Rejected [{error_code}]: {error_msg}", "ERROR")
                     
-            except Exception as e:
-                self.log(f"❌ Order Exception: {e}", "ERROR")
+                    # Check for session expiry errors
+                    if error_code in ['AB1010', 'AB1004', 'AG8002']:
+                        if retry_count < 2 and self._refresh_session():
+                            return self._execute_live_order(pos, symbol, type, qty, price, retry_count + 1)
+                    return False
+            elif isinstance(response, str):
+                # Direct order_id returned (older SDK versions)
+                pos['order_id'] = response
+                self.log(f"✅ LIVE ORDER PLACED: {response}", "SUCCESS")
+                return True
+            else:
+                self.log(f"❌ Unexpected response type: {type(response)} - {response}", "ERROR")
+                return False
+                
+        except Exception as e:
+            import traceback
+            self.log(f"❌ Order Exception: {e}", "ERROR")
+            self.log(f"Traceback: {traceback.format_exc()}", "DEBUG")
+            return False
+
+    def _refresh_session(self):
+        """Re-authenticate with Angel One to get fresh tokens"""
+        try:
+            api_key = self.credentials.get('apiKey')
+            client_code = self.credentials.get('clientCode')
+            pwd = self.credentials.get('password')
+            totp_key = self.credentials.get('totp')
+            
+            self.log("🔐 Attempting to refresh Angel One session...", "INFO")
+            
+            totp = pyotp.TOTP(totp_key).now()
+            data = self.smartApi.generateSession(client_code, pwd, totp)
+            
+            if data and data.get('status'):
+                self.auth_token = data['data']['jwtToken']
+                self.feed_token = data['data']['feedToken']
+                self.log("✅ Session refreshed successfully", "SUCCESS")
+                return True
+            else:
+                self.log(f"❌ Session refresh failed: {data}", "ERROR")
+                return False
+        except Exception as e:
+            self.log(f"❌ Session refresh exception: {e}", "ERROR")
+            return False
 
 
 
@@ -748,42 +818,71 @@ class TradingSession:
 
         # Real Order Exit (Close position on Angel One)
         if self.mode == "LIVE":
-            try:
-                token = self.symbol_tokens.get(pos['symbol'])
-                if not token:
-                    self.log(f"EXIT ORDER BLOCKED: No token for {pos['symbol']}", "ERROR")
-                    return
-                    
-                exit_type = "SELL" if pos['type'] == "BUY" else "BUY"
-                order_params = {
-                    "variety": "NORMAL",
-                    "tradingsymbol": pos['symbol'].replace("-EQ", ""),
-                    "symboltoken": token,
-                    "transactiontype": exit_type,
-                    "exchange": "NSE",
-                    "ordertype": "MARKET",
-                    "producttype": "INTRADAY",
-                    "duration": "DAY",
-                    "quantity": str(pos['qty'])
-                }
-                self.log(f"Placing EXIT ORDER: {order_params}", "INFO")
-                
-                response = self.smartApi.placeOrder(order_params)
-                self.log(f"Exit API Response: {response}", "DEBUG")
-                
-                if response:
-                    if isinstance(response, dict) and response.get('status') == True:
-                        order_id = response.get('data', {}).get('orderid')
-                        self.log(f"✅ EXIT ORDER PLACED: {order_id}", "SUCCESS")
-                    elif isinstance(response, str):
-                        self.log(f"✅ EXIT ORDER PLACED: {response}", "SUCCESS")
-                    else:
-                        self.log(f"❌ Exit Order Issue: {response}", "WARNING")
+            self._execute_exit_order(pos)
+
+    def _execute_exit_order(self, pos, retry_count=0):
+        """Execute an exit order on Angel One"""
+        try:
+            token = self.symbol_tokens.get(pos['symbol'])
+            if not token:
+                self.log(f"EXIT ORDER BLOCKED: No token for {pos['symbol']}", "ERROR")
+                return False
+            
+            trading_symbol = pos['symbol'].replace("-EQ", "")
+            exit_type = "SELL" if pos['type'] == "BUY" else "BUY"
+            
+            order_params = {
+                "variety": "NORMAL",
+                "tradingsymbol": trading_symbol,
+                "symboltoken": str(token),
+                "transactiontype": exit_type,
+                "exchange": "NSE",
+                "ordertype": "MARKET",
+                "producttype": "INTRADAY",
+                "duration": "DAY",
+                "price": "0",
+                "squareoff": "0",
+                "stoploss": "0",
+                "quantity": str(pos['qty'])
+            }
+            
+            self.log(f"📤 Placing EXIT ORDER: {order_params}", "INFO")
+            
+            response = self.smartApi.placeOrder(order_params)
+            self.log(f"📥 Exit API Response: {response}", "DEBUG")
+            
+            if response is None:
+                if retry_count < 2:
+                    self.log(f"⚠️ Exit API returned None. Attempting re-auth...", "WARNING")
+                    if self._refresh_session():
+                        return self._execute_exit_order(pos, retry_count + 1)
+                self.log(f"❌ Exit Order Failed: API returned None", "ERROR")
+                return False
+            
+            if isinstance(response, dict):
+                if response.get('status') == True:
+                    order_id = response.get('data', {}).get('orderid')
+                    self.log(f"✅ EXIT ORDER PLACED: {order_id}", "SUCCESS")
+                    return True
                 else:
-                    self.log(f"❌ Exit Order Failed: API returned None", "ERROR")
+                    error_msg = response.get('message', str(response))
+                    error_code = response.get('errorcode', 'Unknown')
+                    self.log(f"❌ Exit Rejected [{error_code}]: {error_msg}", "ERROR")
                     
-            except Exception as e:
-                self.log(f"❌ Exit Order Exception: {e}", "ERROR")
+                    if error_code in ['AB1010', 'AB1004', 'AG8002'] and retry_count < 2:
+                        if self._refresh_session():
+                            return self._execute_exit_order(pos, retry_count + 1)
+                    return False
+            elif isinstance(response, str):
+                self.log(f"✅ EXIT ORDER PLACED: {response}", "SUCCESS")
+                return True
+            else:
+                self.log(f"❌ Exit Order Issue: {response}", "WARNING")
+                return False
+                
+        except Exception as e:
+            self.log(f"❌ Exit Order Exception: {e}", "ERROR")
+            return False
 
     def _run_polling_loop(self):
         """Fallback polling mode if WebSocket fails"""

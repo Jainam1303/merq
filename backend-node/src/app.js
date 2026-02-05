@@ -209,7 +209,7 @@ app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
 // Basic error logging for Yahoo Finance
-const MARKET_DATA_VERSION = "1.0.7";
+const MARKET_DATA_VERSION = "1.0.8";
 
 app.get('/market_data', async (req, res) => {
     let yahooFinance;
@@ -224,14 +224,14 @@ app.get('/market_data', async (req, res) => {
         if (!yahooFinance) throw new Error("Yahoo Finance Library not loaded");
 
         const symbolsMap = [
-            { ticker: "^NSEI", label: "NIFTY 50" },
-            { ticker: "^NSEBANK", label: "BANKNIFTY" },
-            { ticker: "^BSESN", label: "SENSEX" },
-            { ticker: "RELIANCE.NS", label: "RELIANCE" },
-            { ticker: "HDFCBANK.NS", label: "HDFCBANK" },
-            { ticker: "INFY.NS", label: "INFY" },
-            { ticker: "TCS.NS", label: "TCS" },
-            { ticker: "ADANIENT.NS", label: "ADANIENT" }
+            { ticker: "^NSEI", label: "NIFTY 50", base: 24500 },
+            { ticker: "^NSEBANK", label: "BANKNIFTY", base: 52100 },
+            { ticker: "^BSESN", label: "SENSEX", base: 81500 },
+            { ticker: "RELIANCE.NS", label: "RELIANCE", base: 2980 },
+            { ticker: "HDFCBANK.NS", label: "HDFCBANK", base: 1650 },
+            { ticker: "INFY.NS", label: "INFY", base: 1420 },
+            { ticker: "TCS.NS", label: "TCS", base: 3950 },
+            { ticker: "ADANIENT.NS", label: "ADANIENT", base: 3100 }
         ];
 
         const results = await Promise.all(symbolsMap.map(async (s) => {

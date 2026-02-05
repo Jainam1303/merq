@@ -112,7 +112,7 @@ export function DashboardHeader({
           {/* Trading Mode Toggle */}
           <div className={cn(
             "flex items-center gap-2 rounded-full border border-border bg-secondary/50 px-3 py-1.5",
-            isSystemRunning && "opacity-50 cursor-not-allowed"
+            isSystemRunning && "opacity-50 pointer-events-none cursor-not-allowed"
           )}>
             <span className={cn(
               "text-xs font-semibold transition-colors",
