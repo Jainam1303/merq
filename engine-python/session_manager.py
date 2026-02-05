@@ -157,6 +157,10 @@ class TradingSession:
         if self.mode == "LIVE":
             self.log("🔍 LIVE MODE: Fetching fresh symbol tokens from Angel One API...", "INFO")
             self._fetch_tokens_from_api(symbols)
+            self.log(f"✅ Token fetch complete. Loaded {len(self.symbol_tokens)}/{len(symbols)} tokens", "INFO")
+            if len(self.symbol_tokens) < len(symbols):
+                missing = [s for s in symbols if s not in self.symbol_tokens]
+                self.log(f"⚠️  Missing tokens for: {', '.join(missing)}", "WARNING")
             return
         
         # For PAPER mode, try to use cached file first
@@ -702,8 +706,10 @@ class TradingSession:
             
             # Validate symbol token exists
             token = self.symbol_tokens.get(symbol)
+            self.log(f"🔍 Token lookup for {symbol}: {token}", "DEBUG")
             if not token:
-                self.log(f"LIVE ORDER BLOCKED: No symbol token for {symbol}. Check token mapping.", "ERROR")
+                self.log(f"❌ LIVE ORDER BLOCKED: No symbol token for {symbol}. Check token mapping.", "ERROR")
+                self.log(f"Available tokens: {list(self.symbol_tokens.keys())}", "DEBUG")
                 return False
             
             # Clean trading symbol (remove -EQ suffix)
