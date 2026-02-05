@@ -667,9 +667,15 @@ class TradingSession:
         if self.mode == "LIVE":
             self._execute_live_order(pos, symbol, type, qty, price)
 
-    def _execute_live_order(self, pos, symbol, type, qty, price, retry_count=0):
+    def _execute_live_order(self, pos, symbol, order_type, qty, price, retry_count=0):
         """Execute a live order on Angel One with retry and re-auth logic"""
         try:
+            # Rate limit protection - wait between order attempts
+            if retry_count > 0:
+                delay = 3 * retry_count  # 3s, 6s delays
+                self.log(f"⏳ Waiting {delay}s before retry to avoid rate limits...", "INFO")
+                time.sleep(delay)
+            
             # Validate symbol token exists
             token = self.symbol_tokens.get(symbol)
             if not token:
@@ -680,17 +686,16 @@ class TradingSession:
             trading_symbol = symbol.replace("-EQ", "")
             
             # Build order params - SmartAPI v2 format
-            # Note: For MARKET orders, price=0 but we still include it
             order_params = {
                 "variety": "NORMAL",
                 "tradingsymbol": trading_symbol,
                 "symboltoken": str(token),
-                "transactiontype": type,  # BUY or SELL
+                "transactiontype": order_type,  # BUY or SELL
                 "exchange": "NSE",
                 "ordertype": "MARKET",
                 "producttype": "INTRADAY",  # MIS for intraday
                 "duration": "DAY",
-                "price": "0",  # Required even for MARKET orders
+                "price": "0",
                 "squareoff": "0",
                 "stoploss": "0",
                 "quantity": str(qty)
@@ -698,21 +703,29 @@ class TradingSession:
             
             self.log(f"📤 Placing LIVE ORDER: {order_params}", "INFO")
             
-            # Place the order
-            response = self.smartApi.placeOrder(order_params)
+            # Try SDK method first
+            response = None
+            try:
+                response = self.smartApi.placeOrder(order_params)
+            except Exception as sdk_error:
+                self.log(f"⚠️ SDK placeOrder exception: {sdk_error}", "WARNING")
             
-            self.log(f"📥 Angel API Raw Response: {response}", "DEBUG")
+            self.log(f"📥 Angel API Response: {response}", "DEBUG")
+            
+            # If SDK returns None, try direct HTTP API call
+            if response is None:
+                self.log(f"⚠️ SDK returned None. Trying direct API call...", "WARNING")
+                response = self._place_order_direct_api(order_params)
             
             # Handle response
             if response is None:
-                # API returned None - likely session expired or API issue
-                self.log(f"⚠️ API returned None. Attempting re-authentication...", "WARNING")
+                self.log(f"❌ Both SDK and Direct API failed.", "ERROR")
                 
                 if retry_count < 2:
-                    # Try to re-authenticate
+                    self.log(f"🔄 Attempting re-authentication...", "INFO")
+                    time.sleep(2)  # Wait before re-auth to avoid rate limit
                     if self._refresh_session():
-                        self.log(f"🔄 Session refreshed. Retrying order...", "INFO")
-                        return self._execute_live_order(pos, symbol, type, qty, price, retry_count + 1)
+                        return self._execute_live_order(pos, symbol, order_type, qty, price, retry_count + 1)
                     else:
                         self.log(f"❌ Re-authentication failed. Order not placed.", "ERROR")
                         return False
@@ -733,9 +746,10 @@ class TradingSession:
                     self.log(f"❌ Order Rejected [{error_code}]: {error_msg}", "ERROR")
                     
                     # Check for session expiry errors
-                    if error_code in ['AB1010', 'AB1004', 'AG8002']:
-                        if retry_count < 2 and self._refresh_session():
-                            return self._execute_live_order(pos, symbol, type, qty, price, retry_count + 1)
+                    if error_code in ['AB1010', 'AB1004', 'AG8002'] and retry_count < 2:
+                        time.sleep(2)
+                        if self._refresh_session():
+                            return self._execute_live_order(pos, symbol, order_type, qty, price, retry_count + 1)
                     return False
             elif isinstance(response, str):
                 # Direct order_id returned (older SDK versions)
@@ -752,6 +766,45 @@ class TradingSession:
             self.log(f"Traceback: {traceback.format_exc()}", "DEBUG")
             return False
 
+    def _place_order_direct_api(self, order_params):
+        """
+        Fallback: Place order using direct HTTP API call
+        This bypasses the SDK to get actual error messages
+        """
+        try:
+            import requests as req
+            
+            url = "https://apiconnect.angelbroking.com/rest/secure/angelbroking/order/v1/placeOrder"
+            
+            headers = {
+                "Authorization": f"Bearer {self.auth_token}",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-UserType": "USER",
+                "X-SourceID": "WEB",
+                "X-ClientLocalIP": "127.0.0.1",
+                "X-ClientPublicIP": "127.0.0.1",
+                "X-MACAddress": "00:00:00:00:00:00",
+                "X-PrivateKey": self.credentials.get('apiKey', '')
+            }
+            
+            self.log(f"📡 Direct API call to: {url}", "DEBUG")
+            
+            resp = req.post(url, json=order_params, headers=headers, timeout=30)
+            
+            self.log(f"📥 Direct API Status: {resp.status_code}", "DEBUG")
+            self.log(f"📥 Direct API Response: {resp.text}", "DEBUG")
+            
+            if resp.status_code == 200:
+                return resp.json()
+            else:
+                self.log(f"❌ Direct API Error: {resp.status_code} - {resp.text}", "ERROR")
+                return None
+                
+        except Exception as e:
+            self.log(f"❌ Direct API Exception: {e}", "ERROR")
+            return None
+
     def _refresh_session(self):
         """Re-authenticate with Angel One to get fresh tokens"""
         try:
@@ -762,7 +815,13 @@ class TradingSession:
             
             self.log("🔐 Attempting to refresh Angel One session...", "INFO")
             
+            # Wait a bit to avoid rate limiting
+            time.sleep(1)
+            
             totp = pyotp.TOTP(totp_key).now()
+            
+            # Create a fresh SmartConnect instance to avoid stale state
+            self.smartApi = SmartConnect(api_key=api_key)
             data = self.smartApi.generateSession(client_code, pwd, totp)
             
             if data and data.get('status'):
