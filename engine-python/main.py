@@ -160,10 +160,32 @@ def execute_test_order(data: dict):
                 "message": f"Symbol {symbol} not found in NSE"
             }
         
-        symbol_token = search_result['data'][0]['symboltoken']
-        trading_symbol = search_result['data'][0]['tradingsymbol']
+        # Filter for exact match or EQ series
+        data_list = search_result['data']
+        selected_script = None
         
-        # Place market order
+        # 1. Try finding exact trading symbol match (e.g. "IGL-EQ")
+        target_symbol = f"{clean_symbol}-EQ"
+        for scrip in data_list:
+            if scrip['tradingsymbol'] == target_symbol:
+                selected_script = scrip
+                break
+                
+        # 2. If not found, try just exact name match on symbol name (less reliable)
+        if not selected_script:
+            for scrip in data_list:
+                if scrip['symboltoken'] and scrip['tradingsymbol'].endswith('-EQ'):
+                    selected_script = scrip
+                    break
+                    
+        # 3. Fallback to first result
+        if not selected_script:
+            selected_script = data_list[0]
+            
+        symbol_token = selected_script['symboltoken']
+        trading_symbol = selected_script['tradingsymbol']
+        
+        # Place market order - MIS/Intraday
         order_params = {
             "variety": "NORMAL",
             "tradingsymbol": trading_symbol,
@@ -171,7 +193,7 @@ def execute_test_order(data: dict):
             "transactiontype": order_type,
             "exchange": "NSE",
             "ordertype": "MARKET",
-            "producttype": "INTRADAY",
+            "producttype": "INTRADAY", # INTRADAY maps to MIS in Angel One
             "duration": "DAY",
             "price": "0",
             "squareoff": "0",
