@@ -11,9 +11,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { stockOptions, strategyOptions, timeframeOptions } from "@/data/mockData";
+import { stockOptions, timeframeOptions } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/api";
+
+// Strategy Definitions
+const strategyOptions = [
+  { value: 'ORB', label: 'MerQ Alpha I', description: 'Momentum-based Alpha Strategy I' },
+  { value: 'EMA', label: 'MerQ Alpha II', description: 'Trend-following Alpha Strategy II' },
+];
 import { toast } from "sonner";
 
 export interface ConfigData {

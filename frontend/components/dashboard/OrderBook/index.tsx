@@ -259,10 +259,18 @@ export function OrderBook() {
   const paginatedTrades = filteredTrades.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const toggleSelectAll = () => {
-    if (selectedTrades.length === filteredTrades.length) {
-      setSelectedTrades([]);
+    // Check if all VISIBLE trades are selected
+    const allVisibleSelected = paginatedTrades.every(t => selectedTrades.includes(t.id));
+
+    if (allVisibleSelected) {
+      // Deselect ONLY the visible ones (keep others if selected via other pages)
+      const visibleIds = paginatedTrades.map(t => t.id);
+      setSelectedTrades(selectedTrades.filter(id => !visibleIds.includes(id)));
     } else {
-      setSelectedTrades(filteredTrades.map(t => t.id));
+      // Select ALL visible ones (merge with existing selection)
+      const visibleIds = paginatedTrades.map(t => t.id);
+      const newSelection = Array.from(new Set([...selectedTrades, ...visibleIds]));
+      setSelectedTrades(newSelection);
     }
   };
 
@@ -475,7 +483,7 @@ export function OrderBook() {
                 <TableRow className="border-border hover:bg-transparent">
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedTrades.length === filteredTrades.length && filteredTrades.length > 0}
+                      checked={paginatedTrades.length > 0 && paginatedTrades.every(t => selectedTrades.includes(t.id))}
                       onCheckedChange={toggleSelectAll}
                     />
                   </TableHead>

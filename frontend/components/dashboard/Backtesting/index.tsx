@@ -23,8 +23,8 @@ import { toast } from "sonner";
 import { stockOptions, timeframeOptions } from "@/data/mockData";
 
 const strategies = [
-    { label: "ORB (Opening Range Breakout)", value: "orb" },
-    { label: "EMA 8-30 Crossover", value: "ema" }
+    { label: "MerQ Alpha I", value: "orb" },
+    { label: "MerQ Alpha II", value: "ema" }
 ];
 
 export function Backtesting() {
