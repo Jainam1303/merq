@@ -49,8 +49,7 @@ export function TestOrderPanel() {
                     orderType: formData.orderType,
                     price: formData.price ? parseFloat(formData.price) : null,
                     tp: formData.tp ? parseFloat(formData.tp) : null,
-                    sl: formData.sl ? parseFloat(formData.sl) : null,
-                    userId: 1 // TODO: Get from auth context
+                    sl: formData.sl ? parseFloat(formData.sl) : null
                 })
             });
 
@@ -125,8 +124,8 @@ export function TestOrderPanel() {
                             type="button"
                             onClick={() => setFormData({ ...formData, orderType: 'BUY' })}
                             className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${formData.orderType === 'BUY'
-                                    ? 'bg-green-600 text-white'
-                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                                ? 'bg-green-600 text-white'
+                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
                                 }`}
                         >
                             BUY
@@ -135,8 +134,8 @@ export function TestOrderPanel() {
                             type="button"
                             onClick={() => setFormData({ ...formData, orderType: 'SELL' })}
                             className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${formData.orderType === 'SELL'
-                                    ? 'bg-red-600 text-white'
-                                    : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300'
                                 }`}
                         >
                             SELL

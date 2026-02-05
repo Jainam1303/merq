@@ -9,7 +9,10 @@ const axios = require('axios');
  */
 router.post('/test_order', async (req, res) => {
     try {
-        const { symbol, qty, orderType, price, tp, sl, userId } = req.body;
+        const { symbol, qty, orderType, price, tp, sl } = req.body;
+
+        // Get userId from authenticated user (set by verifyToken middleware)
+        const userId = req.user.id;
 
         // Get user credentials from database
         const userQuery = 'SELECT angel_api_key, angel_client_code, angel_password, angel_totp FROM users WHERE id = $1';
