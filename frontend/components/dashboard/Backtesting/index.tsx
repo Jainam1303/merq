@@ -374,10 +374,11 @@ export function Backtesting() {
                                     </div>
                                     <Calendar
                                         mode="single"
-                                        selected={formData.from_date ? new Date(formData.from_date) : undefined}
+                                        selected={formData.from_date ? new Date(formData.from_date.replace(" ", "T")) : undefined}
                                         onSelect={(date) => {
                                             if (!date) return;
-                                            const current = formData.from_date ? new Date(formData.from_date) : new Date();
+                                            const currentStr = formData.from_date ? formData.from_date.replace(" ", "T") : null;
+                                            const current = currentStr ? new Date(currentStr) : new Date();
                                             date.setHours(current.getHours());
                                             date.setMinutes(current.getMinutes());
                                             setFormData({ ...formData, from_date: format(date, "yyyy-MM-dd HH:mm") });
@@ -494,10 +495,11 @@ export function Backtesting() {
                                     </div>
                                     <Calendar
                                         mode="single"
-                                        selected={formData.to_date ? new Date(formData.to_date) : undefined}
+                                        selected={formData.to_date ? new Date(formData.to_date.replace(" ", "T")) : undefined}
                                         onSelect={(date) => {
                                             if (!date) return;
-                                            const current = formData.to_date ? new Date(formData.to_date) : new Date();
+                                            const currentStr = formData.to_date ? formData.to_date.replace(" ", "T") : null;
+                                            const current = currentStr ? new Date(currentStr) : new Date();
                                             date.setHours(current.getHours());
                                             date.setMinutes(current.getMinutes());
                                             setFormData({ ...formData, to_date: format(date, "yyyy-MM-dd HH:mm") });
