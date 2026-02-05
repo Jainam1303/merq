@@ -54,35 +54,40 @@ export function BacktestHistory() {
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Symbol</TableHead>
-                            <TableHead>Interval</TableHead>
-                            <TableHead>Strategy</TableHead>
-                            <TableHead className="text-right">Trades</TableHead>
-                            <TableHead className="text-right">Win Rate</TableHead>
-                            <TableHead className="text-right">P&L</TableHead>
-                            <TableHead className="text-right">Final Cap</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
+                            <TableHead className="text-xs font-bold text-muted-foreground uppercase">DATE</TableHead>
+                            <TableHead className="text-xs font-bold text-muted-foreground uppercase">SYMBOL</TableHead>
+                            <TableHead className="text-xs font-bold text-muted-foreground uppercase">TIMEFRAME</TableHead>
+                            <TableHead className="text-xs font-bold text-muted-foreground uppercase">DATE RANGE</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-muted-foreground uppercase">TRADES</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-muted-foreground uppercase">WIN RATE</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-muted-foreground uppercase">P&L</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-muted-foreground uppercase">FINAL CAP</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-muted-foreground uppercase">ACTION</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {paginatedHistory.map((h) => (
                             <TableRow key={h.id}>
-                                <TableCell>{new Date(h.createdAt).toLocaleDateString()}</TableCell>
-                                <TableCell className="font-medium text-white">{h.summary?.symbol || 'Multi-Script'}</TableCell>
-                                <TableCell>{h.interval}</TableCell>
-                                <TableCell>{h.strategy || 'N/A'}</TableCell>
-                                <TableCell className="text-right">{h.summary?.totalTrades || 0}</TableCell>
-                                <TableCell className="text-right">{parseFloat(h.summary?.winRate || 0).toFixed(1)}%</TableCell>
-                                <TableCell className={`text-right font-bold ${(h.summary?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {(h.summary?.totalPnL || 0) >= 0 ? '+' : ''}₹{parseFloat(h.summary?.totalPnL || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                <TableCell className="text-muted-foreground text-xs">{new Date(h.createdAt).toLocaleString()}</TableCell>
+                                <TableCell className="font-bold text-white uppercase">{h.summary?.symbol || 'Multi-Script'}</TableCell>
+                                <TableCell className="text-muted-foreground text-xs">{h.interval === '5' ? 'Five Minute' : h.interval}</TableCell>
+                                <TableCell className="text-muted-foreground text-xs">
+                                    <div className="flex flex-col">
+                                        <span>{h.from_date}</span>
+                                        <span className="opacity-70">to {h.to_date}</span>
+                                    </div>
                                 </TableCell>
-                                <TableCell className="text-right font-mono">
-                                    ₹{parseFloat(h.summary?.finalCapital || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                <TableCell className="text-right text-xs text-muted-foreground font-medium">{h.summary?.totalTrades || 0}</TableCell>
+                                <TableCell className="text-right text-xs text-muted-foreground font-medium">{parseFloat(h.summary?.winRate || 0).toFixed(2)}%</TableCell>
+                                <TableCell className={`text-right text-xs font-bold ${(h.summary?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {(h.summary?.totalPnL || 0) >= 0 ? '+' : ''}{parseFloat(h.summary?.totalPnL || 0).toFixed(2)}
+                                </TableCell>
+                                <TableCell className="text-right text-xs text-muted-foreground font-medium">
+                                    {parseFloat(h.summary?.finalCapital || 0).toFixed(2)}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(h.id)}>
-                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    <Button variant="ghost" size="sm" onClick={() => handleDelete(h.id)} className="hover:bg-transparent h-auto p-0">
+                                        <span className="text-xs font-bold text-destructive">Delete</span>
                                     </Button>
                                 </TableCell>
                             </TableRow>
