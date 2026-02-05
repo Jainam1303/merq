@@ -147,10 +147,19 @@ class TradingSession:
             time.sleep(1)
 
     def _load_symbol_tokens(self):
-        """Load symbol tokens from pre-built file - NO API CALLS NEEDED"""
+        """
+        Load symbol tokens - For LIVE mode, always fetch from API for accuracy.
+        For PAPER mode, use file cache as fallback.
+        """
         symbols = self.config.get('symbols', [])
         
-        # Load the master token map from file (no API calls!)
+        # For LIVE mode, ALWAYS fetch fresh tokens from API
+        if self.mode == "LIVE":
+            self.log("🔍 LIVE MODE: Fetching fresh symbol tokens from Angel One API...", "INFO")
+            self._fetch_tokens_from_api(symbols)
+            return
+        
+        # For PAPER mode, try to use cached file first
         token_map = {}
         token_file_paths = [
             '../backend-node/token -symbol.txt',
@@ -175,7 +184,6 @@ class TradingSession:
                             token = parts[0]
                             symbol = parts[1]
                             token_map[symbol] = token
-                            # Also map without -EQ suffix
                             token_map[symbol.replace('-EQ', '')] = token
                 self.log(f"Loaded {len(token_map)} tokens from file", "SUCCESS")
             except Exception as e:
@@ -194,24 +202,40 @@ class TradingSession:
             else:
                 not_found.append(sym)
         
-        # If file not found or some symbols missing, fallback to searchScrip for just those
-        if not token_file or not_found:
-            if not_found:
-                self.log(f"Looking up {len(not_found)} missing symbols via API...", "INFO")
-            for sym in not_found:
-                try:
-                    clean = sym.upper().replace("-EQ", "")
-                    time.sleep(0.3)  # Minimal delay
-                    search = self.smartApi.searchScrip("NSE", clean)
-                    if search and search.get('status') and search.get('data'):
-                        self.symbol_tokens[sym] = search['data'][0]['symboltoken']
-                except Exception as e:
-                    self.log(f"Token lookup failed for {sym}: {e}", "WARNING")
+        # Fetch missing symbols from API
+        if not_found:
+            self._fetch_tokens_from_api(not_found)
         
         self.log(f"✓ Loaded tokens for {len(self.symbol_tokens)}/{len(symbols)} symbols")
         if len(self.symbol_tokens) < len(symbols):
             missing = [s for s in symbols if s not in self.symbol_tokens]
             self.log(f"Missing: {', '.join(missing[:5])}", "WARNING")
+
+    def _fetch_tokens_from_api(self, symbols):
+        """Fetch symbol tokens from Angel One searchScrip API"""
+        for sym in symbols:
+            try:
+                clean = sym.upper().replace("-EQ", "")
+                time.sleep(0.5)  # Rate limit: 2 requests per second
+                
+                search = self.smartApi.searchScrip("NSE", clean)
+                
+                if search and search.get('status') and search.get('data'):
+                    # Find exact match
+                    for item in search['data']:
+                        if item.get('tradingsymbol') == clean or item.get('tradingsymbol') == f"{clean}-EQ":
+                            self.symbol_tokens[sym] = item['symboltoken']
+                            self.log(f"✓ {sym} -> Token: {item['symboltoken']}", "DEBUG")
+                            break
+                    else:
+                        # No exact match, use first result
+                        self.symbol_tokens[sym] = search['data'][0]['symboltoken']
+                        self.log(f"✓ {sym} -> Token: {search['data'][0]['symboltoken']} (first match)", "DEBUG")
+                else:
+                    self.log(f"⚠️ Could not find token for {sym}: {search}", "WARNING")
+                    
+            except Exception as e:
+                self.log(f"❌ Token lookup failed for {sym}: {e}", "ERROR")
 
     def _get_ist_time(self):
         """Get current time in Indian Standard Time (UTC+5:30)"""
