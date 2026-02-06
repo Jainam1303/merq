@@ -229,12 +229,19 @@ def login_and_run_backtest(data):
                         
                     df = pd.DataFrame(data_list)
 
-                # RUN STRATEGY
-                strat_module = None
-                if "ema" in strategy_name:
-                     strat_module = importlib.import_module("strategies.ema_crossover")
-                else:
-                     strat_module = importlib.import_module("strategies.orb")
+                # RUN STRATEGY - Use strategy map for extensibility
+                # MerQ Alpha I-V + TEST
+                strategy_module_map = {
+                    "orb": "strategies.orb",                          # Alpha I
+                    "ema": "strategies.ema_crossover",                # Alpha II
+                    "pullback": "strategies.ema_pullback_strategy",   # Alpha III
+                    "engulfing": "strategies.engulfing_strategy",     # Alpha IV
+                    "timebased": "strategies.time_based_strategy",    # Alpha V
+                    "test": "strategies.test"                         # Debug
+                }
+                
+                module_name = strategy_module_map.get(strategy_name, "strategies.orb")
+                strat_module = importlib.import_module(module_name)
                 
                 importlib.reload(strat_module)
 

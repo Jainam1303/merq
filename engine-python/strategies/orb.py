@@ -112,8 +112,10 @@ class LiveORB(BaseLiveStrategy):
         # Market Open: Fetch Data
         today = ist_now.date() 
         for symbol in self.config['symbols']:
-            if f"{symbol}_TS" not in self.symbol_tokens: continue # Need token
             token = self.symbol_tokens.get(symbol)
+            if not token: 
+                self.log(f"Skipping {symbol}: No token available", "WARNING")
+                continue
             
             try:
                 params = {

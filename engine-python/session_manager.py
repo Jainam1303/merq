@@ -3,9 +3,13 @@ import requests
 import time
 import pandas as pd
 from logzero import logger
-from strategies import orb, ema_crossover
+from strategies import orb, ema_crossover, test, ema_pullback_strategy, engulfing_strategy, time_based_strategy
 from strategies.orb import LiveORB
 from strategies.ema_crossover import LiveEMA
+from strategies.test import LiveTest
+from strategies.ema_pullback_strategy import LiveEMAPullback
+from strategies.engulfing_strategy import LiveEngulfing
+from strategies.time_based_strategy import LiveTimeBased
 from SmartApi import SmartConnect
 from SmartApi.smartWebSocketV2 import SmartWebSocketV2
 import pyotp
@@ -107,10 +111,24 @@ class TradingSession:
         
         strat_logger = StrategyLogger(self)
         
-        if self.strategy_name == 'EMA':
-            self.strategy = LiveEMA(self.config, strat_logger, self.symbol_tokens)
-        else:
-            self.strategy = LiveORB(self.config, strat_logger, self.symbol_tokens)
+        # Strategy Selection - Session Manager doesn't know HOW signals are generated
+        # MerQ Alpha I   = ORB (Opening Range Breakout)
+        # MerQ Alpha II  = EMA (EMA Crossover)
+        # MerQ Alpha III = PULLBACK (EMA Pullback)
+        # MerQ Alpha IV  = ENGULFING (Candlestick Pattern)
+        # MerQ Alpha V   = TIMEBASED (Fixed Time Entry)
+        strategy_map = {
+            'ORB': LiveORB,              # Alpha I
+            'EMA': LiveEMA,              # Alpha II
+            'PULLBACK': LiveEMAPullback, # Alpha III
+            'ENGULFING': LiveEngulfing,  # Alpha IV
+            'TIMEBASED': LiveTimeBased,  # Alpha V
+            'TEST': LiveTest             # Debug/Testing
+        }
+        
+        StrategyClass = strategy_map.get(self.strategy_name, LiveORB)
+        self.strategy = StrategyClass(self.config, strat_logger, self.symbol_tokens)
+        self.log(f"Loaded Strategy: {self.strategy_name}", "INFO")
         
         self.strategy.initialize(self.smartApi)
         
@@ -215,10 +233,13 @@ class TradingSession:
             clean = sym.upper()
             if clean in token_map:
                 self.symbol_tokens[sym] = token_map[clean]
+                self.symbol_tokens[f"{sym}_TS"] = clean  # For consistency with API fetch
             elif clean.replace('-EQ', '') in token_map:
                 self.symbol_tokens[sym] = token_map[clean.replace('-EQ', '')]
+                self.symbol_tokens[f"{sym}_TS"] = f"{clean.replace('-EQ', '')}-EQ"
             elif f"{clean}-EQ" in token_map:
                 self.symbol_tokens[sym] = token_map[f"{clean}-EQ"]
+                self.symbol_tokens[f"{sym}_TS"] = f"{clean}-EQ"
             else:
                 not_found.append(sym)
         
@@ -481,24 +502,7 @@ class TradingSession:
             # 2. Block new signals
             return
 
-        # ==========================================
-        # STRATEGY: TEST (Immediate Buy)
-        # ==========================================
-        strategy_name = self.config.get('strategy', 'ORB').upper()
-        
-        if strategy_name == 'TEST':
-            # Buy immediately, no time check, no ORB check
-            capital = float(self.config.get('capital', 100000))
-            qty = int(capital / ltp) if ltp > 0 else 1
-            qty = max(1, qty)
-            
-            tp = round(ltp * 1.006, 2)  # 0.6% Target (Updated)
-            sl = round(ltp * 0.99, 2)   # 1% SL
-            
-            self._place_order(symbol, "BUY", qty, ltp, tp, sl)
-            self.signals_triggered[today_key] = True
-            self.log(f"🧪 TEST STRATEGY: Immediate BUY for {symbol} @ {ltp}", "SUCCESS")
-            return
+        # (TEST strategy logic has been moved to strategies/test.py)
 
         # ==========================================
         # STRATEGY EXECUTION (Delegated)
