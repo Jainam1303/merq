@@ -55,6 +55,7 @@ export function BacktestHistory() {
                     <TableHeader>
                         <TableRow>
                             <TableHead className="text-xs font-bold text-muted-foreground uppercase">DATE</TableHead>
+                            <TableHead className="text-xs font-bold text-muted-foreground uppercase">STRATEGY</TableHead>
                             <TableHead className="text-xs font-bold text-muted-foreground uppercase">SYMBOL</TableHead>
                             <TableHead className="text-xs font-bold text-muted-foreground uppercase">TIMEFRAME</TableHead>
                             <TableHead className="text-xs font-bold text-muted-foreground uppercase">DATE RANGE</TableHead>
@@ -66,33 +67,37 @@ export function BacktestHistory() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {paginatedHistory.map((h) => (
-                            <TableRow key={h.id}>
-                                <TableCell className="text-muted-foreground text-xs">{new Date(h.createdAt).toLocaleString()}</TableCell>
-                                <TableCell className="font-bold text-white uppercase">{h.summary?.symbol || 'Multi-Script'}</TableCell>
-                                <TableCell className="text-muted-foreground text-xs">{h.interval === '5' ? 'Five Minute' : h.interval}</TableCell>
-                                <TableCell className="text-muted-foreground text-xs">
-                                    <div className="flex flex-col">
-                                        <span>{h.from_date}</span>
-                                        <span className="opacity-70">to {h.to_date}</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell className="text-right text-xs text-muted-foreground font-medium">{h.summary?.totalTrades || 0}</TableCell>
-                                <TableCell className="text-right text-xs text-muted-foreground font-medium">{parseFloat(h.summary?.winRate || 0).toFixed(2)}%</TableCell>
-                                <TableCell className={`text-right text-xs font-bold ${(h.summary?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                    {(h.summary?.totalPnL || 0) >= 0 ? '+' : ''}{parseFloat(h.summary?.totalPnL || 0).toFixed(2)}
-                                </TableCell>
-                                <TableCell className="text-right text-xs text-muted-foreground font-medium">
-                                    {parseFloat(h.summary?.finalCapital || 0).toFixed(2)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <Button variant="ghost" size="sm" onClick={() => handleDelete(h.id)} className="hover:bg-transparent h-auto p-0">
-                                        <span className="text-xs font-bold text-destructive">Delete</span>
-                                    </Button>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                        {history.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-4">No backtests found</TableCell></TableRow>}
+                        {paginatedHistory.map((h) => {
+                            const strategyLabel = h.strategy === 'orb' ? 'MerQ Alpha I' : h.strategy === 'ema' ? 'MerQ Alpha II' : h.strategy?.toUpperCase() || 'Unknown';
+                            return (
+                                <TableRow key={h.id}>
+                                    <TableCell className="text-muted-foreground text-xs">{new Date(h.createdAt).toLocaleString()}</TableCell>
+                                    <TableCell className="text-muted-foreground text-xs">{strategyLabel}</TableCell>
+                                    <TableCell className="font-bold text-white uppercase">{h.summary?.symbol || 'Multi-Script'}</TableCell>
+                                    <TableCell className="text-muted-foreground text-xs">{h.interval === '5' ? 'Five Minute' : h.interval}</TableCell>
+                                    <TableCell className="text-muted-foreground text-xs">
+                                        <div className="flex flex-col">
+                                            <span>{h.from_date}</span>
+                                            <span className="opacity-70">to {h.to_date}</span>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right text-xs text-muted-foreground font-medium">{h.summary?.totalTrades || 0}</TableCell>
+                                    <TableCell className="text-right text-xs text-muted-foreground font-medium">{parseFloat(h.summary?.winRate || 0).toFixed(2)}%</TableCell>
+                                    <TableCell className={`text-right text-xs font-bold ${(h.summary?.totalPnL || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {(h.summary?.totalPnL || 0) >= 0 ? '+' : ''}{parseFloat(h.summary?.totalPnL || 0).toFixed(2)}
+                                    </TableCell>
+                                    <TableCell className="text-right text-xs text-muted-foreground font-medium">
+                                        {parseFloat(h.summary?.finalCapital || 0).toFixed(2)}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="sm" onClick={() => handleDelete(h.id)} className="hover:bg-transparent h-auto p-0">
+                                            <span className="text-xs font-bold text-destructive">Delete</span>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                        {history.length === 0 && <TableRow><TableCell colSpan={10} className="text-center py-4">No backtests found</TableCell></TableRow>}
                     </TableBody>
                 </Table>
 

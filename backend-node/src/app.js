@@ -22,25 +22,11 @@ const allowedOrigins = [
 
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
-
-        // Check against allowed static domains
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            return callback(null, true);
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
         }
-
-        // Allow Vercel Preview Deployments (wildcard *.vercel.app)
-        if (origin.endsWith('.vercel.app')) {
-            return callback(null, true);
-        }
-
-        // Allow local network IP (e.g., 192.168.x.x) for testing
-        if (origin.startsWith('http://192.168.')) {
-            return callback(null, true);
-        }
-
-        callback(new Error('Not allowed by CORS'));
     },
     credentials: true
 }));
