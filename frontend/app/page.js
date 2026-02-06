@@ -223,8 +223,11 @@ const TESTIMONIALS = [
   { name: "Natalie Martinez", role: "Director, Gamma", text: "From concept to execution, their creativity knows no bounds - a game-changer for our brand's success.", initials: "NM", img: "" },
 ];
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 8bd1e55affad5c1b2c6b4966c32400af885c9b49
 function ProfileModal({ isOpen, onClose, user, addToast }) {
   const [activeTab, setActiveTab] = useState('security');
   const [profile, setProfile] = useState(null);
@@ -1109,10 +1112,13 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
   );
 }
 
+<<<<<<< HEAD
 
 
 
 
+=======
+>>>>>>> 8bd1e55affad5c1b2c6b4966c32400af885c9b49
 function Landing({ onGetStarted }) {
   return (
     <div className="pt-16">
@@ -1185,7 +1191,10 @@ function Landing({ onGetStarted }) {
           </div>
         </div>
       </section>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8bd1e55affad5c1b2c6b4966c32400af885c9b49
 
       {/* HOW IT WORKS SECTION */}
       <section className="py-24 bg-zinc-50 dark:bg-[#09090b] relative transition-colors duration-300">
