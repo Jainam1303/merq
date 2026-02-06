@@ -232,51 +232,19 @@ app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
 // Basic error logging for Yahoo Finance
-const MARKET_DATA_VERSION = "2.0.0";
+const MARKET_DATA_VERSION = "1.0.8";
 
 app.get('/market_data', async (req, res) => {
-    // Fallback data function
-    const getFallbackData = (errorMsg = '') => {
-        const baseData = [
-            { symbol: "NIFTY 50", base: 24500 },
-            { symbol: "BANKNIFTY", base: 52100 },
-            { symbol: "SENSEX", base: 81500 },
-            { symbol: "RELIANCE", base: 2980 },
-            { symbol: "HDFCBANK", base: 1650 }
-        ];
-
-        return baseData.map(item => {
-            const changePct = (Math.random() * 2 - 1).toFixed(2);
-            const changeVal = (item.base * (parseFloat(changePct) / 100));
-            const currentPrice = (item.base + changeVal).toFixed(2);
-            return {
-                symbol: item.symbol,
-                price: parseFloat(currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
-                change: `${changePct > 0 ? '+' : ''}${changePct}%`,
-                isGainer: parseFloat(changePct) >= 0,
-                source: 'SIMULATED_FALLBACK',
-                v: MARKET_DATA_VERSION,
-                debug_error: errorMsg
-            };
-        });
-    };
+    let yahooFinance;
+    try {
+        // Load library dynamically to prevent server crash if missing/incompatible
+        yahooFinance = require('yahoo-finance2').default || require('yahoo-finance2');
+    } catch (err) {
+        console.error("Critical: Failed to load yahoo-finance2 library:", err.message);
+    }
 
     try {
-        // Try to load yahoo-finance2 v3
-        let yahooFinance;
-        try {
-            yahooFinance = require('yahoo-finance2').default;
-            if (!yahooFinance) {
-                yahooFinance = require('yahoo-finance2');
-            }
-        } catch (err) {
-            console.error("Failed to load yahoo-finance2:", err.message);
-            return res.json(getFallbackData("Library not available"));
-        }
-
-        if (!yahooFinance || !yahooFinance.quote) {
-            return res.json(getFallbackData("Yahoo Finance quote method not available"));
-        }
+        if (!yahooFinance) throw new Error("Yahoo Finance Library not loaded");
 
         const symbolsMap = [
             { ticker: "^NSEI", label: "NIFTY 50", base: 24500 },
@@ -291,13 +259,8 @@ app.get('/market_data', async (req, res) => {
 
         const results = await Promise.all(symbolsMap.map(async (s) => {
             try {
-                const quote = await yahooFinance.quote(s.ticker);
-
-                if (!quote) {
-                    console.error(`No quote data for ${s.label}`);
-                    return null;
-                }
-
+                // Extended timeout and options for stability on some servers
+                const quote = await yahooFinance.quote(s.ticker, { validateResult: false });
                 const price = quote.regularMarketPrice || quote.postMarketPrice || quote.bid || 0;
                 const prevClose = quote.regularMarketPreviousClose || price;
                 const changePct = prevClose !== 0 ? ((price - prevClose) / prevClose) * 100 : 0;
@@ -311,7 +274,7 @@ app.get('/market_data', async (req, res) => {
                     v: MARKET_DATA_VERSION
                 };
             } catch (err) {
-                console.error(`Failed to fetch ${s.label}:`, err.message?.substring(0, 100));
+                console.error(`Failed to fetch ${s.label}:`, err.message);
                 return null;
             }
         }));
@@ -322,11 +285,35 @@ app.get('/market_data', async (req, res) => {
             return res.json(validResults);
         }
 
-        throw new Error("Yahoo returned no valid data");
+        throw new Error("Yahoo returned no valid data for these symbols");
 
     } catch (e) {
-        console.error("Yahoo Finance Error:", e.message);
-        return res.json(getFallbackData(e.message));
+        console.error("Yahoo Finance Final Error:", e.message);
+
+        // Fallback to simulation
+        const baseData = [
+            { symbol: "NIFTY 50", base: 24500 },
+            { symbol: "BANKNIFTY", base: 52100 },
+            { symbol: "SENSEX", base: 81500 },
+            { symbol: "RELIANCE", base: 2980 },
+            { symbol: "HDFCBANK", base: 1650 }
+        ];
+
+        const data = baseData.map(item => {
+            const changePct = (Math.random() * 2 - 1).toFixed(2);
+            const changeVal = (item.base * (parseFloat(changePct) / 100));
+            const currentPrice = (item.base + changeVal).toFixed(2);
+            return {
+                symbol: item.symbol,
+                price: parseFloat(currentPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+                change: `${changePct > 0 ? '+' : ''}${changePct}%`,
+                isGainer: parseFloat(changePct) >= 0,
+                source: 'SIMULATED_FALLBACK',
+                v: MARKET_DATA_VERSION,
+                debug_error: e.message
+            };
+        });
+        res.json(data);
     }
 });
 
