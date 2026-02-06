@@ -15,10 +15,14 @@ import { stockOptions, timeframeOptions } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 import { fetchJson } from "@/lib/api";
 
-// Strategy Definitions
+// Strategy Definitions - MerQ Alpha I-V + TEST
 const strategyOptions = [
-  { value: 'ORB', label: 'MerQ Alpha I', description: 'Momentum-based Alpha Strategy I' },
-  { value: 'EMA', label: 'MerQ Alpha II', description: 'Trend-following Alpha Strategy II' },
+  { value: 'ORB', label: 'MerQ Alpha I', description: 'Opening Range Breakout (9:15-9:30)' },
+  { value: 'EMA', label: 'MerQ Alpha II', description: 'EMA 8/30 Crossover Strategy' },
+  { value: 'PULLBACK', label: 'MerQ Alpha III', description: 'EMA Pullback Trend Strategy' },
+  { value: 'ENGULFING', label: 'MerQ Alpha IV', description: 'Bullish/Bearish Engulfing Pattern' },
+  { value: 'TIMEBASED', label: 'MerQ Alpha V', description: 'Fixed Time Entry (10AM, 2PM)' },
+  { value: 'TEST', label: 'TEST Mode', description: 'Immediate BUY for testing orders' },
 ];
 import { toast } from "sonner";
 

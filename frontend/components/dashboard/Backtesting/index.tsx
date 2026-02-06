@@ -22,9 +22,14 @@ import {
 import { toast } from "sonner";
 import { stockOptions, timeframeOptions } from "@/data/mockData";
 
+// MerQ Alpha Strategies I-V + TEST
 const strategies = [
-    { label: "MerQ Alpha I", value: "orb" },
-    { label: "MerQ Alpha II", value: "ema" }
+    { label: "MerQ Alpha I", value: "orb", description: "Opening Range Breakout" },
+    { label: "MerQ Alpha II", value: "ema", description: "EMA Crossover" },
+    { label: "MerQ Alpha III", value: "pullback", description: "EMA Pullback" },
+    { label: "MerQ Alpha IV", value: "engulfing", description: "Engulfing Pattern" },
+    { label: "MerQ Alpha V", value: "timebased", description: "Time-Based Entry" },
+    { label: "TEST", value: "test", description: "Debug Strategy" },
 ];
 
 export function Backtesting() {
