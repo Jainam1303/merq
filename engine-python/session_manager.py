@@ -371,29 +371,6 @@ class TradingSession:
             api_key = self.credentials.get('apiKey')
             client_code = self.credentials.get('clientCode')
             
-            # Validate tokens before attempting connection
-            if not self.auth_token:
-                self.log("❌ WebSocket Error: auth_token is missing or empty", "ERROR")
-                self._run_polling_loop()
-                return
-            if not self.feed_token:
-                self.log("❌ WebSocket Error: feed_token is missing or empty", "ERROR")
-                self._run_polling_loop()
-                return
-            if not api_key:
-                self.log("❌ WebSocket Error: api_key is missing", "ERROR")
-                self._run_polling_loop()
-                return
-            if not client_code:
-                self.log("❌ WebSocket Error: client_code is missing", "ERROR")
-                self._run_polling_loop()
-                return
-                
-            # Debug log (mask tokens for security)
-            self.log(f"🔧 WebSocket Init: API Key={api_key[:6]}..., Client={client_code}", "DEBUG")
-            self.log(f"🔧 Auth Token: {self.auth_token[:20]}... (len={len(self.auth_token)})", "DEBUG")
-            self.log(f"🔧 Feed Token: {self.feed_token[:10]}... (len={len(self.feed_token)})", "DEBUG")
-            
             self.sws = SmartWebSocketV2(
                 auth_token=self.auth_token,
                 api_key=api_key,
@@ -408,30 +385,16 @@ class TradingSession:
             self.sws.on_close = self._on_ws_close
             
             # Connect in separate thread
-            self.ws_thread = threading.Thread(target=self._ws_connect_wrapper, daemon=True)
+            self.ws_thread = threading.Thread(target=self.sws.connect, daemon=True)
             self.ws_thread.start()
             
             self.log("WebSocket Connecting...", "INFO")
             
         except Exception as e:
             self.log(f"WebSocket Init Error: {e}", "ERROR")
-            import traceback
-            self.log(f"Traceback: {traceback.format_exc()}", "DEBUG")
             # Fallback to polling if WebSocket fails
             self.log("Falling back to polling mode", "WARNING")
             self._run_polling_loop()
-    
-    def _ws_connect_wrapper(self):
-        """Wrapper for WebSocket connect with error handling"""
-        try:
-            self.sws.connect()
-        except Exception as e:
-            self.log(f"❌ WebSocket connect() exception: {e}", "ERROR")
-            import traceback
-            self.log(f"Traceback: {traceback.format_exc()}", "DEBUG")
-            # Try reconnect or fallback
-            if self.active and not self.stop_event.is_set():
-                self._reconnect_websocket()
 
     def _on_ws_open(self, wsapp):
         """Called when WebSocket connects - subscribe to symbols"""
@@ -511,20 +474,10 @@ class TradingSession:
             pass
 
     def _on_ws_error(self, wsapp, error):
-        self.log(f"❌ WebSocket Error: {error}", "ERROR")
-        self.log(f"Error Type: {type(error).__name__}", "DEBUG")
-        
-        # Check for common error patterns
-        error_str = str(error).lower()
-        if "closed before" in error_str or "handshake" in error_str:
-            self.log("⚠️ WebSocket closed during handshake - possible auth issue or network problem", "WARNING")
-        elif "timeout" in error_str:
-            self.log("⚠️ WebSocket connection timed out", "WARNING")
-        elif "refused" in error_str:
-            self.log("⚠️ WebSocket connection refused - server may be down", "WARNING")
+        self.log(f"WebSocket Error: {error}", "ERROR")
 
-    def _on_ws_close(self, wsapp, close_status_code=None, close_msg=None):
-        self.log(f"WebSocket Disconnected (code={close_status_code}, msg={close_msg})", "WARNING")
+    def _on_ws_close(self, wsapp):
+        self.log("WebSocket Disconnected", "WARNING")
         # Attempt reconnect if still active
         if self.active and not self.stop_event.is_set():
             self._reconnect_websocket()
@@ -581,57 +534,6 @@ class TradingSession:
         # All retries failed, fall back to polling
         self.log("WebSocket reconnection failed. Falling back to polling mode.", "WARNING")
         self._run_polling_loop()
-
-    def _run_polling_loop(self):
-        """Fallback polling loop when WebSocket is unavailable"""
-        self.log("🔄 Starting Polling Mode (fallback)...", "INFO")
-        
-        poll_interval = 5  # seconds between polls
-        
-        while self.active and not self.stop_event.is_set():
-            try:
-                # Get LTP for all symbols via REST API
-                for symbol in self.config.get('symbols', []):
-                    if symbol not in self.symbol_tokens:
-                        continue
-                    
-                    token = self.symbol_tokens.get(symbol)
-                    if not token or not str(token).isdigit():
-                        continue
-                    
-                    try:
-                        # Use LTP API if available
-                        ltp_data = self.smartApi.ltpData("NSE", symbol.replace("-EQ", ""), token)
-                        if ltp_data and ltp_data.get('status') and ltp_data.get('data'):
-                            ltp = float(ltp_data['data'].get('ltp', 0))
-                            if ltp > 0:
-                                # Track previous LTP for crossover detection
-                                prev_ltp = self.prev_ltp_cache.get(symbol, 0)
-                                self.prev_ltp_cache[symbol] = ltp
-                                self.ltp_cache[symbol] = ltp
-                                
-                                # Update positions and check signals
-                                self._update_position_pnl(symbol, ltp)
-                                
-                                orb = self.orb_levels.get(symbol)
-                                if orb and not orb.get('collecting', False) and orb.get('or_high', 0) > 0:
-                                    self._check_signal(symbol, ltp, 0, prev_ltp)
-                    except Exception as e:
-                        # Rate limit or API error - continue to next symbol
-                        pass
-                    
-                    time.sleep(0.5)  # Rate limit between symbol requests
-                
-                # Sync to backend
-                self._sync_to_backend()
-                
-            except Exception as e:
-                self.log(f"Polling error: {e}", "ERROR")
-            
-            # Wait before next poll cycle
-            time.sleep(poll_interval)
-        
-        self.log("Polling loop stopped", "INFO")
 
     def _check_signal(self, symbol, ltp, vwap=0, prev_ltp=0):
         """Check if price breaks ORB levels and generate signal"""
