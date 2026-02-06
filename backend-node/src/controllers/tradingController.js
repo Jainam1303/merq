@@ -225,12 +225,15 @@ exports.saveBacktestResult = async (req, res) => {
         const { results, interval, fromDate, toDate, strategy } = req.body;
 
         if (Array.isArray(results) && results.length > 0) {
+            console.log('[SaveBacktest] Received results:', JSON.stringify(results)); // Debug log
             const records = results.map(r => {
                 const trades = parseInt((r['Total Trades'] || '0').toString().replace(/,/g, '')) || 0;
                 const pnl = parseFloat((r['Total P&L'] || '0').toString().replace(/,/g, '').replace(/₹/g, '')) || 0;
                 const winRate = parseFloat((r['Win Rate %'] || r['Win Rate'] || '0').toString().replace(/%/g, '')) || 0;
-                const symbol = r['Symbol'] || r['symbol'] || 'Unknown';
+                const symbol = r['Symbol'] || r['symbol'] || r['SYMBOL'] || (r.summary && r.summary.symbol) || 'Unknown';
                 const finalCap = parseFloat((r['Final Capital'] || '0').toString().replace(/,/g, '').replace(/₹/g, '')) || 0;
+
+                console.log(`[SaveBacktest] Processing: ${symbol}, PnL: ${pnl}`);
 
                 return {
                     user_id: userId,

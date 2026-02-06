@@ -3223,6 +3223,7 @@ export default function Home() {
                         <button
                           onClick={async () => {
                             try {
+                              console.log('[Page] Saving backtestResults:', backtestResults); // Debug log
                               const res = await fetchJson('/save_backtest', {
                                 method: 'POST',
                                 body: JSON.stringify({

@@ -73,7 +73,7 @@ export function BacktestHistory() {
                                 <TableRow key={h.id}>
                                     <TableCell className="text-muted-foreground text-xs">{new Date(h.createdAt).toLocaleString()}</TableCell>
                                     <TableCell className="text-muted-foreground text-xs">{strategyLabel}</TableCell>
-                                    <TableCell className="font-bold text-white uppercase">{h.summary?.symbol || 'Multi-Script'}</TableCell>
+                                    <TableCell className="font-bold text-white uppercase">{h.summary?.symbol || h.summary?.Symbol || 'Multi-Script'}</TableCell>
                                     <TableCell className="text-muted-foreground text-xs">{h.interval === '5' ? 'Five Minute' : h.interval}</TableCell>
                                     <TableCell className="text-muted-foreground text-xs">
                                         <div className="flex flex-col">
