@@ -77,3 +77,107 @@ def backtest(df):
                     position = {"type": "SELL", "entry": row["close"], "sl": OR_mid, "target": row["close"]*(1-TARGET_PCT), "qty": qty}
     
     return trades
+
+# ==========================================
+# LIVE STRATEGY IMPLEMENTATION
+# ==========================================
+from .base_live import BaseLiveStrategy
+import datetime
+import time
+
+class LiveORB(BaseLiveStrategy):
+    def __init__(self, config, logger, symbol_tokens):
+        super().__init__(config, logger, symbol_tokens)
+        self.orb_levels = {} # {symbol: {or_high, or_low, or_mid, collecting}}
+
+    def initialize(self, smartApi):
+        """
+        Fetch ORB levels (9:15-9:30 candle)
+        """
+        self.log(f"Initializing ORB Strategy for {len(self.symbol_tokens)//2} symbols...")
+        
+        # Determine 9:15-9:30 range (IST)
+        ist_now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+        current_time = ist_now.time()
+        
+        if current_time < datetime.time(9, 30):
+            self.log("Market not yet 09:30. ORB levels will be collected from live ticks.")
+            # Initialize for live collection
+            for symbol in self.config['symbols']:
+                self.orb_levels[symbol] = {
+                    'or_high': 0, 'or_low': 999999999, 'or_mid': 0, 'collecting': True
+                }
+            return
+
+        # Market Open: Fetch Data
+        today = ist_now.date() 
+        for symbol in self.config['symbols']:
+            if f"{symbol}_TS" not in self.symbol_tokens: continue # Need token
+            token = self.symbol_tokens.get(symbol)
+            
+            try:
+                params = {
+                    "exchange": "NSE",
+                    "symboltoken": token,
+                    "interval": "FIVE_MINUTE",
+                    "fromdate": f"{today.strftime('%Y-%m-%d')} 09:15",
+                    "todate": f"{today.strftime('%Y-%m-%d')} 09:30"
+                }
+                res = smartApi.getCandleData(params)
+                if res and res.get('status') and res.get('data'):
+                    df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                    or_high = float(df['high'].max())
+                    or_low = float(df['low'].min())
+                    self.orb_levels[symbol] = {
+                        'or_high': or_high, 'or_low': or_low, 
+                        'or_mid': (or_high + or_low) / 2, 'collecting': False
+                    }
+                    self.log(f"ORB Level for {symbol}: High={or_high}, Low={or_low}")
+                else:
+                    self.log(f"Failed to fetch ORB for {symbol}", "WARNING")
+            except Exception as e:
+                self.log(f"Error fetching ORB for {symbol}: {e}", "ERROR")
+
+    def on_tick(self, symbol, ltp, prev_ltp, vwap, current_time):
+        # 1. Update Levels if Collecting
+        if symbol in self.orb_levels and self.orb_levels[symbol].get('collecting'):
+             orb = self.orb_levels[symbol]
+             if datetime.time(9, 15) <= current_time <= datetime.time(9, 30):
+                 if ltp > orb['or_high']: orb['or_high'] = ltp
+                 if ltp < orb['or_low']: orb['or_low'] = ltp
+                 orb['or_mid'] = (orb['or_high'] + orb['or_low']) / 2
+             elif current_time > datetime.time(9, 30) and orb['or_high'] > 0:
+                 orb['collecting'] = False
+                 self.log(f"ORB Live Collected for {symbol}: {orb['or_high']}/{orb['or_low']}")
+             return None
+
+        # 2. Check Signals (Only after 09:30)
+        if current_time < datetime.time(9, 30): return None
+        
+        orb = self.orb_levels.get(symbol)
+        if not orb or orb.get('collecting') or orb['or_high'] <= 0: return None
+
+        # Signal Logic
+        or_high = orb['or_high']
+        or_low = orb['or_low']
+        or_mid = orb['or_mid']
+        
+        capital = float(self.config.get('capital', 100000))
+        qty = int(capital / ltp) if ltp > 0 else 1
+        qty = max(1, qty)
+
+        # BUY: Cross Above High
+        if ltp > or_high and prev_ltp <= or_high:
+            if vwap > 0 and ltp <= vwap: return None # VWAP Filter
+            tp = round(ltp * (1 + 0.006), 2)
+            sl = round(or_mid, 2)
+            return {"action": "BUY", "tp": tp, "sl": sl, "qty": qty}
+        
+        # SELL: Cross Below Low
+        elif ltp < or_low and prev_ltp >= or_low:
+            if vwap > 0 and ltp >= vwap: return None # VWAP Filter
+            tp = round(ltp * (1 - 0.006), 2)
+            sl = round(or_mid, 2)
+            return {"action": "SELL", "tp": tp, "sl": sl, "qty": qty}
+            
+        return None

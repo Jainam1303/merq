@@ -4,6 +4,8 @@ import time
 import pandas as pd
 from logzero import logger
 from strategies import orb, ema_crossover
+from strategies.orb import LiveORB
+from strategies.ema_crossover import LiveEMA
 from SmartApi import SmartConnect
 from SmartApi.smartWebSocketV2 import SmartWebSocketV2
 import pyotp
@@ -16,7 +18,7 @@ class TradingSession:
         self.credentials = credentials
         self.active = False
         self.mode = 'PAPER' if config.get('simulated', True) else 'LIVE'
-        self.strategy_name = config.get('strategy', 'orb')
+        self.strategy_name = config.get('strategy', 'orb').upper()
         
         # State
         self.pnl = 0.0
@@ -25,8 +27,6 @@ class TradingSession:
         self.trades_history = []
         self.signals_triggered = {}  # Track which symbols fired today {symbol_date: True}
         
-        # ORB State (per symbol)
-        self.orb_levels = {}  # {symbol: {or_high, or_low, calculated: bool}}
         self.ltp_cache = {}   # {symbol: last_traded_price}
         self.prev_ltp_cache = {}  # {symbol: previous_ltp} - for crossover detection
         
@@ -41,6 +41,21 @@ class TradingSession:
         
         # Symbol Token Mapping
         self.symbol_tokens = {}  # {symbol: token}
+        
+        # Initialize Strategy
+        # Wrapper to allow strategy to log to our session logs
+        class StrategyLogger:
+            def __init__(self, session): self.session = session
+            def info(self, msg): self.session.log(msg, "STRAT")
+            def error(self, msg): self.session.log(msg, "ERROR")
+            def warning(self, msg): self.session.log(msg, "WARNING")
+        
+        self.strat_logger = StrategyLogger(self)
+        
+        if self.strategy_name == 'EMA':
+            self.strategy = LiveEMA(config, self.strat_logger, self.symbol_tokens)
+        else:
+             self.strategy = LiveORB(config, self.strat_logger, self.symbol_tokens)
         
         # Sync Throttle
         self.last_sync_time = 0
@@ -95,8 +110,8 @@ class TradingSession:
         # 2. Load Symbol Tokens
         self._load_symbol_tokens()
         
-        # 3. Calculate ORB Levels (need historical data)
-        self._calculate_orb_levels()
+        # 3. Strategy Initialization
+        self.strategy.initialize(self.smartApi)
         
         # 4. Start WebSocket for Live Data
         self._start_websocket()
@@ -444,30 +459,8 @@ class TradingSession:
             # Update positions with live PnL
             self._update_position_pnl(symbol, ltp)
             
-            # DYNAMIC ORB: Update ORB levels from WebSocket if we're collecting
-            if symbol in self.orb_levels:
-                orb = self.orb_levels[symbol]
-                ist_now = self._get_ist_time()
-                current_time = ist_now.time()
-                
-                # If collecting ORB data (9:15-9:30)
-                if orb.get('collecting', False):
-                    if datetime.time(9, 15) <= current_time <= datetime.time(9, 30):
-                        # Update high/low from live ticks
-                        if ltp > orb.get('or_high', 0):
-                            orb['or_high'] = ltp
-                        if ltp < orb.get('or_low', 999999999):
-                            orb['or_low'] = ltp
-                        orb['or_mid'] = (orb['or_high'] + orb['or_low']) / 2
-                    
-                    # After 9:30, stop collecting
-                    elif current_time > datetime.time(9, 30) and orb['or_high'] > 0:
-                        orb['collecting'] = False
-                        self.log(f"📊 ORB {symbol}: High={orb['or_high']:.2f}, Low={orb['or_low']:.2f} (from WebSocket)", "SUCCESS")
-                
-                # Check for signals (only after ORB is ready)
-                if not orb.get('collecting', False) and orb.get('or_high', 0) > 0:
-                    self._check_signal(symbol, ltp, vwap, prev_ltp)
+            # Check for signals (Strategy decides logic)
+            self._check_signal(symbol, ltp, vwap, prev_ltp)
                 
         except Exception as e:
             # Don't spam logs for every tick error
@@ -605,64 +598,21 @@ class TradingSession:
             return
 
         # ==========================================
-        # STRATEGY: ORB (Original Logic)
+        # STRATEGY EXECUTION (Delegated)
         # ==========================================
-        # Only trade after 09:30
-        if current_time < datetime.time(9, 30):
-            return
-        
-        orb = self.orb_levels.get(symbol)
-        if not orb:
-            return
-        
-        or_high = orb['or_high']
-        or_low = orb['or_low']
-        or_mid = orb.get('or_mid', (or_high+or_low)/2)
-        
-        # SAFETY CHECK: If ORB levels are explicitly 0, it means initialization failed or is invalid
-        if or_high <= 0 or or_low <= 0:
-            return
-        
-        # ==========================================
-        # CROSSOVER DETECTION (Critical Fix)
-        # ==========================================
-        # Only trigger if price CROSSES from inside range to outside
-        # This prevents false signals when price is already beyond ORB at startup
-        
-        # If we don't have a previous price yet (first tick), skip this tick
-        if prev_ltp <= 0:
-            return
-        
-        # Calculate qty based on capital (no artificial cap)
-        capital = float(self.config.get('capital', 100000))
-        qty = int(capital / ltp) if ltp > 0 else 1
-        qty = max(1, qty)  # At least 1 share
-        
-        # BUY Signal: Price CROSSES above ORB High (prev was below, now above)
-        # Condition: prev_ltp <= or_high AND ltp > or_high  AND ltp > vwap
-        if ltp > or_high and prev_ltp <= or_high:
-            if vwap > 0 and ltp <= vwap:
-                return # Filtered by VWAP
-
-            tp = round(ltp * 1.006, 2)  # 0.6% target
-            sl = round(or_mid, 2)       # SL at OR Mid (User Logic)
-            
-            self._place_order(symbol, "BUY", qty, ltp, tp, sl)
-            self.signals_triggered[today_key] = True
-            self.log(f"🟢 BUY CROSSOVER: {symbol} @ {ltp:.2f} (crossed High:{or_high}, VWAP:{vwap})", "SUCCESS")
-        
-        # SELL Signal: Price CROSSES below ORB Low (prev was above, now below)
-        # Condition: prev_ltp >= or_low AND ltp < or_low AND ltp < vwap
-        elif ltp < or_low and prev_ltp >= or_low:
-            if vwap > 0 and ltp >= vwap:
-                return # Filtered by VWAP
-                
-            tp = round(ltp * 0.994, 2)  # 0.6% target
-            sl = round(or_mid, 2)       # SL at OR Mid (User Logic)
-            
-            self._place_order(symbol, "SELL", qty, ltp, tp, sl)
-            self.signals_triggered[today_key] = True
-            self.log(f"🔴 SELL CROSSOVER: {symbol} @ {ltp:.2f} (crossed Low:{or_low}, VWAP:{vwap})", "SUCCESS")
+        if self.strategy:
+            signal = self.strategy.on_tick(symbol, ltp, prev_ltp, vwap, current_time)
+            if signal:
+                self._place_order(
+                    symbol, 
+                    signal['action'], 
+                    signal.get('qty', 1), 
+                    ltp, 
+                    signal['tp'], 
+                    signal['sl']
+                )
+                self.signals_triggered[today_key] = True
+                self.log(f"⚡ Signal Triggered: {signal['action']} {symbol} @ {ltp}", "SUCCESS")
 
     def _update_position_pnl(self, symbol, ltp):
         """Update unrealized PnL for open positions"""

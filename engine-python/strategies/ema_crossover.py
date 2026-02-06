@@ -137,3 +137,20 @@ def backtest(df):
                 position = {'type': 'SELL', 'entry': entry, 'sl': sl, 'target': tp, 'qty': qty}
 
     return trades
+
+# ==========================================
+# LIVE STRATEGY IMPLEMENTATION
+# ==========================================
+from .base_live import BaseLiveStrategy
+import datetime
+
+class LiveEMA(BaseLiveStrategy):
+    def initialize(self, smartApi):
+        self.log("Initializing EMA Strategy... (Not yet fully implemented for Live)")
+        # In future: Fetch 30-40 candles for historical EMA calc
+        pass
+
+    def on_tick(self, symbol, ltp, prev_ltp, vwap, current_time):
+        # In future: Update candles, calculate live EMA, check cross
+        # For now, return None so no trades are taken (fixing the ORB issue)
+        return None
