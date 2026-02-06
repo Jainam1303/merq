@@ -947,7 +947,7 @@ class TradingSession:
             "trades_history": self.trades_history,  # Order Book
             "logs": self.logs,
             "config": self.config,
-            "orb_levels": self.orb_levels,
+            "orb_levels": getattr(self.strategy, 'orb_levels', {}) if self.strategy else {},
             "ltp": self.ltp_cache
         }
 
