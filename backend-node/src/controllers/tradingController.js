@@ -224,39 +224,49 @@ exports.saveBacktestResult = async (req, res) => {
         const userId = req.user.id;
         const { results, interval, fromDate, toDate, strategy } = req.body;
 
-        if (Array.isArray(results) && results.length > 0) {
-            console.log('[SaveBacktest] Received results:', JSON.stringify(results)); // Debug log
-            const records = results.map(r => {
-                const trades = parseInt((r['Total Trades'] || '0').toString().replace(/,/g, '')) || 0;
-                const pnl = parseFloat((r['Total P&L'] || '0').toString().replace(/,/g, '').replace(/₹/g, '')) || 0;
-                const winRate = parseFloat((r['Win Rate %'] || r['Win Rate'] || '0').toString().replace(/%/g, '')) || 0;
-                const symbol = r['Symbol'] || r['symbol'] || r['SYMBOL'] || (r.summary && r.summary.symbol) || 'Unknown';
-                const finalCap = parseFloat((r['Final Capital'] || '0').toString().replace(/,/g, '').replace(/₹/g, '')) || 0;
-
-                console.log(`[SaveBacktest] Processing: ${symbol}, PnL: ${pnl}`);
-
-                return {
-                    user_id: userId,
-                    strategy: strategy || 'ORB',
-                    interval: interval || '5',
-                    from_date: fromDate,
-                    to_date: toDate,
-                    trade_data: [r], // Store just this result
-                    summary: {
-                        totalTrades: trades,
-                        winRate: winRate,
-                        totalPnL: pnl,
-                        symbol: symbol,
-                        finalCapital: finalCap
-                    }
-                };
-            });
-
-            await BacktestResult.bulkCreate(records);
-            res.json({ status: 'success', message: `Saved ${records.length} results to history` });
-        } else {
-            res.status(400).json({ status: 'error', message: 'No results to save' });
+        if (!results || !Array.isArray(results) || results.length === 0) {
+            return res.status(400).json({ status: 'error', message: 'No results to save' });
         }
+
+        console.log(`[SaveBacktest] Saving ${results.length} results for User ${userId}`);
+
+        const records = results.map(r => {
+            // Robustly extract symbol
+            const symbol = r['Symbol'] || r['symbol'] || r['SYMBOL'] || (r.summary && r.summary.symbol) || 'Unknown';
+
+            // Helper to clean numeric strings (remove ₹, %, commas)
+            const parseVal = (v) => {
+                if (typeof v === 'number') return v;
+                if (typeof v === 'string') return parseFloat(v.replace(/,/g, '').replace(/₹/g, '').replace(/%/g, '')) || 0;
+                return 0;
+            };
+
+            const trades = parseInt(r['Total Trades'] || r['totalTrades']) || 0;
+            const pnl = parseVal(r['Total P&L'] || r['totalPnL']);
+            const winRate = parseVal(r['Win Rate %'] || r['Win Rate'] || r['winRate']);
+            const finalCap = parseVal(r['Final Capital'] || r['finalCapital']);
+
+            return {
+                user_id: userId,
+                strategy: strategy || 'ORB',
+                interval: interval || '5',
+                from_date: fromDate,
+                to_date: toDate,
+                trade_data: [r], // Store individual result data
+                summary: {
+                    symbol: symbol,
+                    totalTrades: trades,
+                    winRate: winRate,
+                    totalPnL: pnl,
+                    finalCapital: finalCap
+                }
+            };
+        });
+
+        // Insert separate records for each symbol
+        await BacktestResult.bulkCreate(records);
+
+        res.json({ status: 'success', message: `Saved ${records.length} results to history` });
 
     } catch (error) {
         console.error('Save Backtest Error:', error);
