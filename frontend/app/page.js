@@ -229,24 +229,6 @@ const TESTIMONIALS = [
   { name: "Natalie Martinez", role: "Director, Gamma", text: "From concept to execution, their creativity knows no bounds - a game-changer for our brand's success.", initials: "NM", img: "" },
 ];
 
-function TickerMarquee() {
-  return (
-    <div className="w-full border-y border-zinc-200 dark:border-white/5 py-3 overflow-hidden flex relative z-20 backdrop-blur-sm bg-white/50 dark:bg-black/50">
-      <div className="flex animate-marquee whitespace-nowrap gap-12 items-center">
-        {[...MOCK_TICKERS, ...MOCK_TICKERS, ...MOCK_TICKERS].map((t, i) => (
-          <div key={i} className="flex items-center gap-3 text-sm font-mono">
-            <span className="font-bold text-zinc-800 dark:text-white">{t.symbol}</span>
-            <span className="text-zinc-500 dark:text-zinc-400">{t.price}</span>
-            <span className={`${t.change.startsWith('+') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{t.change}</span>
-          </div>
-        ))}
-      </div>
-      <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-white dark:from-[#09090b] to-transparent pointer-events-none opacity-50"></div>
-      <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-white dark:from-[#09090b] to-transparent pointer-events-none opacity-50"></div>
-    </div>
-  );
-}
-
 function ProfileModal({ isOpen, onClose, user, addToast }) {
   const [activeTab, setActiveTab] = useState('security');
   const [profile, setProfile] = useState(null);
@@ -1122,67 +1104,6 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
   );
 }
 
-const MARKET_TICKER_DATA = [
-  { symbol: "NIFTY 50", price: "24,500.00", change: "+0.50%", isGainer: true },
-  { symbol: "BANKNIFTY", price: "52,100.00", change: "+0.80%", isGainer: true },
-  { symbol: "RELIANCE", price: "2,980.50", change: "+1.20%", isGainer: true },
-  { symbol: "HDFCBANK", price: "1,650.25", change: "-0.50%", isGainer: false },
-  { symbol: "INFY", price: "1,420.00", change: "+0.30%", isGainer: true },
-  { symbol: "TCS", price: "3,950.00", change: "-0.20%", isGainer: false },
-  { symbol: "ADANIENT", price: "3,100.00", change: "+2.50%", isGainer: true },
-  { symbol: "BAJFINANCE", price: "7,200.00", change: "+1.10%", isGainer: true },
-];
-
-function MarketTicker() {
-  const [tickerData, setTickerData] = useState(MARKET_TICKER_DATA);
-
-  useEffect(() => {
-    const fetchData = () => {
-      fetchJson('/market_data')
-        .then(res => {
-          if (Array.isArray(res) && res.length > 0) {
-            setTickerData(res);
-            console.log(`[MarketTicker] Updated Data. Source: ${res[0].source || 'Unknown'}`);
-          }
-        })
-        .catch(e => {
-          console.log("Ticker fetch failed, using fallback");
-          // Optional: Simulate random movement on fallback if backend fails
-        });
-    };
-
-    fetchData(); // Initial Fetch
-    const interval = setInterval(fetchData, 60000); // Poll every 60s
-    return () => clearInterval(interval);
-  }, []);
-
-  const isLive = tickerData[0]?.source === 'YAHOO_LIVE';
-
-  return (
-    <div className="w-full bg-zinc-50 dark:bg-[#09090b] border-y border-zinc-200 dark:border-zinc-800 py-3 overflow-hidden relative group">
-      {/* Data Source Indicator */}
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/80 backdrop-blur px-2 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 shadow-lg">
-        <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isLive ? 'text-emerald-500' : 'text-amber-500'}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-          {isLive ? 'LIVE DATA (Yahoo)' : 'SIMULATED'}
-        </div>
-      </div>
-      <div className="flex animate-marquee whitespace-nowrap gap-12 min-w-full hover:[animation-play-state:paused]">
-        {/* Duplicate array for seamless scrolling (requires 2 sets for -50% translation) */}
-        {[...tickerData, ...tickerData, ...tickerData, ...tickerData].map((item, i) => (
-          <div key={`${item.symbol}-${i}`} className="flex items-center gap-3 text-sm font-mono shrink-0">
-            <span className="font-bold text-zinc-900 dark:text-white">{item.symbol}</span>
-            <span className="text-zinc-600 dark:text-zinc-400">{item.price}</span>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${item.isGainer ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20' : 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20'}`}>
-              {item.isGainer ? '▲' : '▼'} {item.change}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function Landing({ onGetStarted }) {
   return (
     <div className="pt-16">
@@ -1255,7 +1176,6 @@ function Landing({ onGetStarted }) {
           </div>
         </div>
       </section>
-      <MarketTicker />
 
       {/* HOW IT WORKS SECTION */}
       <section className="py-24 bg-zinc-50 dark:bg-[#09090b] relative transition-colors duration-300">

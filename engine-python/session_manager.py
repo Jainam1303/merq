@@ -42,20 +42,8 @@ class TradingSession:
         # Symbol Token Mapping
         self.symbol_tokens = {}  # {symbol: token}
         
-        # Initialize Strategy
-        # Wrapper to allow strategy to log to our session logs
-        class StrategyLogger:
-            def __init__(self, session): self.session = session
-            def info(self, msg): self.session.log(msg, "STRAT")
-            def error(self, msg): self.session.log(msg, "ERROR")
-            def warning(self, msg): self.session.log(msg, "WARNING")
-        
-        self.strat_logger = StrategyLogger(self)
-        
-        if self.strategy_name == 'EMA':
-            self.strategy = LiveEMA(config, self.strat_logger, self.symbol_tokens)
-        else:
-             self.strategy = LiveORB(config, self.strat_logger, self.symbol_tokens)
+        # Strategy (initialized after symbol tokens are loaded)
+        self.strategy = None
         
         # Sync Throttle
         self.last_sync_time = 0
@@ -110,7 +98,20 @@ class TradingSession:
         # 2. Load Symbol Tokens
         self._load_symbol_tokens()
         
-        # 3. Strategy Initialization
+        # 3. Initialize Strategy (AFTER tokens are loaded)
+        class StrategyLogger:
+            def __init__(self, session): self.session = session
+            def info(self, msg): self.session.log(msg, "STRAT")
+            def error(self, msg): self.session.log(msg, "ERROR")
+            def warning(self, msg): self.session.log(msg, "WARNING")
+        
+        strat_logger = StrategyLogger(self)
+        
+        if self.strategy_name == 'EMA':
+            self.strategy = LiveEMA(self.config, strat_logger, self.symbol_tokens)
+        else:
+            self.strategy = LiveORB(self.config, strat_logger, self.symbol_tokens)
+        
         self.strategy.initialize(self.smartApi)
         
         # 4. Start WebSocket for Live Data
