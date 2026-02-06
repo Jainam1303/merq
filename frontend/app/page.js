@@ -2540,8 +2540,8 @@ export default function Home() {
       setProgress(100);
       await new Promise(r => setTimeout(r, 600)); // Show 100% briefly
       if (data.status === 'success') {
-        if (data.data.length === 0) setError("No trades found for the selected period and symbols.");
-        else setBacktestResults(data.data);
+        if (!data.results || data.results.length === 0) setError("No trades found for the selected period and symbols.");
+        else setBacktestResults(data.results);
       } else {
         setError(data.message || "Failed to fetch backtest data.");
       }
@@ -3227,13 +3227,14 @@ export default function Home() {
                                 method: 'POST',
                                 body: JSON.stringify({
                                   results: backtestResults,
+                                  strategy: selectedStrategy,
                                   interval: btInterval,
                                   fromDate,
                                   toDate
                                 })
                               });
                               if (res.status === 'success') {
-                                addToast(`✓ Saved ${res.saved} results to history!`, "success");
+                                addToast(`✓ ${res.message}`, "success");
                               }
                             } catch (err) {
                               addToast('Error saving: ' + err.message, "error");
