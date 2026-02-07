@@ -610,7 +610,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                             await loadRazorpayScript();
 
                                             // Step 2: Create Razorpay order
-                                            const orderData = await fetchJson('/razorpay/create_order', {
+                                            const orderData = await fetchJson('/create_order', {
                                                 method: 'POST',
                                                 body: JSON.stringify({ plan_id: planId })
                                             });
@@ -637,11 +637,11 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                                 theme: { color: '#3B82F6' },
                                                 handler: async function (response: any) {
                                                     try {
-                                                        const verifyResult = await fetchJson('/razorpay/verify_payment', {
+                                                        const verifyResult = await fetchJson('/verify_payment', {
                                                             method: 'POST',
                                                             body: JSON.stringify({
-                                                                razorpay_order_id: response.razorpay_order_id,
                                                                 razorpay_payment_id: response.razorpay_payment_id,
+                                                                razorpay_order_id: response.razorpay_order_id,
                                                                 razorpay_signature: response.razorpay_signature,
                                                                 plan_id: planId
                                                             })
