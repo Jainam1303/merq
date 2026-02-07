@@ -29,20 +29,26 @@ const FALLBACK_MARKET_DATA = [
 // Helper to get today's date IST
 function getTodayDateIST() {
     const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istOffset = 5.5 * 60 * 60 * 1000; // IST is UTC+5.5
     const istTime = new Date(now.getTime() + istOffset);
     return istTime.toISOString().split('T')[0];
 }
 
-// Helper to check if market closed (3:30 PM IST)
+// Helper to check if market closed
 function isMarketClosed() {
     const now = new Date();
     const istOffset = 5.5 * 60 * 60 * 1000;
     const istTime = new Date(now.getTime() + istOffset);
     const hour = istTime.getUTCHours();
     const minute = istTime.getUTCMinutes();
-    // Market closes at 15:30 (3:30 PM)
-    return (hour > 15) || (hour === 15 && minute >= 30);
+
+    // Market is closed if:
+    // 1. Before 09:15 AM
+    // 2. After 03:30 PM (15:30)
+    if (hour < 9 || (hour === 9 && minute < 15)) return true;
+    if (hour > 15 || (hour === 15 && minute >= 30)) return true;
+
+    return false; // Market is OPEN (09:15 - 15:30)
 }
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -57,16 +63,20 @@ router.get('/market-ticker', async (req, res) => {
             return res.json(cachedMarketData);
         }
 
-        // 2. Check if we need to start a background update
-        // (If market is closed AND we don't have today's data yet AND not already fetching)
-        if (isMarketClosed() && lastFetchDate !== today && !isFetching) {
-            console.log('Triggering background Alpha Vantage update...');
-            updateMarketDataInBackground(today);
+        // 2. Determine if we need to update
+        // a) Trigger if we have NO data at all (e.g. server restart)
+        // b) Trigger if Market is Closed AND cache is old (Next day update)
+        // c) Trigger if Market is OPEN but we have NO data (Should attempt fetch anyway)
+        const marketClosed = isMarketClosed();
+        const needsUpdate = !cachedMarketData || (marketClosed && lastFetchDate !== today);
+
+        if (needsUpdate && !isFetching) {
+            console.log(`Triggering background Alpha Vantage update (Cache: ${cachedMarketData ? 'Old' : 'Empty'}, Market Closed: ${marketClosed})...`);
+            // Wait 1ms so response returns immediately, then fetch starts
+            setTimeout(() => updateMarketDataInBackground(today), 1);
         }
 
         // 3. Return accepted data IMMEDIATELY (Do not wait for fetch)
-        // If we have yesterday's cache, return it. If nothing, return fallback.
-        // Frontend will get "stale" data for a few minutes while background update runs.
         console.log(`Returning immediate data (Source: ${cachedMarketData ? 'Cache (Previous)' : 'Fallback'})`);
         return res.json(cachedMarketData || FALLBACK_MARKET_DATA);
 
@@ -76,7 +86,7 @@ router.get('/market-ticker', async (req, res) => {
     }
 });
 
-// Background update function that handles the slow fetching
+// Background update function
 async function updateMarketDataInBackground(today) {
     if (isFetching) return;
     isFetching = true;
