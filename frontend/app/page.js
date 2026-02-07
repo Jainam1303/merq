@@ -211,18 +211,18 @@ const fetchJson = async (endpoint, options = {}) => {
 };
 
 const MARKET_DATA = [
-  { symbol: "NIFTY 50", price: "24,540.15", change: "+0.45%" },
-  { symbol: "BANKNIFTY", price: "52,150.60", change: "-0.12%" },
-  { symbol: "SENSEX", price: "80,430.90", change: "+0.35%" },
-  { symbol: "INDIA VIX", price: "12.85", change: "-1.50%" },
-  { symbol: "RELIANCE", price: "3,040.50", change: "+1.20%" },
-  { symbol: "HDFCBANK", price: "1,650.00", change: "+0.80%" },
-  { symbol: "TCS", price: "3,950.25", change: "-0.50%" },
-  { symbol: "INFY", price: "1,890.90", change: "+0.30%" },
-  { symbol: "ICICIBANK", price: "1,120.45", change: "+1.10%" },
-  { symbol: "SBIN", price: "840.30", change: "-0.25%" },
-  { symbol: "ADANIENT", price: "3,150.00", change: "+2.50%" },
-  { symbol: "TATAMOTORS", price: "980.15", change: "+1.40%" },
+  { symbol: "NIFTY 50", price: "23,559.95", change: "-0.18%" },
+  { symbol: "BANKNIFTY", price: "50,158.30", change: "-0.25%" },
+  { symbol: "SENSEX", price: "77,860.19", change: "-0.25%" },
+  { symbol: "RELIANCE", price: "1,243.40", change: "+0.45%" },
+  { symbol: "HDFCBANK", price: "1,649.70", change: "+0.32%" },
+  { symbol: "TCS", price: "3,891.50", change: "-0.38%" },
+  { symbol: "INFY", price: "1,820.20", change: "+0.55%" },
+  { symbol: "ICICIBANK", price: "1,206.10", change: "+0.69%" },
+  { symbol: "SBIN", price: "773.40", change: "-0.42%" },
+  { symbol: "ADANIENT", price: "2,226.40", change: "+0.38%" },
+  { symbol: "TATAMOTORS", price: "669.90", change: "-1.13%" },
+  { symbol: "ITC", price: "425.80", change: "+0.22%" }
 ];
 
 const TESTIMONIALS = [
