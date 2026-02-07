@@ -1161,62 +1161,6 @@ const MARKET_TICKER_DATA = [
   { symbol: "BAJFINANCE", price: "7,200.00", change: "+1.10%", isGainer: true },
 ];
 
-function MarketTicker() {
-  const [tickerData, setTickerData] = useState(MARKET_TICKER_DATA);
-
-  useEffect(() => {
-    const fetchData = () => {
-      fetch('/api/ticker')
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data) && data.length > 0) {
-            const formatted = data.map(d => ({
-              symbol: d.symbol,
-              price: d.price,
-              change: d.change,
-              isGainer: d.change.startsWith('+'),
-              source: 'YAHOO_LIVE'
-            }));
-            setTickerData(formatted);
-            console.log(`[MarketTicker] Updated Data. Source: LIVE_API`);
-          }
-        })
-        .catch(e => {
-          console.log("Ticker fetch failed, using fallback", e);
-        });
-    };
-
-    fetchData(); // Initial Fetch
-    const interval = setInterval(fetchData, 60000); // Poll every 60s
-    return () => clearInterval(interval);
-  }, []);
-
-  const isLive = tickerData[0]?.source === 'YAHOO_LIVE';
-
-  return (
-    <div className="w-full bg-zinc-50 dark:bg-[#09090b] border-y border-zinc-200 dark:border-zinc-800 py-3 overflow-hidden relative group">
-      {/* Data Source Indicator */}
-      <div className="absolute right-2 top-1/2 -translate-y-1/2 z-20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 dark:bg-black/80 backdrop-blur px-2 py-1 rounded-full border border-zinc-200 dark:border-zinc-800 shadow-lg">
-        <div className={`flex items-center gap-1.5 text-[10px] font-bold ${isLive ? 'text-emerald-500' : 'text-amber-500'}`}>
-          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-          {isLive ? 'LIVE DATA (Yahoo)' : 'SIMULATED'}
-        </div>
-      </div>
-      <div className="flex animate-marquee whitespace-nowrap gap-12 min-w-full hover:[animation-play-state:paused]">
-        {/* Duplicate array for seamless scrolling (requires 2 sets for -50% translation) */}
-        {[...tickerData, ...tickerData, ...tickerData, ...tickerData].map((item, i) => (
-          <div key={`${item.symbol}-${i}`} className="flex items-center gap-3 text-sm font-mono shrink-0">
-            <span className="font-bold text-zinc-900 dark:text-white">{item.symbol}</span>
-            <span className="text-zinc-600 dark:text-zinc-400">{item.price}</span>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 ${item.isGainer ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20' : 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/20'}`}>
-              {item.isGainer ? '▲' : '▼'} {item.change}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 
 function Landing({ onGetStarted }) {
