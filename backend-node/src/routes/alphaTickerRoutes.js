@@ -83,18 +83,21 @@ async function updateMarketDataInBackground(today) {
     console.log('🚀 Starting background fetch sequence...');
 
     const symbols = [
+        // Indices (Often hard to get on free APIs, might fall back)
         { avSymbol: 'NSE:NIFTY', name: 'NIFTY 50' },
         { avSymbol: 'NSE:BANKNIFTY', name: 'BANKNIFTY' },
         { avSymbol: 'BSE:SENSEX', name: 'SENSEX' },
-        { avSymbol: 'RELIANCE.BSE', name: 'RELIANCE' },
-        { avSymbol: 'HDFCBANK.BSE', name: 'HDFCBANK' },
-        { avSymbol: 'TCS.BSE', name: 'TCS' },
-        { avSymbol: 'INFY.BSE', name: 'INFY' },
-        { avSymbol: 'ICICIBANK.BSE', name: 'ICICIBANK' },
-        { avSymbol: 'SBIN.BSE', name: 'SBIN' },
-        { avSymbol: 'ADANIENT.BSE', name: 'ADANIENT' },
-        { avSymbol: 'TATAMOTORS.BSE', name: 'TATAMOTORS' },
-        { avSymbol: 'ITC.BSE', name: 'ITC' }
+
+        // Stocks (Switching to NSE .NS for better reliability)
+        { avSymbol: 'RELIANCE.NS', name: 'RELIANCE' },
+        { avSymbol: 'HDFCBANK.NS', name: 'HDFCBANK' },
+        { avSymbol: 'TCS.NS', name: 'TCS' },
+        { avSymbol: 'INFY.NS', name: 'INFY' },
+        { avSymbol: 'ICICIBANK.NS', name: 'ICICIBANK' },
+        { avSymbol: 'SBIN.NS', name: 'SBIN' },
+        { avSymbol: 'ADANIENT.NS', name: 'ADANIENT' },
+        { avSymbol: 'TATAMOTORS.NS', name: 'TATAMOTORS' },
+        { avSymbol: 'ITC.NS', name: 'ITC' }
     ];
 
     const results = [];
