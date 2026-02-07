@@ -19,6 +19,21 @@ import {
 import { MobileHeader } from './MobileHeader';
 import { fetchJson } from '@/lib/api';
 
+// Dynamic Razorpay script loading
+const loadRazorpayScript = async () => {
+    if (typeof window === 'undefined') return;
+    if ((window as any).Razorpay) return; // Already loaded
+
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onload = () => resolve(true);
+        script.onerror = () => reject(new Error('Failed to load Razorpay'));
+        document.body.appendChild(script);
+    });
+};
+
 interface Position {
     id: string;
     symbol: string;
@@ -591,20 +606,68 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                     currentPlan={profile?.plan || null}
                                     onSubscribe={async (planId) => {
                                         try {
-                                            const result = await fetchJson('/subscribe', {
+                                            // Step 1: Load Razorpay script
+                                            await loadRazorpayScript();
+
+                                            // Step 2: Create Razorpay order
+                                            const orderData = await fetchJson('/razorpay/create_order', {
                                                 method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify({ plan_id: planId })
                                             });
-                                            if (result.status === 'success') {
-                                                toast.success('Subscription initiated!');
-                                                const profileData = await fetchJson('/get_profile');
-                                                setProfile(profileData);
-                                            } else {
-                                                toast.error(result.message || 'Subscription failed');
+
+                                            if (orderData.status !== 'success') {
+                                                toast.error(orderData.message || 'Failed to create order');
+                                                return;
                                             }
-                                        } catch (err) {
-                                            toast.error('Failed to subscribe');
+
+                                            // Step 3: Configure Razorpay
+                                            const options = {
+                                                key: orderData.key_id,
+                                                amount: orderData.amount,
+                                                currency: orderData.currency,
+                                                name: 'MerQPrime',
+                                                description: `${orderData.plan.name} Plan`,
+                                                image: 'https://i.imgur.com/n5tjHFD.png',
+                                                order_id: orderData.order_id,
+                                                prefill: {
+                                                    name: orderData.user.name,
+                                                    email: orderData.user.email,
+                                                    contact: orderData.user.phone
+                                                },
+                                                theme: { color: '#3B82F6' },
+                                                handler: async function (response: any) {
+                                                    try {
+                                                        const verifyResult = await fetchJson('/razorpay/verify_payment', {
+                                                            method: 'POST',
+                                                            body: JSON.stringify({
+                                                                razorpay_order_id: response.razorpay_order_id,
+                                                                razorpay_payment_id: response.razorpay_payment_id,
+                                                                razorpay_signature: response.razorpay_signature,
+                                                                plan_id: planId
+                                                            })
+                                                        });
+
+                                                        if (verifyResult.status === 'success') {
+                                                            toast.success('Payment successful!');
+                                                            const profileData = await fetchJson('/get_profile');
+                                                            setProfile(profileData);
+                                                            setShowPlans(false);
+                                                        } else {
+                                                            toast.error(verifyResult.message || 'Payment verification failed');
+                                                        }
+                                                    } catch (verifyError: any) {
+                                                        toast.error('Payment verification failed: ' + verifyError.message);
+                                                    }
+                                                }
+                                            };
+
+                                            const razorpay = new (window as any).Razorpay(options);
+                                            razorpay.on('payment.failed', function (response: any) {
+                                                toast.error(`Payment failed: ${response.error.description}`);
+                                            });
+                                            razorpay.open();
+                                        } catch (err: any) {
+                                            toast.error(err.message || 'Failed to initiate payment');
                                         }
                                     }}
                                 />

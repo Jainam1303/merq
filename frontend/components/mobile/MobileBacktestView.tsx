@@ -142,6 +142,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [capital, setCapital] = useState('100000');
+    const [interval, setInterval] = useState('15');
     const [isRunning, setIsRunning] = useState(false);
     const [results, setResults] = useState<any[]>([]);
 
@@ -173,7 +174,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
             const payload = {
                 strategy: selectedStrategy,
                 symbols: symbols,
-                interval: "15", // Default to 15m for mobile simplification or add selector
+                interval: interval,
                 startDate: startDate,
                 endDate: endDate,
                 capital: capital
@@ -206,7 +207,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                 body: JSON.stringify({
                     results: results,
                     strategy: selectedStrategy,
-                    interval: '15',
+                    interval: interval,
                     fromDate: startDate,
                     toDate: endDate
                 })
@@ -263,6 +264,32 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                     {/* Strategy Description */}
                     <div className="mt-2 text-xs text-zinc-500 px-1">
                         {strategies.find(s => s.value === selectedStrategy)?.description}
+                    </div>
+                </div>
+
+                {/* Timeframe Selection */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Timeframe</label>
+                    <div className="grid grid-cols-4 gap-2">
+                        {[
+                            { label: '5m', value: '5' },
+                            { label: '15m', value: '15' },
+                            { label: '30m', value: '30' },
+                            { label: '1h', value: '60' },
+                        ].map((tf) => (
+                            <button
+                                key={tf.value}
+                                onClick={() => setInterval(tf.value)}
+                                className={cn(
+                                    "py-2 rounded-lg text-sm font-medium transition-all active:scale-95",
+                                    interval === tf.value
+                                        ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25"
+                                        : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                )}
+                            >
+                                {tf.label}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
