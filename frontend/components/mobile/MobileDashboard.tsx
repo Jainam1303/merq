@@ -84,6 +84,11 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
     const [plans, setPlans] = useState<any[]>([]);
     const [profile, setProfile] = useState<any>(null);
 
+    const [currentMode, setCurrentMode] = useState<'PAPER' | 'LIVE'>(tradingMode);
+    const [showOrderBook, setShowOrderBook] = useState(false);
+    const [showPlans, setShowPlans] = useState(false);
+    const [showProfileSettings, setShowProfileSettings] = useState(false);
+
     const socketRef = useRef<Socket | null>(null);
 
     // Notify parent of status changes
@@ -119,12 +124,6 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                     setPositions(mapBackendTrades(tradesData.data));
                 }
 
-                // Get order book
-                const orderBookData = await fetchJson('/orderbook?simulated=false');
-                if (orderBookData.status === 'success') {
-                    setOrderBook(orderBookData.data);
-                }
-
                 // Get plans
                 const plansData = await fetchJson('/plans');
                 setPlans(plansData);
@@ -135,7 +134,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
 
         fetchData();
 
-        // Polling for status and logs
+        // Polling for status, logs, and orderbook
         const pollInterval = setInterval(async () => {
             try {
                 const statusData = await fetchJson('/status');
@@ -149,11 +148,36 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                     .slice(0, 50)
                     .map((l: string, i: number) => parseLogLine(l, i));
                 setLogs(parsedLogs);
+
+                // Poll Orderbook only if we are viewing the relevant tabs
+                if (activeTab === 'analytics' || showOrderBook || activeTab === 'status') {
+                    const isSimulated = currentMode === 'PAPER';
+                    const orderBookRes = await fetchJson(`/orderbook?simulated=${isSimulated}`);
+                    if (orderBookRes.status === 'success') {
+                        setOrderBook(orderBookRes.data);
+                    }
+                }
             } catch (e) { }
         }, 3000);
 
         return () => clearInterval(pollInterval);
-    }, [isLoading]);
+    }, [isLoading, activeTab, currentMode, showOrderBook]);
+
+    // Fetch orderbook when mode changes
+    useEffect(() => {
+        const fetchOrderBook = async () => {
+            try {
+                const isSimulated = currentMode === 'PAPER';
+                const res = await fetchJson(`/orderbook?simulated=${isSimulated}`);
+                if (res.status === 'success') {
+                    setOrderBook(res.data);
+                }
+            } catch (e) {
+                console.error("Failed to fetch orderbook", e);
+            }
+        };
+        fetchOrderBook();
+    }, [currentMode]);
 
     // Socket connection for real-time updates
     useEffect(() => {
@@ -369,6 +393,23 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
 
     const totalPnl = positions.reduce((sum, p) => sum + p.pnl, 0);
 
+    const analyticsData = React.useMemo(() => {
+        const filledOrders = orderBook.filter(o => o.status === 'filled');
+        const totalTrades = filledOrders.length;
+        const totalPnl = filledOrders.reduce((sum, o) => sum + (Number(o.pnl) || 0), 0);
+        const profitableTrades = filledOrders.filter(o => (Number(o.pnl) || 0) > 0).length;
+        const losingTrades = filledOrders.filter(o => (Number(o.pnl) || 0) < 0).length;
+        const winRate = totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0;
+
+        return {
+            pnl: totalPnl,
+            winRate,
+            totalTrades,
+            profitableTrades,
+            losingTrades
+        };
+    }, [orderBook]);
+
     // Render active tab content
     const renderContent = () => {
         switch (activeTab) {
@@ -408,16 +449,26 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
             case 'analytics':
                 return (
                     <MobileAnalyticsView
-                        pnl={pnl}
-                        winRate={0}
-                        totalTrades={positions.length}
-                        profitableTrades={positions.filter(p => p.pnl > 0).length}
-                        losingTrades={positions.filter(p => p.pnl < 0).length}
+                        pnl={analyticsData.pnl}
+                        winRate={analyticsData.winRate}
+                        totalTrades={analyticsData.totalTrades}
+                        profitableTrades={analyticsData.profitableTrades}
+                        losingTrades={analyticsData.losingTrades}
                     />
                 );
             default:
                 return null;
         }
+    };
+
+    const handleToggleTradingMode = () => {
+        if (isSystemActive) {
+            toast.error("Stop the bot before changing mode");
+            return;
+        }
+        const newMode = currentMode === 'PAPER' ? 'LIVE' : 'PAPER';
+        setCurrentMode(newMode);
+        toast.success(`Switched to ${newMode} mode`);
     };
 
     const handleLogout = async () => {
@@ -430,21 +481,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         }
     };
 
-    const [currentMode, setCurrentMode] = useState<'PAPER' | 'LIVE'>(tradingMode);
 
-    const handleToggleTradingMode = () => {
-        if (isSystemActive) {
-            toast.error("Stop the bot before changing mode");
-            return;
-        }
-        const newMode = currentMode === 'PAPER' ? 'LIVE' : 'PAPER';
-        setCurrentMode(newMode);
-        toast.success(`Switched to ${newMode} mode`);
-    };
-
-    const [showOrderBook, setShowOrderBook] = useState(false);
-    const [showPlans, setShowPlans] = useState(false);
-    const [showProfileSettings, setShowProfileSettings] = useState(false);
 
     return (
         <div className="md:hidden min-h-screen bg-zinc-50 dark:bg-zinc-950">

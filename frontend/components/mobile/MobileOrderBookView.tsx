@@ -207,9 +207,9 @@ export function MobileOrderBookView({
                                     </div>
                                     <span className={cn(
                                         "text-sm font-bold font-mono",
-                                        (order.pnl || 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                                        (Number(order.pnl) || 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                                     )}>
-                                        {(order.pnl || 0) >= 0 ? '+' : ''}{(order.pnl || 0).toFixed(2)}
+                                        {(Number(order.pnl) || 0) >= 0 ? '+' : ''}{(Number(order.pnl) || 0).toFixed(2)}
                                     </span>
                                 </div>
 
