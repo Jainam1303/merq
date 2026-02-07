@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const yahooFinance = require('yahoo-finance2').default;
 
 // Cache for storing closing prices
 let cachedClosingData = null;
@@ -71,30 +72,34 @@ router.get('/yahoo-ticker', async (req, res) => {
             'ITC.NS'
         ];
 
-        // Fetch data from Yahoo Finance API
-        const yahooFinanceUrl = 'https://query1.finance.yahoo.com/v7/finance/quote';
-        const symbolsParam = symbols.join(',');
+        // Fetch quotes using yahoo-finance2
+        const quotes = await yahooFinance.quote(symbols);
 
-        const response = await fetch(`${yahooFinanceUrl}?symbols=${symbolsParam}`);
-        const data = await response.json();
-
-        if (!data.quoteResponse || !data.quoteResponse.result) {
+        if (!quotes || (Array.isArray(quotes) && quotes.length === 0)) {
             // Return cached data if API fails
             if (cachedClosingData) {
+                console.log('API returned empty, using cached data');
                 return res.json(cachedClosingData);
             }
             return res.json([]);
         }
 
+        // Handle both single quote and array of quotes
+        const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
+
         // Transform Yahoo Finance data to our format using CLOSING prices
-        const tickerData = data.quoteResponse.result.map(quote => {
-            // Use previousClose for the closing price of last trading day
+        const tickerData = quotesArray.map(quote => {
+            // Use regularMarketPreviousClose for the closing price of last trading day
             const closePrice = quote.regularMarketPreviousClose || quote.previousClose || 0;
 
-            // Calculate change from day before
-            const open = quote.regularMarketOpen || closePrice;
-            const changeValue = closePrice - open;
-            const changePercent = open !== 0 ? (changeValue / open) * 100 : 0;
+            // Get the change percentage
+            let changePercent = 0;
+            if (quote.regularMarketChangePercent !== undefined) {
+                changePercent = quote.regularMarketChangePercent;
+            } else if (quote.regularMarketPrice && quote.regularMarketPreviousClose) {
+                const changeValue = quote.regularMarketPrice - quote.regularMarketPreviousClose;
+                changePercent = (changeValue / quote.regularMarketPreviousClose) * 100;
+            }
 
             // Clean up symbol names for display
             let displaySymbol = quote.symbol;
@@ -115,14 +120,16 @@ router.get('/yahoo-ticker', async (req, res) => {
         cachedClosingData = tickerData;
         lastFetchDate = today;
 
-        console.log(`Cached closing prices for ${tickerData.length} symbols`);
+        console.log(`✅ Cached closing prices for ${tickerData.length} symbols`);
+        console.log('Sample data:', tickerData.slice(0, 2)); // Log first 2 for verification
+
         res.json(tickerData);
 
     } catch (error) {
-        console.error('Yahoo Finance API Error:', error);
+        console.error('❌ Yahoo Finance API Error:', error.message);
         // Return cached data if available, otherwise empty array
         if (cachedClosingData) {
-            console.log('API error, returning cached data');
+            console.log('Error occurred, returning cached data');
             return res.json(cachedClosingData);
         }
         res.json([]);
