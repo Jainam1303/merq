@@ -199,7 +199,8 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         let socket: Socket | null = null;
 
         if (isSystemActive) {
-            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
+            // Use relative path by default to leverage Next.js proxy
+            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || undefined;
             socket = io(socketUrl, {
                 path: '/socket.io',
                 withCredentials: true,

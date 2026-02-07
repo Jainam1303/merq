@@ -1291,7 +1291,7 @@ function Landing({ onGetStarted }) {
           </div>
         </div>
       </section>
-      <MarketTicker />
+      {/* <MarketTicker /> */}
 
       {/* HOW IT WORKS SECTION */}
       <section className="py-24 bg-zinc-50 dark:bg-[#09090b] relative transition-colors duration-300">
@@ -2641,7 +2641,8 @@ export default function Home() {
     if (user && status === 'RUNNING' && (activeTab === 'live' || (currentPage === 'dashboard' && activeTab === 'dashboard'))) {
       console.log('[SOCKET] Connecting to Socket.IO (Algo Running)...');
       // Connect directly to Backend URL (Vercel cannot proxy WebSockets properly)
-      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
+      // Use relative path by default to leverage Next.js proxy. Only use env var if explicitly set.
+      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || undefined;
       socket = io(socketUrl, {
         path: '/socket.io',
         withCredentials: true,
