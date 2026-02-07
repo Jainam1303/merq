@@ -612,14 +612,28 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                             // Step 1: Load Razorpay script
                                             await loadRazorpayScript();
 
-                                            // Step 2: Create Razorpay order
-                                            const orderData = await fetchJson('/create_order', {
-                                                method: 'POST',
-                                                body: JSON.stringify({ plan_id: planId })
-                                            });
+                                            // Step 2: Create Razorpay order (Try both endpoints)
+                                            let orderData;
+                                            try {
+                                                // Try desktop endpoint first
+                                                orderData = await fetchJson('/razorpay/create_order', {
+                                                    method: 'POST',
+                                                    body: JSON.stringify({ plan_id: planId })
+                                                });
+                                            } catch (e: any) {
+                                                console.warn("Primary creating order failed, trying fallback...", e);
+                                                try {
+                                                    orderData = await fetchJson('/create_order', {
+                                                        method: 'POST',
+                                                        body: JSON.stringify({ plan_id: planId })
+                                                    });
+                                                } catch (e2: any) {
+                                                    throw new Error("Could not create payment order. Please try again.");
+                                                }
+                                            }
 
-                                            if (orderData.status !== 'success') {
-                                                toast.error(orderData.message || 'Failed to create order');
+                                            if (!orderData || orderData.status !== 'success') {
+                                                toast.error(orderData?.message || 'Failed to create order');
                                                 return;
                                             }
 
@@ -666,6 +680,37 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                                 toast.error(`Payment failed: ${response.error.description}`);
                                             });
                                             razorpay.open();
+
+                                            // Step 4: Fix UI Responsiveness (Hack for Mobile)
+                                            const fixRazorpaySize = () => {
+                                                const container = document.querySelector('.razorpay-container') as HTMLElement;
+                                                const frame = document.querySelector('.razorpay-checkout-frame') as HTMLElement;
+
+                                                if (container) {
+                                                    container.style.setProperty('z-index', '2147483647', 'important');
+                                                    container.style.setProperty('position', 'fixed', 'important');
+                                                    container.style.setProperty('top', '50%', 'important');
+                                                    container.style.setProperty('left', '50%', 'important');
+                                                    container.style.setProperty('transform', 'translate(-50%, -50%)', 'important');
+                                                    container.style.setProperty('width', '100%', 'important'); // Mobile friendly
+                                                    container.style.setProperty('height', '100%', 'important'); // Mobile friendly
+                                                    container.style.setProperty('max-width', '100vw', 'important');
+                                                    container.style.setProperty('max-height', '100vh', 'important');
+                                                }
+                                                if (frame) {
+                                                    frame.style.setProperty('width', '100%', 'important');
+                                                    frame.style.setProperty('height', '100%', 'important');
+                                                }
+                                                return !!container;
+                                            };
+
+                                            const styleInterval = setInterval(() => {
+                                                if (fixRazorpaySize()) {
+                                                    // Keep enforcing for a bit
+                                                }
+                                            }, 100);
+                                            setTimeout(() => clearInterval(styleInterval), 5000);
+
                                         } catch (err: any) {
                                             console.error("Payment Error:", err);
                                             toast.error(err.message || 'Failed to initiate payment');
