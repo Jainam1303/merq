@@ -5,13 +5,12 @@ const axios = require('axios');
 // Alpha Vantage API Key
 const API_KEY = 'SKBOU9NSNZ7YEDZQ';
 
-// Cache for storing closing prices (File-based would be better for restarts, but memory is fine for now if server stable)
+// Cache for storing closing prices
 let cachedMarketData = null;
 let lastFetchDate = null;
 let isFetching = false;
 
 // ACTUAL FALLBACK DATA (Updated Feb 7 2026 - Real Market Closing Prices)
-// Source: NSE India, Investing.com
 const FALLBACK_MARKET_DATA = [
     { symbol: "NIFTY 50", price: "23,559.95", change: "-0.18%" },
     { symbol: "BANKNIFTY", price: "50,158.30", change: "-0.25%" },
@@ -46,111 +45,104 @@ function isMarketClosed() {
     return (hour > 15) || (hour === 15 && minute >= 30);
 }
 
-// Helper for delay to avoid API rate limits (5 calls/min limit on free tier)
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 router.get('/market-ticker', async (req, res) => {
     try {
         const today = getTodayDateIST();
 
-        // Return cached data if valid for today and already fetched
+        // 1. Check if we have valid cached data for today
         if (cachedMarketData && lastFetchDate === today) {
             console.log('Returning cached market data for:', today);
             return res.json(cachedMarketData);
         }
 
-        // Return fallback immediately if already fetching to avoid duplicate calls
-        if (isFetching) {
-            console.log('Fetch in progress, returning current/fallback data');
-            return res.json(cachedMarketData || FALLBACK_MARKET_DATA);
+        // 2. Check if we need to start a background update
+        // (If market is closed AND we don't have today's data yet AND not already fetching)
+        if (isMarketClosed() && lastFetchDate !== today && !isFetching) {
+            console.log('Triggering background Alpha Vantage update...');
+            updateMarketDataInBackground(today);
         }
 
-        // Only fetch if market is closed OR if we haven't fetched at all today
-        // And ensure we don't exceed rate limits (25 requests/day)
-        if (!isMarketClosed() && cachedMarketData) {
-            console.log('Market open, returning cached previous close data');
-            return res.json(cachedMarketData);
-        }
-
-        console.log('Starting Alpha Vantage fetch sequence...');
-        isFetching = true;
-
-        const symbols = [
-            { avSymbol: 'NSE:NIFTY', name: 'NIFTY 50' },        // Note: AV symbols vary, trying common ones
-            { avSymbol: 'NSE:BANKNIFTY', name: 'BANKNIFTY' },
-            { avSymbol: 'BSE:SENSEX', name: 'SENSEX' },
-            { avSymbol: 'RELIANCE.BSE', name: 'RELIANCE' },
-            { avSymbol: 'HDFCBANK.BSE', name: 'HDFCBANK' },
-            { avSymbol: 'TCS.BSE', name: 'TCS' },
-            { avSymbol: 'INFY.BSE', name: 'INFY' },
-            { avSymbol: 'ICICIBANK.BSE', name: 'ICICIBANK' },
-            { avSymbol: 'SBIN.BSE', name: 'SBIN' },
-            { avSymbol: 'ADANIENT.BSE', name: 'ADANIENT' },
-            { avSymbol: 'TATAMOTORS.BSE', name: 'TATAMOTORS' },
-            { avSymbol: 'ITC.BSE', name: 'ITC' }
-        ];
-
-        const results = [];
-
-        // Process symbols sequentially with delay to respect rate limits
-        for (const sym of symbols) {
-            try {
-                // Check cache first? No, we need fresh data.
-
-                const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym.avSymbol}&apikey=${API_KEY}`;
-                console.log(`Fetching ${sym.name} from Alpha Vantage...`);
-
-                const response = await axios.get(url);
-                const data = response.data['Global Quote'];
-
-                if (data && data['05. price']) {
-                    const price = parseFloat(data['05. price']);
-                    const prevClose = parseFloat(data['08. previous close']);
-                    const changePercent = data['10. change percent'] || '0%';
-
-                    results.push({
-                        symbol: sym.name,
-                        price: price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                        change: changePercent.replace('%', '') + '%', // Ensure format
-                        lastUpdated: today,
-                        source: 'alpha_vantage'
-                    });
-                } else {
-                    console.log(`No data for ${sym.name}, using fallback`);
-                    // Use fallback
-                    const fallback = FALLBACK_MARKET_DATA.find(f => f.symbol === sym.name);
-                    if (fallback) results.push({ ...fallback, lastUpdated: today, source: 'fallback' });
-                }
-
-                // Respect rate limit: 5 requests per minute = 1 request every 12 seconds
-                // We'll be safe with 15 seconds
-                await delay(15000);
-
-            } catch (err) {
-                console.error(`Error fetching ${sym.name}:`, err.message);
-                const fallback = FALLBACK_MARKET_DATA.find(f => f.symbol === sym.name);
-                if (fallback) results.push({ ...fallback, lastUpdated: today, source: 'error_fallback' });
-            }
-        }
-
-        isFetching = false;
-
-        if (results.length > 0) {
-            cachedMarketData = results;
-            lastFetchDate = today;
-            console.log(`✅ Successfully updated market data (${results.length} symbols)`);
-            return res.json(results);
-        }
-
-        // If everything failed
-        console.log('⚠️ All fetches failed, returning fallback');
-        res.json(FALLBACK_MARKET_DATA);
+        // 3. Return accepted data IMMEDIATELY (Do not wait for fetch)
+        // If we have yesterday's cache, return it. If nothing, return fallback.
+        // Frontend will get "stale" data for a few minutes while background update runs.
+        console.log(`Returning immediate data (Source: ${cachedMarketData ? 'Cache (Previous)' : 'Fallback'})`);
+        return res.json(cachedMarketData || FALLBACK_MARKET_DATA);
 
     } catch (error) {
-        isFetching = false;
         console.error('❌ Market Ticker Route Error:', error.message);
         res.json(cachedMarketData || FALLBACK_MARKET_DATA);
     }
 });
+
+// Background update function that handles the slow fetching
+async function updateMarketDataInBackground(today) {
+    if (isFetching) return;
+    isFetching = true;
+    console.log('🚀 Starting background fetch sequence...');
+
+    const symbols = [
+        { avSymbol: 'NSE:NIFTY', name: 'NIFTY 50' },
+        { avSymbol: 'NSE:BANKNIFTY', name: 'BANKNIFTY' },
+        { avSymbol: 'BSE:SENSEX', name: 'SENSEX' },
+        { avSymbol: 'RELIANCE.BSE', name: 'RELIANCE' },
+        { avSymbol: 'HDFCBANK.BSE', name: 'HDFCBANK' },
+        { avSymbol: 'TCS.BSE', name: 'TCS' },
+        { avSymbol: 'INFY.BSE', name: 'INFY' },
+        { avSymbol: 'ICICIBANK.BSE', name: 'ICICIBANK' },
+        { avSymbol: 'SBIN.BSE', name: 'SBIN' },
+        { avSymbol: 'ADANIENT.BSE', name: 'ADANIENT' },
+        { avSymbol: 'TATAMOTORS.BSE', name: 'TATAMOTORS' },
+        { avSymbol: 'ITC.BSE', name: 'ITC' }
+    ];
+
+    const results = [];
+
+    for (const sym of symbols) {
+        try {
+            const url = `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${sym.avSymbol}&apikey=${API_KEY}`;
+            console.log(`Background: Fetching ${sym.name}...`);
+
+            const response = await axios.get(url);
+            const data = response.data['Global Quote'];
+
+            if (data && data['05. price']) {
+                const price = parseFloat(data['05. price']);
+                const changePercent = data['10. change percent'] || '0%';
+
+                results.push({
+                    symbol: sym.name,
+                    price: price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                    change: changePercent.replace('%', '') + '%',
+                    lastUpdated: today,
+                    source: 'alpha_vantage'
+                });
+            } else {
+                console.log(`Background: No data for ${sym.name}, using fallback`);
+                const fallback = FALLBACK_MARKET_DATA.find(f => f.symbol === sym.name);
+                if (fallback) results.push({ ...fallback, lastUpdated: today, source: 'fallback' });
+            }
+
+            // Respect rate limit: 15s delay
+            await delay(15000);
+
+        } catch (err) {
+            console.error(`Background: Error fetching ${sym.name}:`, err.message);
+            const fallback = FALLBACK_MARKET_DATA.find(f => f.symbol === sym.name);
+            if (fallback) results.push({ ...fallback, lastUpdated: today, source: 'error_fallback' });
+        }
+    }
+
+    isFetching = false;
+
+    if (results.length > 0) {
+        cachedMarketData = results;
+        lastFetchDate = today;
+        console.log(`✅ Background update complete (${results.length} symbols updated)`);
+    } else {
+        console.log('⚠️ Background update failed, keeping previous data');
+    }
+}
 
 module.exports = router;
