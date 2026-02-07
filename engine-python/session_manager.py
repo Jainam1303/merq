@@ -307,9 +307,25 @@ class TradingSession:
 
 
 
+    def _is_market_hours(self):
+        """Check if current time is within market hours (9:15 AM - 3:30 PM IST)"""
+        ist_now = self._get_ist_time()
+        current_time = ist_now.time()
+        market_open = datetime.time(9, 15)
+        market_close = datetime.time(15, 30)
+        return market_open <= current_time <= market_close
+
     def _start_websocket(self):
         """Initialize and connect Angel One WebSocket for live data"""
         try:
+            # Check if market is open
+            if not self._is_market_hours():
+                self.log("⏸️ Market is CLOSED. Engine running in STANDBY mode.", "WARNING")
+                self.log("Engine will remain active. No trades will be taken outside market hours.", "INFO")
+                # Run standby loop instead of WebSocket
+                self._run_standby_loop()
+                return
+            
             api_key = self.credentials.get('apiKey')
             client_code = self.credentials.get('clientCode')
             
@@ -334,9 +350,21 @@ class TradingSession:
             
         except Exception as e:
             self.log(f"WebSocket Init Error: {e}", "ERROR")
-            # Fallback to polling if WebSocket fails
-            self.log("Falling back to polling mode", "WARNING")
-            self._run_polling_loop()
+            # Fallback to standby if WebSocket fails
+            self.log("Falling back to standby mode", "WARNING")
+            self._run_standby_loop()
+    
+    def _run_standby_loop(self):
+        """Keep engine alive in standby mode when market is closed"""
+        self.log("🔄 Standby mode active. Waiting for market hours...", "INFO")
+        while self.active and not self.stop_event.is_set():
+            # Check every 30 seconds if market opened
+            if self._is_market_hours():
+                self.log("🔔 Market is now OPEN! Connecting WebSocket...", "SUCCESS")
+                self._start_websocket()
+                return
+            # Just keep alive, no data fetching
+            self.stop_event.wait(30)
 
     def _on_ws_open(self, wsapp):
         """Called when WebSocket connects - subscribe to symbols"""
