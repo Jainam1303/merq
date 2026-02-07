@@ -239,17 +239,34 @@ const TESTIMONIALS = [
 
 function TickerMarquee() {
   const [tickers, setTickers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Optional: Fetch live data if available
-    fetch('/api/ticker')
-      .then(res => res.json())
-      .then(data => {
+    // Fetch live Yahoo Finance data
+    const fetchYahooData = async () => {
+      try {
+        const res = await fetch('/api/yahoo-ticker');
+        const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {
           setTickers(data);
+          setLoading(false);
+        } else {
+          // Use fallback data if API returns empty
+          setLoading(false);
         }
-      })
-      .catch(err => { });
+      } catch (err) {
+        console.log('Using fallback market data');
+        setLoading(false);
+      }
+    };
+
+    // Initial fetch
+    fetchYahooData();
+
+    // Refresh every 60 seconds for live updates
+    const interval = setInterval(fetchYahooData, 60000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const displayData = tickers.length > 0 ? tickers : MARKET_DATA;
