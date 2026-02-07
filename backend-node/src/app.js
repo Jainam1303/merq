@@ -130,7 +130,8 @@ app.get('/check_auth', (req, res) => {
     });
 });
 
-app.get('/status', (req, res) => {
+// Auth status endpoint - renamed to avoid conflict with trading /status
+app.get('/auth/status', (req, res) => {
     const token = req.cookies.token;
     if (!token) return res.json({ status: 'offline', authenticated: false });
 
