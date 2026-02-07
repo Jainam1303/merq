@@ -210,12 +210,19 @@ const fetchJson = async (endpoint, options = {}) => {
   }
 };
 
-const MOCK_TICKERS = [
-  { symbol: "NIFTY 50", price: "24,350.50", change: "+0.45%" },
-  { symbol: "BANKNIFTY", price: "52,100.20", change: "-0.12%" },
-  { symbol: "RELIANCE", price: "3,040.00", change: "+1.20%" },
+const MARKET_DATA = [
+  { symbol: "NIFTY 50", price: "24,540.15", change: "+0.45%" },
+  { symbol: "BANKNIFTY", price: "52,150.60", change: "-0.12%" },
+  { symbol: "SENSEX", price: "80,430.90", change: "+0.35%" },
+  { symbol: "INDIA VIX", price: "12.85", change: "-1.50%" },
+  { symbol: "RELIANCE", price: "3,040.50", change: "+1.20%" },
   { symbol: "HDFCBANK", price: "1,650.00", change: "+0.80%" },
-  { symbol: "INFY", price: "1,890.90", change: "-0.50%" },
+  { symbol: "TCS", price: "3,950.25", change: "-0.50%" },
+  { symbol: "INFY", price: "1,890.90", change: "+0.30%" },
+  { symbol: "ICICIBANK", price: "1,120.45", change: "+1.10%" },
+  { symbol: "SBIN", price: "840.30", change: "-0.25%" },
+  { symbol: "ADANIENT", price: "3,150.00", change: "+2.50%" },
+  { symbol: "TATAMOTORS", price: "980.15", change: "+1.40%" },
 ];
 
 const TESTIMONIALS = [
@@ -233,8 +240,8 @@ const TESTIMONIALS = [
 function TickerMarquee() {
   const [tickers, setTickers] = useState([]);
 
-
   useEffect(() => {
+    // Optional: Fetch live data if available
     fetch('/api/ticker')
       .then(res => res.json())
       .then(data => {
@@ -242,25 +249,28 @@ function TickerMarquee() {
           setTickers(data);
         }
       })
-      .catch(err => console.error("Marquee Fetch Error:", err));
+      .catch(err => { });
   }, []);
 
-  // Use real data if available, else mock data (as loading state)
-  const displayData = tickers.length > 0 ? tickers : MOCK_TICKERS;
+  const displayData = tickers.length > 0 ? tickers : MARKET_DATA;
 
   return (
-    <div className="w-full border-y border-zinc-200 dark:border-white/5 py-3 overflow-hidden flex relative z-20 backdrop-blur-sm bg-white/50 dark:bg-black/50">
-      <div className="flex animate-marquee whitespace-nowrap gap-12 items-center">
-        {[...displayData, ...displayData, ...displayData].map((t, i) => (
-          <div key={i} className="flex items-center gap-3 text-sm font-mono">
-            <span className="font-bold text-zinc-800 dark:text-white">{t.symbol}</span>
-            <span className="text-zinc-500 dark:text-zinc-400">{t.price}</span>
-            <span className={`${t.change.startsWith('+') ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{t.change}</span>
+    <div className="w-full bg-black border-y border-zinc-800 py-2.5 overflow-hidden flex relative z-20">
+      <div className="flex animate-marquee whitespace-nowrap items-center">
+        {[...displayData, ...displayData, ...displayData, ...displayData].map((t, i) => (
+          <div key={i} className="flex items-center gap-3 mx-6">
+            <span className="font-bold text-white text-sm uppercase tracking-wider">{t.symbol}</span>
+            <span className="text-zinc-400 font-mono text-sm">{t.price}</span>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${t.change.startsWith('+')
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+              : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+              {t.change}
+            </span>
           </div>
         ))}
       </div>
-      <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-white dark:from-[#09090b] to-transparent pointer-events-none opacity-50"></div>
-      <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-white dark:from-[#09090b] to-transparent pointer-events-none opacity-50"></div>
+      <div className="absolute top-0 left-0 h-full w-24 bg-gradient-to-r from-black to-transparent pointer-events-none z-30"></div>
+      <div className="absolute top-0 right-0 h-full w-24 bg-gradient-to-l from-black to-transparent pointer-events-none z-30"></div>
     </div>
   );
 }
@@ -1150,16 +1160,7 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
   );
 }
 
-const MARKET_TICKER_DATA = [
-  { symbol: "NIFTY 50", price: "24,500.00", change: "+0.50%", isGainer: true },
-  { symbol: "BANKNIFTY", price: "52,100.00", change: "+0.80%", isGainer: true },
-  { symbol: "RELIANCE", price: "2,980.50", change: "+1.20%", isGainer: true },
-  { symbol: "HDFCBANK", price: "1,650.25", change: "-0.50%", isGainer: false },
-  { symbol: "INFY", price: "1,420.00", change: "+0.30%", isGainer: true },
-  { symbol: "TCS", price: "3,950.00", change: "-0.20%", isGainer: false },
-  { symbol: "ADANIENT", price: "3,100.00", change: "+2.50%", isGainer: true },
-  { symbol: "BAJFINANCE", price: "7,200.00", change: "+1.10%", isGainer: true },
-];
+
 
 
 
@@ -1235,7 +1236,7 @@ function Landing({ onGetStarted }) {
           </div>
         </div>
       </section>
-      {/* <MarketTicker /> */}
+      <TickerMarquee />
 
       {/* HOW IT WORKS SECTION */}
       <section className="py-24 bg-zinc-50 dark:bg-[#09090b] relative transition-colors duration-300">
