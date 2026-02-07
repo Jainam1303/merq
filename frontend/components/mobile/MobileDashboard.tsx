@@ -394,7 +394,10 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
     const totalPnl = positions.reduce((sum, p) => sum + p.pnl, 0);
 
     const analyticsData = React.useMemo(() => {
-        const filledOrders = orderBook.filter(o => o.status === 'filled');
+        const filledOrders = orderBook.filter(o =>
+            o.status === 'filled' ||
+            (typeof o.status === 'string' && o.status.startsWith('CLOSED'))
+        );
         const totalTrades = filledOrders.length;
         const totalPnl = filledOrders.reduce((sum, o) => sum + (Number(o.pnl) || 0), 0);
         const profitableTrades = filledOrders.filter(o => (Number(o.pnl) || 0) > 0).length;

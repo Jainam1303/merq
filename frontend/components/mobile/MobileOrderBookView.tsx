@@ -114,6 +114,21 @@ export function MobileOrderBookView({
         );
     }
 
+    const [currentPage, setCurrentPage] = useState(1);
+
+    // Reset pagination when filters change
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [startDate, endDate]);
+
+    const ITEMS_PER_PAGE = 5;
+
+    const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+    const paginatedOrders = filteredOrders.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
     return (
         <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950">
             {/* Controls Header - Sticky inside the view */}
@@ -172,7 +187,7 @@ export function MobileOrderBookView({
 
             {/* Orders List - Scrollable Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
-                {filteredOrders.map((order) => {
+                {paginatedOrders.map((order) => {
                     const isSelected = selectedIds.has(order.id);
                     return (
                         <div
@@ -242,6 +257,29 @@ export function MobileOrderBookView({
                         </div>
                     );
                 })}
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 pb-8">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="px-4 py-2 text-sm font-medium rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 disabled:opacity-50"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-zinc-500">
+                            Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-4 py-2 text-sm font-medium rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 disabled:opacity-50"
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

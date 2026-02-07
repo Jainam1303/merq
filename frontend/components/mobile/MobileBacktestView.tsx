@@ -328,20 +328,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                     </div>
                 </div>
 
-                {/* Capital */}
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Initial Capital</label>
-                    <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                        <input
-                            type="number"
-                            value={capital}
-                            onChange={(e) => setCapital(e.target.value)}
-                            className="w-full pl-10 pr-3 py-3 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-mono focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white"
-                            placeholder="100000"
-                        />
-                    </div>
-                </div>
+
 
                 {/* Run Button */}
                 <button
