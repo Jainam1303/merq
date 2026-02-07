@@ -1014,7 +1014,15 @@ def get_session(user_id):
     return sessions.get(user_id)
 
 def create_session(user_id, config, creds):
-    if user_id in sessions:
-        sessions[user_id].stop()
+    # If session already exists and is active, return it (don't restart)
+    existing = sessions.get(user_id)
+    if existing and existing.active:
+        existing.log("Session already running. Ignoring duplicate start request.", "INFO")
+        return existing
+    
+    # Stop old session if it exists but is not active
+    if existing:
+        existing.stop()
+    
     sessions[user_id] = TradingSession(user_id, config, creds)
     return sessions[user_id]
