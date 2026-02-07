@@ -40,7 +40,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const tradingRoutes = require('./routes/tradingRoutes');
 const testOrderRoutes = require('./routes/testOrder');
-const yahooTickerRoutes = require('./routes/yahooTickerRoutes');
+const alphaTickerRoutes = require('./routes/alphaTickerRoutes'); // Alpha Vantage
 const authController = require('./controllers/authController');
 const { verifyToken } = require('./middleware/authMiddleware');
 
@@ -874,7 +874,7 @@ app.post('/update_trade', verifyToken, (req, res) => {
 
 
 
-app.use('/', yahooTickerRoutes); // Yahoo Finance ticker for landing page
+app.use('/', alphaTickerRoutes); // Alpha Vantage ticker for landing page (Reliable Daily Updates)
 app.use('/', tradingRoutes); // Handles /start, /stop, /status
 
 // Health check root

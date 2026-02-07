@@ -259,8 +259,8 @@ function TickerMarquee() {
         }
 
         // Fetch fresh closing prices from API
-        console.log('Fetching closing prices from Yahoo Finance API...');
-        const res = await fetch('/api/yahoo-ticker');
+        console.log('Fetching closing prices from Alpha Vantage API...');
+        const res = await fetch('/api/market-ticker');
         const data = await res.json();
 
         if (Array.isArray(data) && data.length > 0) {
