@@ -2,7 +2,6 @@ const engineService = require('../services/engineService');
 const { User, Subscription, Plan, BacktestResult } = require('../models');
 
 // Start Bot
-// Start Bot
 exports.startBot = async (req, res) => {
     try {
         const userId = String(req.user.id); // Ensure string to avoid Pydantic 422
@@ -97,7 +96,6 @@ exports.getStatus = async (req, res) => {
     }
 };
 // Run Backtest
-// Run Backtest
 exports.runBacktest = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -143,14 +141,20 @@ exports.getPnL = async (req, res) => {
     try {
         const status = await engineService.getStatus(req.user.id);
         res.json({ pnl: status.pnl || 0 });
-    } catch (e) { res.json({ pnl: 0 }); }
+    } catch (e) {
+        console.error('Get PnL Error:', e.message);
+        res.json({ pnl: 0 });
+    }
 };
 
 exports.getTrades = async (req, res) => {
     try {
         const status = await engineService.getStatus(req.user.id);
         res.json({ status: 'success', data: status.positions || [] });
-    } catch (e) { res.json({ status: 'success', data: [] }); }
+    } catch (e) {
+        console.error('Get Trades Error:', e.message);
+        res.json({ status: 'success', data: [] });
+    }
 };
 
 exports.getLogs = async (req, res) => {
@@ -160,7 +164,10 @@ exports.getLogs = async (req, res) => {
         // We might need to add getLogs to engineService later.
         const status = await engineService.getStatus(req.user.id);
         res.json(status.logs || []);
-    } catch (e) { res.json([]); }
+    } catch (e) {
+        console.error('Get Logs Error:', e.message);
+        res.json([]);
+    }
 };
 
 exports.getConfig = async (req, res) => {
