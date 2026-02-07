@@ -8,4 +8,5 @@ export { MobileBacktestView } from './MobileBacktestView';
 export { MobileAnalyticsView } from './MobileAnalyticsView';
 export { MobileOrderBookView } from './MobileOrderBookView';
 export { MobilePlansView } from './MobilePlansView';
+export { MobileProfileSettingsView } from './MobileProfileSettingsView';
 export { MobileDashboard } from './MobileDashboard';

@@ -9,6 +9,7 @@ import {
     MobileTradesView,
     MobileLogsView,
     MobileSettingsView,
+    MobileProfileSettingsView,
     MobileBacktestView,
     MobileAnalyticsView,
     MobileOrderBookView,
@@ -443,6 +444,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
 
     const [showOrderBook, setShowOrderBook] = useState(false);
     const [showPlans, setShowPlans] = useState(false);
+    const [showProfileSettings, setShowProfileSettings] = useState(false);
 
     return (
         <div className="md:hidden min-h-screen bg-zinc-50 dark:bg-zinc-950">
@@ -460,15 +462,14 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                     setShowPlans(true);
                 }}
                 onNavigateToSettings={() => {
-                    toast.info("Settings are available in the Home tab");
+                    setShowProfileSettings(true);
                 }}
             />
 
-            {/* Order Book Modal - Animated Slide Up */}
+            {/* Order Book Modal */}
             <AnimatePresence>
                 {showOrderBook && (
                     <div className="fixed inset-0 z-50 flex flex-col justify-end">
-                        {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -476,7 +477,6 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                             onClick={() => setShowOrderBook(false)}
                         />
-                        {/* Sheet */}
                         <motion.div
                             initial={{ y: "100%" }}
                             animate={{ y: 0 }}
@@ -515,11 +515,10 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 )}
             </AnimatePresence>
 
-            {/* Plans Modal - Animated Slide Up */}
+            {/* Plans Modal */}
             <AnimatePresence>
                 {showPlans && (
                     <div className="fixed inset-0 z-50 flex flex-col justify-end">
-                        {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -527,7 +526,6 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                             onClick={() => setShowPlans(false)}
                         />
-                        {/* Sheet */}
                         <motion.div
                             initial={{ y: "100%" }}
                             animate={{ y: 0 }}
@@ -567,6 +565,40 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                     }
                                 }}
                             />
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Profile Settings Modal */}
+            <AnimatePresence>
+                {showProfileSettings && (
+                    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                            onClick={() => setShowProfileSettings(false)}
+                        />
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            transition={{ type: "spring", damping: 25, stiffness: 500 }}
+                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl"
+                        >
+                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
+                                <button
+                                    onClick={() => setShowProfileSettings(false)}
+                                    className="text-zinc-600 dark:text-zinc-400 font-medium active:scale-95 transition-transform"
+                                >
+                                    ← Back
+                                </button>
+                                <span className="text-lg font-bold text-zinc-900 dark:text-white">Profile Settings</span>
+                                <div className="w-12" />
+                            </div>
+                            <MobileProfileSettingsView />
                         </motion.div>
                     </div>
                 )}
