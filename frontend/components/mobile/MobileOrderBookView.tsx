@@ -257,30 +257,32 @@ export function MobileOrderBookView({
                         </div>
                     );
                 })}
+            </div>
 
-                {/* Pagination Controls */}
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-4 pb-8">
+            {/* Pagination Controls - Fixed Bottom */}
+            {totalPages > 1 && (
+                <div className="p-4 bg-white dark:bg-zinc-950 border-t border-zinc-200 dark:border-zinc-800 shrink-0">
+                    <div className="flex items-center justify-between">
                         <button
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
-                            className="px-4 py-2 text-sm font-medium rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 disabled:opacity-50"
+                            className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 disabled:opacity-50 active:scale-95 transition-transform"
                         >
                             Previous
                         </button>
-                        <span className="text-sm text-zinc-500">
+                        <span className="text-sm font-medium text-zinc-500">
                             Page {currentPage} of {totalPages}
                         </span>
                         <button
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage === totalPages}
-                            className="px-4 py-2 text-sm font-medium rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 disabled:opacity-50"
+                            className="px-4 py-2 text-sm font-medium rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 disabled:opacity-50 active:scale-95 transition-transform"
                         >
                             Next
                         </button>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 }

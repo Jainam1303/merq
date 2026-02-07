@@ -107,89 +107,100 @@ export function MobilePlansView({
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-3">
                     {currentPlan ? 'Upgrade or Change Plan' : 'Available Plans'}
                 </h3>
-                <div className="space-y-3">
-                    {safePlans.map((plan) => {
-                        const Icon = getPlanIcon(plan.name);
-                        const features = parseFeatures(plan.features);
-                        const isCurrentPlan = currentPlan?.name === plan.name;
-                        const isPremium = plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('pro');
 
-                        return (
-                            <div
-                                key={plan.id}
-                                className={cn(
-                                    "bg-white dark:bg-zinc-900 border-2 rounded-xl p-5 transition-all",
-                                    isCurrentPlan
-                                        ? "border-blue-500 ring-2 ring-blue-500/20"
-                                        : isPremium
-                                            ? "border-purple-500/30"
-                                            : "border-zinc-200 dark:border-zinc-800"
-                                )}
-                            >
-                                {/* Plan Header */}
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={cn(
-                                            "w-10 h-10 rounded-full flex items-center justify-center",
-                                            isPremium
-                                                ? "bg-gradient-to-br from-purple-500 to-pink-500"
-                                                : "bg-gradient-to-br from-blue-500 to-cyan-500"
-                                        )}>
-                                            <Icon className="w-5 h-5 text-white" />
+                {currentPlan && safePlans.length > 0 && currentPlan.price >= Math.max(...safePlans.map(p => p.price)) ? (
+                    <div className="bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6 text-center">
+                        <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
+                        <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-1">Max Plan Active</h4>
+                        <p className="text-sm text-zinc-500">
+                            You are currently on the highest tier plan. Enjoy exclusive benefits and unlimited access!
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {safePlans.map((plan) => {
+                            const Icon = getPlanIcon(plan.name);
+                            const features = parseFeatures(plan.features);
+                            const isCurrentPlan = currentPlan?.name === plan.name;
+                            const isPremium = plan.name.toLowerCase().includes('premium') || plan.name.toLowerCase().includes('pro');
+
+                            return (
+                                <div
+                                    key={plan.id}
+                                    className={cn(
+                                        "bg-white dark:bg-zinc-900 border-2 rounded-xl p-5 transition-all",
+                                        isCurrentPlan
+                                            ? "border-blue-500 ring-2 ring-blue-500/20"
+                                            : isPremium
+                                                ? "border-purple-500/30"
+                                                : "border-zinc-200 dark:border-zinc-800"
+                                    )}
+                                >
+                                    {/* Plan Header */}
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className={cn(
+                                                "w-10 h-10 rounded-full flex items-center justify-center",
+                                                isPremium
+                                                    ? "bg-gradient-to-br from-purple-500 to-pink-500"
+                                                    : "bg-gradient-to-br from-blue-500 to-cyan-500"
+                                            )}>
+                                                <Icon className="w-5 h-5 text-white" />
+                                            </div>
+                                            <div>
+                                                <h4 className="text-lg font-bold text-zinc-900 dark:text-white">
+                                                    {plan.name}
+                                                </h4>
+                                                <p className="text-xs text-zinc-500">
+                                                    {getDurationLabel(plan.duration_days, plan.price).replace('/ ', '')}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h4 className="text-lg font-bold text-zinc-900 dark:text-white">
-                                                {plan.name}
-                                            </h4>
+                                        <div className="text-right">
+                                            <p className="text-2xl font-black text-zinc-900 dark:text-white">
+                                                ₹{plan.price}
+                                            </p>
                                             <p className="text-xs text-zinc-500">
-                                                {getDurationLabel(plan.duration_days, plan.price).replace('/ ', '')}
+                                                {getDurationLabel(plan.duration_days, plan.price)}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <p className="text-2xl font-black text-zinc-900 dark:text-white">
-                                            ₹{plan.price}
-                                        </p>
-                                        <p className="text-xs text-zinc-500">
-                                            {getDurationLabel(plan.duration_days, plan.price)}
-                                        </p>
-                                    </div>
+
+                                    {/* Features */}
+                                    <ul className="space-y-2 mb-4">
+                                        {features.slice(0, 5).map((feature, idx) => (
+                                            <li key={idx} className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                                                <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                                                <span>{feature}</span>
+                                            </li>
+                                        ))}
+                                        {features.length > 5 && (
+                                            <li className="text-xs text-zinc-500 italic">
+                                                +{features.length - 5} more features
+                                            </li>
+                                        )}
+                                    </ul>
+
+                                    {/* Subscribe Button */}
+                                    <button
+                                        onClick={() => onSubscribe?.(plan.id)}
+                                        disabled={isCurrentPlan}
+                                        className={cn(
+                                            "w-full py-3 rounded-lg font-bold text-sm transition-all",
+                                            isCurrentPlan
+                                                ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
+                                                : isPremium
+                                                    ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white active:scale-95"
+                                                    : "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white active:scale-95"
+                                        )}
+                                    >
+                                        {isCurrentPlan ? 'Current Plan' : 'Subscribe Now'}
+                                    </button>
                                 </div>
-
-                                {/* Features */}
-                                <ul className="space-y-2 mb-4">
-                                    {features.slice(0, 5).map((feature, idx) => (
-                                        <li key={idx} className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-                                            <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                                            <span>{feature}</span>
-                                        </li>
-                                    ))}
-                                    {features.length > 5 && (
-                                        <li className="text-xs text-zinc-500 italic">
-                                            +{features.length - 5} more features
-                                        </li>
-                                    )}
-                                </ul>
-
-                                {/* Subscribe Button */}
-                                <button
-                                    onClick={() => onSubscribe?.(plan.id)}
-                                    disabled={isCurrentPlan}
-                                    className={cn(
-                                        "w-full py-3 rounded-lg font-bold text-sm transition-all",
-                                        isCurrentPlan
-                                            ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
-                                            : isPremium
-                                                ? "bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white active:scale-95"
-                                                : "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white active:scale-95"
-                                    )}
-                                >
-                                    {isCurrentPlan ? 'Current Plan' : 'Subscribe Now'}
-                                </button>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Info Card */}

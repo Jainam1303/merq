@@ -397,7 +397,7 @@ export function MobileProfileSettingsView() {
                         <button
                             onClick={handleUpdateAPI}
                             disabled={isSaving}
-                            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl font-bold active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25 sticky bottom-4"
+                            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-xl font-bold active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25 mt-4"
                         >
                             {isSaving ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
                             Save Credentials
