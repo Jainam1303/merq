@@ -606,6 +606,9 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                     currentPlan={profile?.plan || null}
                                     onSubscribe={async (planId) => {
                                         try {
+                                            // Find the plan details for description
+                                            const selectedPlan = plans.find(p => p.id === planId);
+
                                             // Step 1: Load Razorpay script
                                             await loadRazorpayScript();
 
@@ -622,18 +625,14 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
 
                                             // Step 3: Configure Razorpay
                                             const options = {
-                                                key: orderData.key_id,
+                                                key: orderData.key || orderData.key_id, // Handle both key formats
                                                 amount: orderData.amount,
-                                                currency: orderData.currency,
-                                                name: 'MerQPrime',
-                                                description: `${orderData.plan.name} Plan`,
+                                                currency: orderData.currency || "INR",
+                                                name: 'Algo Trade', // Match desktop name
+                                                description: `Subscription for ${selectedPlan?.name || 'Plan'}`,
                                                 image: 'https://i.imgur.com/n5tjHFD.png',
                                                 order_id: orderData.order_id,
-                                                prefill: {
-                                                    name: orderData.user.name,
-                                                    email: orderData.user.email,
-                                                    contact: orderData.user.phone
-                                                },
+                                                prefill: orderData.prefill, // Use prefill from backend response directly
                                                 theme: { color: '#3B82F6' },
                                                 handler: async function (response: any) {
                                                     try {
@@ -652,6 +651,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                                             const profileData = await fetchJson('/get_profile');
                                                             setProfile(profileData);
                                                             setShowPlans(false);
+                                                            // Trigger re-fetch of plans/profile if needed
                                                         } else {
                                                             toast.error(verifyResult.message || 'Payment verification failed');
                                                         }
@@ -667,6 +667,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                             });
                                             razorpay.open();
                                         } catch (err: any) {
+                                            console.error("Payment Error:", err);
                                             toast.error(err.message || 'Failed to initiate payment');
                                         }
                                     }}
