@@ -96,17 +96,18 @@ class LiveORB(BaseLiveStrategy):
         """
         self.log(f"Initializing ORB Strategy for {len(self.symbol_tokens)//2} symbols...")
         
+        # Initialize default state for all symbols to prevent "key error" later
+        for symbol in self.config['symbols']:
+            self.orb_levels[symbol] = {
+                'or_high': 0, 'or_low': 999999999, 'or_mid': 0, 'collecting': True
+            }
+
         # Determine 9:15-9:30 range (IST)
         ist_now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
         current_time = ist_now.time()
         
         if current_time < datetime.time(9, 30):
             self.log("Market not yet 09:30. ORB levels will be collected from live ticks.")
-            # Initialize for live collection
-            for symbol in self.config['symbols']:
-                self.orb_levels[symbol] = {
-                    'or_high': 0, 'or_low': 999999999, 'or_mid': 0, 'collecting': True
-                }
             return
 
         # Market Open: Fetch Data
@@ -136,7 +137,9 @@ class LiveORB(BaseLiveStrategy):
                     }
                     self.log(f"ORB Level for {symbol}: High={or_high}, Low={or_low}")
                 else:
-                    self.log(f"Failed to fetch ORB for {symbol}", "WARNING")
+                    self.log(f"Failed to fetch ORB for {symbol} (Market data unavailable or closed)", "WARNING")
+                    # Keep default 'collecting=True' or set to invalid to prevent trading?
+                    # Safer to leave as is, so on_tick returns None
             except Exception as e:
                 self.log(f"Error fetching ORB for {symbol}: {e}", "ERROR")
 

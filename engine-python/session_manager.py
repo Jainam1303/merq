@@ -74,66 +74,69 @@ class TradingSession:
 
     def _login_and_run(self):
         """Background thread: login, calculate ORB, then start WebSocket"""
-        # 1. Login
         try:
-            api_key = self.credentials.get('apiKey')
-            client_code = self.credentials.get('clientCode')
-            pwd = self.credentials.get('password')
-            totp_key = self.credentials.get('totp')
-            
-            self.smartApi = SmartConnect(api_key=api_key)
-            totp = pyotp.TOTP(totp_key).now()
-            data = self.smartApi.generateSession(client_code, pwd, totp)
-            
-            if data['status']:
-                self.auth_token = data['data']['jwtToken']
-                self.feed_token = data['data']['feedToken']
-                self.log("Angel One Login Successful", "SUCCESS")
-            else:
-                self.log(f"Login Failed: {data['message']}", "ERROR")
+            # 1. Login
+            try:
+                api_key = self.credentials.get('apiKey')
+                client_code = self.credentials.get('clientCode')
+                pwd = self.credentials.get('password')
+                totp_key = self.credentials.get('totp')
+                
+                self.smartApi = SmartConnect(api_key=api_key)
+                totp = pyotp.TOTP(totp_key).now()
+                data = self.smartApi.generateSession(client_code, pwd, totp)
+                
+                if data['status']:
+                    self.auth_token = data['data']['jwtToken']
+                    self.feed_token = data['data']['feedToken']
+                    self.log("Angel One Login Successful", "SUCCESS")
+                else:
+                    self.log(f"Login Failed: {data['message']}", "ERROR")
+                    self.active = False
+                    return
+                    
+            except Exception as e:
+                self.log(f"Login Exception: {e}", "ERROR")
                 self.active = False
                 return
-                
+            
+            # 2. Load Symbol Tokens
+            self._load_symbol_tokens()
+            
+            # 3. Initialize Strategy (AFTER tokens are loaded)
+            class StrategyLogger:
+                def __init__(self, session): self.session = session
+                def info(self, msg): self.session.log(msg, "STRAT")
+                def error(self, msg): self.session.log(msg, "ERROR")
+                def warning(self, msg): self.session.log(msg, "WARNING")
+            
+            strat_logger = StrategyLogger(self)
+            
+            # Strategy Selection
+            strategy_map = {
+                'ORB': LiveORB,              # Alpha I
+                'EMA': LiveEMA,              # Alpha II
+                'PULLBACK': LiveEMAPullback, # Alpha III
+                'ENGULFING': LiveEngulfing,  # Alpha IV
+                'TIMEBASED': LiveTimeBased,  # Alpha V
+                'TEST': LiveTest             # Debug/Testing
+            }
+            
+            # Handle user selecting 'MerQ Alpha I' etc via mapped names if needed
+            StrategyClass = strategy_map.get(self.strategy_name, LiveORB)
+            self.strategy = StrategyClass(self.config, strat_logger, self.symbol_tokens)
+            self.log(f"Loaded Strategy: {self.strategy_name}", "INFO")
+            
+            self.strategy.initialize(self.smartApi)
+            
+            # 4. Start WebSocket for Live Data
+            self._start_websocket()
+            
         except Exception as e:
-            self.log(f"Login Exception: {e}", "ERROR")
+            self.log(f"CRITICAL SESSION ERROR: {e}", "ERROR")
+            import traceback
+            self.log(f"{traceback.format_exc()}", "DEBUG")
             self.active = False
-            return
-        
-        # 2. Load Symbol Tokens
-        self._load_symbol_tokens()
-        
-        # 3. Initialize Strategy (AFTER tokens are loaded)
-        class StrategyLogger:
-            def __init__(self, session): self.session = session
-            def info(self, msg): self.session.log(msg, "STRAT")
-            def error(self, msg): self.session.log(msg, "ERROR")
-            def warning(self, msg): self.session.log(msg, "WARNING")
-        
-        strat_logger = StrategyLogger(self)
-        
-        # Strategy Selection - Session Manager doesn't know HOW signals are generated
-        # MerQ Alpha I   = ORB (Opening Range Breakout)
-        # MerQ Alpha II  = EMA (EMA Crossover)
-        # MerQ Alpha III = PULLBACK (EMA Pullback)
-        # MerQ Alpha IV  = ENGULFING (Candlestick Pattern)
-        # MerQ Alpha V   = TIMEBASED (Fixed Time Entry)
-        strategy_map = {
-            'ORB': LiveORB,              # Alpha I
-            'EMA': LiveEMA,              # Alpha II
-            'PULLBACK': LiveEMAPullback, # Alpha III
-            'ENGULFING': LiveEngulfing,  # Alpha IV
-            'TIMEBASED': LiveTimeBased,  # Alpha V
-            'TEST': LiveTest             # Debug/Testing
-        }
-        
-        StrategyClass = strategy_map.get(self.strategy_name, LiveORB)
-        self.strategy = StrategyClass(self.config, strat_logger, self.symbol_tokens)
-        self.log(f"Loaded Strategy: {self.strategy_name}", "INFO")
-        
-        self.strategy.initialize(self.smartApi)
-        
-        # 4. Start WebSocket for Live Data
-        self._start_websocket()
 
     def _sync_to_backend(self):
         """Send live PnL and trades to Node.js backend via webhook"""
