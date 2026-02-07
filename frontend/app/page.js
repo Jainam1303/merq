@@ -242,31 +242,47 @@ function TickerMarquee() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch live Yahoo Finance data
-    const fetchYahooData = async () => {
+    // Fetch closing prices from Yahoo Finance (updates once per day after market close)
+    const fetchClosingPrices = async () => {
       try {
+        // Check if we already fetched today
+        const today = new Date().toISOString().split('T')[0];
+        const lastFetch = localStorage.getItem('ticker_last_fetch');
+        const cachedData = localStorage.getItem('ticker_data');
+
+        // If we already fetched today, use cached data
+        if (lastFetch === today && cachedData) {
+          console.log('Using cached closing prices from today');
+          setTickers(JSON.parse(cachedData));
+          setLoading(false);
+          return;
+        }
+
+        // Fetch fresh closing prices from API
+        console.log('Fetching closing prices from Yahoo Finance API...');
         const res = await fetch('/api/yahoo-ticker');
         const data = await res.json();
+
         if (Array.isArray(data) && data.length > 0) {
           setTickers(data);
+          // Cache the data in localStorage
+          localStorage.setItem('ticker_data', JSON.stringify(data));
+          localStorage.setItem('ticker_last_fetch', today);
           setLoading(false);
         } else {
           // Use fallback data if API returns empty
           setLoading(false);
         }
       } catch (err) {
-        console.log('Using fallback market data');
+        console.log('Using fallback market data:', err);
         setLoading(false);
       }
     };
 
-    // Initial fetch
-    fetchYahooData();
+    // Fetch on component mount
+    fetchClosingPrices();
 
-    // Refresh every 60 seconds for live updates
-    const interval = setInterval(fetchYahooData, 60000);
-
-    return () => clearInterval(interval);
+    // No interval needed - data updates once per day from backend cache
   }, []);
 
   const displayData = tickers.length > 0 ? tickers : MARKET_DATA;
