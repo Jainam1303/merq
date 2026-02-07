@@ -615,13 +615,13 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                             // Step 2: Create Razorpay order
                                             let orderData;
                                             try {
-                                                console.log("[Razorpay] Creating order for plan:", planId);
+                                                // console.log("[Razorpay] Creating order for plan:", planId);
                                                 // Using /create_order directly as we confirmed it works
                                                 orderData = await fetchJson('/create_order', {
                                                     method: 'POST',
                                                     body: JSON.stringify({ plan_id: planId })
                                                 });
-                                                console.log("[Razorpay] Order Data Received:", orderData);
+                                                // console.log("[Razorpay] Order Data Received:", orderData);
                                             } catch (e: any) {
                                                 console.error("[Razorpay] Order Creation Failed:", e);
                                                 toast.error(e.message || "Failed to create order");
@@ -649,7 +649,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                                 },
                                                 theme: { color: '#3B82F6' },
                                                 handler: async function (response: any) {
-                                                    console.log("[Razorpay] Handler Response:", response);
+                                                    // console.log("[Razorpay] Handler Response:", response);
                                                     try {
                                                         const verifyResult = await fetchJson('/verify_payment', {
                                                             method: 'POST',
@@ -661,7 +661,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                                             })
                                                         });
 
-                                                        console.log("[Razorpay] Verification Result:", verifyResult);
+                                                        // console.log("[Razorpay] Verification Result:", verifyResult);
 
                                                         if (verifyResult.status === 'success') {
                                                             toast.success('Payment successful!');
@@ -673,18 +673,18 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                                             toast.error(verifyResult.message || 'Payment verification failed');
                                                         }
                                                     } catch (verifyError: any) {
-                                                        console.error("[Razorpay] Verification Error:", verifyError);
+                                                        // console.error("[Razorpay] Verification Error:", verifyError);
                                                         toast.error('Payment verification failed: ' + verifyError.message);
                                                     }
                                                 },
                                                 modal: {
                                                     ondismiss: function () {
-                                                        console.log("[Razorpay] Modal Dismissed");
+                                                        // console.log("[Razorpay] Modal Dismissed");
                                                     }
                                                 }
                                             };
 
-                                            console.log("[Razorpay] Final Options:", options);
+                                            // console.log("[Razorpay] Final Options:", options);
 
                                             const razorpay = new (window as any).Razorpay(options);
                                             razorpay.on('payment.failed', function (response: any) {
