@@ -190,9 +190,9 @@ export function MobileProfileSettingsView() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950 pb-24 overflow-y-auto">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950">
             {/* Header / Tabs */}
-            <div className="sticky top-0 z-10 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <div className="sticky top-0 z-10 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shadow-sm shrink-0">
                 <div className="flex items-center px-4 overflow-x-auto no-scrollbar gap-2 py-3">
                     {[
                         { id: 'security', label: 'Security', icon: Lock },
@@ -220,8 +220,8 @@ export function MobileProfileSettingsView() {
                 </div>
             </div>
 
-            {/* Content Area */}
-            <div className="p-4 space-y-6">
+            {/* Content Area - Scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
 
                 {/* SECURITY TAB */}
                 {activeTab === 'security' && (
@@ -443,7 +443,6 @@ export function MobileProfileSettingsView() {
                         </div>
                     </div>
                 )}
-
             </div>
         </div>
     );

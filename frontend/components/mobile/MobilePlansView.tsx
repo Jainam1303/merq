@@ -57,7 +57,7 @@ export function MobilePlansView({
     };
 
     return (
-        <div className="min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] overflow-y-auto p-4 space-y-4 pb-24">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950 overflow-y-auto p-4 space-y-4 pb-24">
             {/* Header */}
             <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800/50 rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-2">

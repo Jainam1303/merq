@@ -115,28 +115,24 @@ export function MobileOrderBookView({
     }
 
     return (
-        <div className="min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] flex flex-col">
-            {/* Header */}
-            <div className="sticky top-0 z-10 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 p-4 space-y-3">
+        <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950">
+            {/* Controls Header - Sticky inside the view */}
+            <div className="sticky top-0 z-10 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 p-4 space-y-3 shrink-0">
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-purple-500" />
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Order Book</h2>
-                        </div>
-                        <p className="text-xs text-zinc-500">{filteredOrders.length} orders</p>
+                        <p className="text-xs text-zinc-500">{filteredOrders.length} orders found</p>
                     </div>
                     <div className="flex gap-2">
                         <button
                             onClick={handleDownloadCSV}
-                            className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
+                            className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95"
                         >
                             <Download size={18} />
                         </button>
                         {selectedIds.size > 0 && (
                             <button
                                 onClick={handleDelete}
-                                className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                                className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 active:scale-95"
                             >
                                 <Trash2 size={18} />
                             </button>
@@ -150,97 +146,102 @@ export function MobileOrderBookView({
                         type="date"
                         value={startDate}
                         onChange={(e) => setStartDate(e.target.value)}
-                        className="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs"
+                        className="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-blue-500"
                         placeholder="Start Date"
                     />
                     <input
                         type="date"
                         value={endDate}
                         onChange={(e) => setEndDate(e.target.value)}
-                        className="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs"
+                        className="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-blue-500"
                         placeholder="End Date"
                     />
                 </div>
 
                 {/* Select All */}
-                <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
                     <input
                         type="checkbox"
                         checked={selectedIds.size === filteredOrders.length && filteredOrders.length > 0}
                         onChange={toggleSelectAll}
-                        className="rounded"
+                        className="rounded border-zinc-300 dark:border-zinc-600 text-blue-500 focus:ring-blue-500"
                     />
                     Select All ({selectedIds.size})
                 </label>
             </div>
 
-            {/* Orders List */}
+            {/* Orders List - Scrollable Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
-                {filteredOrders.map((order) => (
-                    <div
-                        key={order.id}
-                        className={cn(
-                            "bg-white dark:bg-zinc-900 border rounded-xl p-4 transition-all",
-                            selectedIds.has(order.id)
-                                ? "border-blue-500 ring-2 ring-blue-500/20"
-                                : "border-zinc-200 dark:border-zinc-800"
-                        )}
-                    >
-                        <div className="flex items-start gap-3">
-                            <input
-                                type="checkbox"
-                                checked={selectedIds.has(order.id)}
-                                onChange={() => toggleSelect(order.id)}
-                                className="mt-1 rounded"
-                            />
-                            <div className="flex-1 min-w-0">
+                {filteredOrders.map((order) => {
+                    const isSelected = selectedIds.has(order.id);
+                    return (
+                        <div
+                            key={order.id}
+                            onClick={() => toggleSelect(order.id)}
+                            className={cn(
+                                "bg-white dark:bg-zinc-900 border rounded-xl p-4 transition-all cursor-pointer relative overflow-hidden",
+                                isSelected
+                                    ? "border-blue-500 ring-1 ring-blue-500 bg-blue-50/10"
+                                    : "border-zinc-200 dark:border-zinc-800"
+                            )}
+                        >
+                            {isSelected && (
+                                <div className="absolute top-0 right-0 w-6 h-6 bg-blue-500 rounded-bl-xl flex items-center justify-center">
+                                    <CheckCircle className="w-4 h-4 text-white" />
+                                </div>
+                            )}
+
+                            <div className="flex flex-col gap-3">
                                 {/* Header */}
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-zinc-900 dark:text-white">
+                                        <span className="font-bold text-zinc-900 dark:text-white text-base">
                                             {order.symbol}
                                         </span>
-                                        <span className={cn("px-2 py-0.5 rounded-full text-xs font-medium flex items-center gap-1", getStatusColor(order.status))}>
-                                            {getStatusIcon(order.status)}
+                                        <span className={cn(
+                                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
+                                            getStatusColor(order.status).replace('text-', 'bg-opacity-10 text-')
+                                        )}>
                                             {order.status}
                                         </span>
                                     </div>
                                     <span className={cn(
-                                        "text-sm font-bold",
-                                        parseFloat(String(order.pnl ?? 0)) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                                        "text-sm font-bold font-mono",
+                                        (order.pnl || 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                                     )}>
-                                        {parseFloat(String(order.pnl ?? 0)).toFixed(2)}
+                                        {(order.pnl || 0) >= 0 ? '+' : ''}{(order.pnl || 0).toFixed(2)}
                                     </span>
                                 </div>
 
                                 {/* Details Grid */}
-                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="grid grid-cols-4 gap-2 text-xs border-t border-dashed border-zinc-200 dark:border-zinc-800 pt-3">
                                     <div>
-                                        <span className="text-zinc-500">Entry:</span>
-                                        <span className="ml-1 font-medium text-zinc-700 dark:text-zinc-300">₹{order.entry_price}</span>
+                                        <div className="text-zinc-500 mb-0.5">Entry</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{order.entry_price}</div>
                                     </div>
                                     <div>
-                                        <span className="text-zinc-500">Qty:</span>
-                                        <span className="ml-1 font-medium text-zinc-700 dark:text-zinc-300">{order.quantity}</span>
+                                        <div className="text-zinc-500 mb-0.5">Qty</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{order.quantity}</div>
                                     </div>
                                     <div>
-                                        <span className="text-zinc-500">SL:</span>
-                                        <span className="ml-1 font-medium text-zinc-700 dark:text-zinc-300">₹{order.sl}</span>
+                                        <div className="text-zinc-500 mb-0.5">SL</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{order.sl}</div>
                                     </div>
                                     <div>
-                                        <span className="text-zinc-500">TP:</span>
-                                        <span className="ml-1 font-medium text-zinc-700 dark:text-zinc-300">₹{order.tp}</span>
+                                        <div className="text-zinc-500 mb-0.5">TP</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{order.tp}</div>
                                     </div>
                                 </div>
 
                                 {/* Timestamp */}
-                                <div className="mt-2 text-xs text-zinc-400">
+                                <div className="flex items-center gap-1 text-[10px] text-zinc-400">
+                                    <Clock size={10} />
                                     {new Date(order.timestamp).toLocaleString()}
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );

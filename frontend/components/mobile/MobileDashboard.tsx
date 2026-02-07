@@ -469,7 +469,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
             {/* Order Book Modal */}
             <AnimatePresence>
                 {showOrderBook && (
-                    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -482,9 +482,9 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 500 }}
-                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl"
+                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl flex flex-col"
                         >
-                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
+                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                                 <button
                                     onClick={() => setShowOrderBook(false)}
                                     className="text-zinc-600 dark:text-zinc-400 font-medium active:scale-95 transition-transform"
@@ -494,22 +494,24 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                 <span className="text-lg font-bold text-zinc-900 dark:text-white">Order Book</span>
                                 <div className="w-12" />
                             </div>
-                            <MobileOrderBookView
-                                orders={orderBook}
-                                onDeleteOrders={async (ids) => {
-                                    try {
-                                        await fetchJson('/delete_orders', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ ids })
-                                        });
-                                        setOrderBook(prev => prev.filter(o => !ids.includes(o.id)));
-                                        toast.success(`Deleted ${ids.length} order(s)`);
-                                    } catch (err) {
-                                        toast.error('Failed to delete orders');
-                                    }
-                                }}
-                            />
+                            <div className="flex-1 overflow-hidden relative">
+                                <MobileOrderBookView
+                                    orders={orderBook}
+                                    onDeleteOrders={async (ids) => {
+                                        try {
+                                            await fetchJson('/delete_orders', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ ids })
+                                            });
+                                            setOrderBook(prev => prev.filter(o => !ids.includes(o.id)));
+                                            toast.success(`Deleted ${ids.length} order(s)`);
+                                        } catch (err) {
+                                            toast.error('Failed to delete orders');
+                                        }
+                                    }}
+                                />
+                            </div>
                         </motion.div>
                     </div>
                 )}
@@ -518,7 +520,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
             {/* Plans Modal */}
             <AnimatePresence>
                 {showPlans && (
-                    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -531,9 +533,9 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 500 }}
-                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl"
+                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl flex flex-col"
                         >
-                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
+                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                                 <button
                                     onClick={() => setShowPlans(false)}
                                     className="text-zinc-600 dark:text-zinc-400 font-medium active:scale-95 transition-transform"
@@ -543,28 +545,30 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                 <span className="text-lg font-bold text-zinc-900 dark:text-white">Plans</span>
                                 <div className="w-12" />
                             </div>
-                            <MobilePlansView
-                                plans={plans}
-                                currentPlan={profile?.plan || null}
-                                onSubscribe={async (planId) => {
-                                    try {
-                                        const result = await fetchJson('/subscribe', {
-                                            method: 'POST',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ plan_id: planId })
-                                        });
-                                        if (result.status === 'success') {
-                                            toast.success('Subscription initiated!');
-                                            const profileData = await fetchJson('/get_profile');
-                                            setProfile(profileData);
-                                        } else {
-                                            toast.error(result.message || 'Subscription failed');
+                            <div className="flex-1 overflow-hidden relative">
+                                <MobilePlansView
+                                    plans={plans}
+                                    currentPlan={profile?.plan || null}
+                                    onSubscribe={async (planId) => {
+                                        try {
+                                            const result = await fetchJson('/subscribe', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ plan_id: planId })
+                                            });
+                                            if (result.status === 'success') {
+                                                toast.success('Subscription initiated!');
+                                                const profileData = await fetchJson('/get_profile');
+                                                setProfile(profileData);
+                                            } else {
+                                                toast.error(result.message || 'Subscription failed');
+                                            }
+                                        } catch (err) {
+                                            toast.error('Failed to subscribe');
                                         }
-                                    } catch (err) {
-                                        toast.error('Failed to subscribe');
-                                    }
-                                }}
-                            />
+                                    }}
+                                />
+                            </div>
                         </motion.div>
                     </div>
                 )}
@@ -573,7 +577,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
             {/* Profile Settings Modal */}
             <AnimatePresence>
                 {showProfileSettings && (
-                    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                    <div className="fixed inset-0 z-[60] flex flex-col justify-end">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -586,9 +590,9 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                             animate={{ y: 0 }}
                             exit={{ y: "100%" }}
                             transition={{ type: "spring", damping: 25, stiffness: 500 }}
-                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl"
+                            className="relative z-10 h-[90vh] bg-white dark:bg-zinc-950 rounded-t-2xl overflow-hidden shadow-xl flex flex-col"
                         >
-                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800">
+                            <div className="h-16 flex items-center justify-between px-4 border-b border-zinc-200 dark:border-zinc-800 shrink-0">
                                 <button
                                     onClick={() => setShowProfileSettings(false)}
                                     className="text-zinc-600 dark:text-zinc-400 font-medium active:scale-95 transition-transform"
@@ -598,7 +602,9 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                                 <span className="text-lg font-bold text-zinc-900 dark:text-white">Profile Settings</span>
                                 <div className="w-12" />
                             </div>
-                            <MobileProfileSettingsView />
+                            <div className="flex-1 overflow-hidden relative">
+                                <MobileProfileSettingsView />
+                            </div>
                         </motion.div>
                     </div>
                 )}

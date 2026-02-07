@@ -222,25 +222,22 @@ export function MobileStatusView({
             <div className="space-y-3 pb-8">
                 {/* Strategy Selection */}
                 <Section id="strategy" title="Strategy" icon={Target}>
-                    <div className="space-y-3">
-                        {[
-                            { id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' },
-                            { id: 'ema', name: 'EMA Crossover', desc: '8/30 EMA Strategy' },
-                        ].map((strategy) => (
-                            <button
-                                key={strategy.id}
-                                onClick={() => onConfigChange({ ...config, strategy: strategy.id.toUpperCase() })}
-                                className={cn(
-                                    "w-full p-3 rounded-xl text-left transition-all",
-                                    config.strategy.toUpperCase() === strategy.id.toUpperCase()
-                                        ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500"
-                                        : "bg-zinc-50 dark:bg-zinc-800 border-2 border-transparent"
-                                )}
-                            >
-                                <div className="font-bold text-zinc-900 dark:text-white">{strategy.name}</div>
-                                <div className="text-xs text-zinc-500">{strategy.desc}</div>
-                            </button>
-                        ))}
+                    <div className="relative">
+                        <select
+                            value={config.strategy}
+                            onChange={(e) => onConfigChange({ ...config, strategy: e.target.value })}
+                            className="w-full appearance-none bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                            <option value="orb">MerQ Alpha I (ORB)</option>
+                            <option value="ema">MerQ Alpha II (EMA)</option>
+                            <option value="pullback">MerQ Alpha III (Pullback)</option>
+                            <option value="engulfing">MerQ Alpha IV (Engulfing)</option>
+                            <option value="timebased">MerQ Alpha V (Time-Based)</option>
+                            <option value="test">TEST (Debug)</option>
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                        </div>
                     </div>
                 </Section>
 
