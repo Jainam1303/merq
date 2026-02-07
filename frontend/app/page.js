@@ -245,32 +245,15 @@ function TickerMarquee() {
     // Fetch closing prices from Yahoo Finance (updates once per day after market close)
     const fetchClosingPrices = async () => {
       try {
-        // Check if we already fetched today
-        const today = new Date().toISOString().split('T')[0];
-        const lastFetch = localStorage.getItem('ticker_last_fetch');
-        const cachedData = localStorage.getItem('ticker_data');
-
-        // If we already fetched today, use cached data
-        if (lastFetch === today && cachedData) {
-          console.log('Using cached closing prices from today');
-          setTickers(JSON.parse(cachedData));
-          setLoading(false);
-          return;
-        }
-
-        // Fetch fresh closing prices from API
+        // Fetch fresh closing prices from Backend API (updates dynamically)
         console.log('Fetching closing prices from Alpha Vantage API...');
         const res = await fetch('/api/market-ticker');
         const data = await res.json();
 
         if (Array.isArray(data) && data.length > 0) {
           setTickers(data);
-          // Cache the data in localStorage
-          localStorage.setItem('ticker_data', JSON.stringify(data));
-          localStorage.setItem('ticker_last_fetch', today);
           setLoading(false);
         } else {
-          // Use fallback data if API returns empty
           setLoading(false);
         }
       } catch (err) {
