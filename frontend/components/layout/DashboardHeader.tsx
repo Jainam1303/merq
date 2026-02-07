@@ -174,6 +174,35 @@ export function DashboardHeader({
           </DropdownMenu>
         </div>
       </div>
+
+      {/* Marquee Ticker */}
+      <div className="border-t border-border bg-muted/30 overflow-hidden py-1">
+        <div className="flex animate-marquee whitespace-nowrap hover:[animation-play-state:paused]">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="flex gap-8 px-4">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                NIFTY 50 <span className="text-profit">24,350.50 (+0.45%)</span>
+              </span>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                BANKNIFTY <span className="text-loss">52,100.20 (-0.12%)</span>
+              </span>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                SENSEX <span className="text-profit">80,123.45 (+0.30%)</span>
+              </span>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                FINNIFTY <span className="text-profit">23,456.78 (+0.10%)</span>
+              </span>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                INDIA VIX <span className="text-loss">12.45 (-2.30%)</span>
+              </span>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                MIDCAP NIFTY <span className="text-profit">10,987.65 (+0.75%)</span>
+              </span>
+              {/* Add more indices as needed */}
+            </div>
+          ))}
+        </div>
+      </div>
     </header>
   );
 }
