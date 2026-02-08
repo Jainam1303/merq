@@ -1000,11 +1000,11 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
   const [showFeatures, setShowFeatures] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // If user is logged in: Dashboard, Features. If not: Home, Features, Pricing, About.
+  // If user is logged in: Dashboard, Features. If not: Home, Features, Pricing.
   // Prioritize Dashboard for logged in users.
   const navItems = user
-    ? [{ label: 'Dashboard', value: 'dashboard' }, { label: 'Features', value: 'features' }, { label: 'About', value: 'about' }]
-    : [{ label: 'Home', value: 'landing' }, { label: 'Features', value: 'features' }, { label: 'Pricing', value: 'pricing' }, { label: 'About', value: 'about' }];
+    ? [{ label: 'Dashboard', value: 'dashboard' }, { label: 'Features', value: 'features' }]
+    : [{ label: 'Home', value: 'landing' }, { label: 'Features', value: 'features' }, { label: 'Pricing', value: 'pricing' }];
 
   const featureLinks = [
     { label: 'Live Trading', tab: 'live' },
@@ -2980,7 +2980,7 @@ export default function Home() {
 
   // Main Render
   let content;
-  if (currentPage === 'landing' || (!user && !['login', 'register', 'pricing', 'about'].includes(currentPage))) {
+  if (currentPage === 'landing' || (!user && !['login', 'register', 'pricing'].includes(currentPage))) {
     content = <Landing onGetStarted={() => setCurrentPage('register')} />;
   } else if (currentPage === 'login') {
     content = <AuthForm type="login" onSuccess={(u) => { setPendingUser(u); setShowRiskModal(true); }} switchTo={setCurrentPage} />;
@@ -2988,8 +2988,6 @@ export default function Home() {
     content = <AuthForm type="register" onSuccess={() => setCurrentPage('login')} switchTo={setCurrentPage} />;
   } else if (currentPage === 'pricing') {
     content = <Pricing onSubscribe={(plan) => { alert(`You selected ${plan.name} plan! Redirecting to payment...`); setCurrentPage('register'); }} />;
-  } else if (currentPage === 'about') {
-    content = <AboutUs />;
   } else {
     // DASHBOARD CONTENT - Split into Mobile and Desktop
     content = (
