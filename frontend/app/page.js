@@ -10,6 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { BacktestHistory } from "@/components/dashboard/BacktestHistory";
 import { MobileDashboard } from "@/components/mobile";
+import AuthForm from './components/AuthForm';
+
 
 // Dynamic Razorpay script loading (like startup project)
 const loadRazorpayScript = async () => {
@@ -1927,81 +1929,6 @@ function MultiSelect({ options, selected, onChange, label, placeholder = "Search
   );
 }
 
-function AuthForm({ type, onSuccess, switchTo }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true); setError("");
-    try {
-      const data = await fetchJson(type === 'login' ? '/login' : '/register', {
-        method: 'POST',
-        body: JSON.stringify({ username, password })
-      });
-
-      if (data.status === 'success') {
-        if (type === 'login') onSuccess(data.user);
-        else onSuccess();
-      } else {
-        setError(data.message || "Action failed");
-      }
-    } catch (err) {
-      console.error(err);
-      setError(err.message || "Network Error. Check console.");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <div className="min-h-[calc(100vh-64px)] flex items-center justify-center animate-in fade-in zoom-in-95 duration-300 px-4">
-      <div className="bg-white dark:bg-[#121214] p-8 rounded-2xl border border-zinc-200 dark:border-[#27272a] shadow-2xl w-full max-w-md">
-        <h2 className="text-2xl font-bold mb-6 text-zinc-900 dark:text-white text-center">{type === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
-        {error && <div className="bg-red-500/10 text-red-500 text-sm p-3 rounded mb-4 text-center">{error}</div>}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Username</label>
-            <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] p-3 rounded text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none" required />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] p-3 rounded text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none pr-10"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
-          </div>
-          <button type="submit" disabled={loading} className="w-full bg-emerald-500 text-white dark:text-black font-bold py-3 rounded hover:bg-emerald-400 transition-all flex justify-center">
-            {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : (type === 'login' ? 'Sign In' : 'Sign Up')}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-sm text-zinc-500">
-          {type === 'login' ? "Don't have an account? " : "Already have an account? "}
-          <button onClick={() => switchTo(type === 'login' ? 'register' : 'login')} className="text-emerald-500 font-bold hover:underline">
-            {type === 'login' ? 'Sign Up' : 'Sign In'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function HistoryTable({ user, showConfirm, addToast }) {
   const [history, setHistory] = useState([]);
