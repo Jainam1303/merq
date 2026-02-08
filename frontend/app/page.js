@@ -997,20 +997,13 @@ function UserDropdown({ user, logout, onOpenProfile }) {
 
 
 function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTabChange, isSimulated, setIsSimulated, onOpenProfile }) {
-  const [showFeatures, setShowFeatures] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // If user is logged in: Dashboard, Features. If not: Home, Features, Pricing.
-  // Prioritize Dashboard for logged in users.
+  // If user is logged in: Dashboard only. If not: No navigation items (clean header).
   const navItems = user
-    ? [{ label: 'Dashboard', value: 'dashboard' }, { label: 'Features', value: 'features' }]
-    : [{ label: 'Home', value: 'landing' }, { label: 'Features', value: 'features' }, { label: 'Pricing', value: 'pricing' }];
+    ? [{ label: 'Dashboard', value: 'dashboard' }]
+    : [];
 
-  const featureLinks = [
-    { label: 'Live Trading', tab: 'live' },
-    { label: 'Order Book', tab: 'orderbook' },
-    { label: 'Backtest', tab: 'backtest' }
-  ];
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-[#09090b]/90 backdrop-blur-md border-b border-zinc-200 dark:border-[#27272a] transition-all duration-300">
@@ -1025,40 +1018,13 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
 
         <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8 text-sm font-medium text-zinc-500 dark:text-zinc-400">
           {navItems.map(item => (
-            <div key={item.value} className="relative group">
-              <button
-                onClick={() => {
-                  if (item.value === 'features' && user) return;
-                  onNavigate(item.value);
-                }}
-                onMouseEnter={() => item.value === 'features' && user && setShowFeatures(true)}
-                onMouseLeave={() => item.value === 'features' && user && setShowFeatures(false)}
-                className={`hover:text-zinc-900 dark:hover:text-white transition-colors py-2 flex items-center gap-1 ${activePage === item.value ? 'text-zinc-900 dark:text-white font-bold' : ''}`}
-              >
-                {item.label}
-              </button>
-
-              {/* Features Dropdown for Logged In User */}
-              {item.value === 'features' && user && (
-                <div
-                  className={`absolute top-full left-1/2 -translate-x-1/2 pt-2 transition-all duration-200 ${showFeatures ? 'opacity-100 translate-y-0 visible' : 'opacity-0 translate-y-2 invisible'}`}
-                  onMouseEnter={() => setShowFeatures(true)}
-                  onMouseLeave={() => setShowFeatures(false)}
-                >
-                  <div className="bg-white dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded-xl shadow-xl w-48 overflow-hidden p-1 flex flex-col">
-                    {featureLinks.map(link => (
-                      <button
-                        key={link.tab}
-                        onClick={() => { onNavigate('dashboard'); onTabChange(link.tab); setShowFeatures(false); }}
-                        className="text-left px-3 py-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300 transition-colors block w-full"
-                      >
-                        {link.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <button
+              key={item.value}
+              onClick={() => onNavigate(item.value)}
+              className={`hover:text-zinc-900 dark:hover:text-white transition-colors py-2 ${activePage === item.value ? 'text-zinc-900 dark:text-white font-bold' : ''}`}
+            >
+              {item.label}
+            </button>
           ))}
         </nav>
 
@@ -1115,19 +1081,6 @@ function Header({ onNavigate, activePage, theme, toggleTheme, user, logout, onTa
               </button>
             ))}
 
-            {user && featureLinks.map(link => (
-              <button
-                key={link.tab}
-                onClick={() => {
-                  onNavigate('dashboard');
-                  onTabChange(link.tab);
-                  setMobileMenuOpen(false);
-                }}
-                className="block w-full text-left px-4 py-3 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-sm font-medium text-zinc-600 dark:text-zinc-400 pl-8"
-              >
-                {link.label}
-              </button>
-            ))}
 
             <div className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
               {user ? (
