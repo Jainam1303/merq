@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     async rewrites() {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:5002' : 'https://api.merqprime.in');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:3002' : 'https://api.merqprime.in');
         console.log(`[Next.js] Rewriting API calls to: ${apiUrl}`);
         return [
             {

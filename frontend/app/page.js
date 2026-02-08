@@ -1267,19 +1267,22 @@ function Landing({ onGetStarted }) {
               {
                 step: "01",
                 title: "Connect Broker",
-                desc: "Securely link your Angel One account using API Key & TOTP. Your funds remain in your brokerage account.",
+                subtitle: "Secure integration",
+                desc: "Securely connect your brokerage account via encrypted API access. Your capital always remains with your broker — MerQPrime never holds funds.",
                 icon: <Shield size={32} className="text-blue-600 dark:text-blue-400" />
               },
               {
                 step: "02",
                 title: "Select Strategy",
-                desc: "Choose from our pre-built strategies like 'Nifty Trend' or 'Scalper', or configure your own parameters.",
+                subtitle: "Intelligent frameworks",
+                desc: "Select from professionally designed strategy frameworks or customize parameters to match your trading objectives and risk profile.",
                 icon: <Activity size={32} className="text-blue-600 dark:text-blue-400" />
               },
               {
                 step: "03",
                 title: "Automate",
-                desc: "Click 'Start Button' and watch the bot execute trades based on real-time market data. Monitor P&L live.",
+                subtitle: "Systematic execution",
+                desc: "Activate automation and let the system execute trades using real-time market data. Track performance, positions, and P&L in real time.",
                 icon: <Zap size={32} className="text-blue-600 dark:text-blue-400" />
               }
             ].map((s, i) => (
@@ -1291,7 +1294,8 @@ function Landing({ onGetStarted }) {
                   <div className="w-16 h-16 rounded-2xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                     {s.icon}
                   </div>
-                  <h4 className="text-xl font-bold text-zinc-900 dark:text-white mb-3">{s.title}</h4>
+                  <h4 className="text-xl font-bold text-zinc-900 dark:text-white mb-1">{s.title}</h4>
+                  <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-3 opacity-90">{s.subtitle}</p>
                   <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">{s.desc}</p>
                 </div>
               </div>
@@ -2603,7 +2607,14 @@ export default function Home() {
       console.log('[SOCKET] Connecting to Socket.IO (Algo Running)...');
       // Connect directly to Backend URL (Vercel cannot proxy WebSockets properly)
       // Use relative path by default to leverage Next.js proxy. Only use env var if explicitly set.
-      const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || undefined;
+      let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL;
+      if (!socketUrl) {
+        if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1'))) {
+          socketUrl = 'http://localhost:3002';
+        } else {
+          socketUrl = 'https://api.merqprime.in';
+        }
+      }
       socket = io(socketUrl, {
         path: '/socket.io',
         withCredentials: true,
