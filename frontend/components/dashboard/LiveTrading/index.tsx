@@ -349,6 +349,25 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
     }
   };
 
+  // LAYER 2: Dismiss a stale position WITHOUT placing exit order
+  // Use when position was already manually exited from broker app
+  const handleDismissPosition = async (id: string) => {
+    try {
+      await fetchJson('/dismiss-position', {
+        method: 'POST',
+        body: JSON.stringify({ positionId: id })
+      });
+      toast.success("Position dismissed (no exit order placed)");
+      // Remove from local state
+      setPositions(prev => prev.filter(p => p.id !== id));
+    } catch (e) {
+      // Even if backend fails, remove from local state
+      // (position is likely stale anyway)
+      setPositions(prev => prev.filter(p => p.id !== id));
+      toast.info("Position removed from dashboard");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Row - Status, P&L, and Safety Guard */}
@@ -377,6 +396,7 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
         onSquareOffAll={handleSquareOffAll}
         onExitPosition={handleExitPosition}
         onUpdatePosition={handleUpdatePosition}
+        onDismissPosition={handleDismissPosition}
       />
 
       {/* System Logs */}

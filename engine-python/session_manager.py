@@ -1121,6 +1121,16 @@ class TradingSession:
                 self.log(f"EXIT ORDER BLOCKED: No token for {pos['symbol']}", "ERROR")
                 return False
             
+            # =====================================================
+            # LAYER 3: PRE-EXIT VALIDATION
+            # Check if position actually exists at broker before exit
+            # Prevents reverse position if user already manually exited
+            # =====================================================
+            if not self._verify_position_exists_at_broker(pos['symbol']):
+                self.log(f"⚠️ EXIT BLOCKED: Position {pos['symbol']} not found at broker (already closed?)", "WARNING")
+                self.log(f"📝 Skipping exit order to prevent reverse position", "INFO")
+                return False  # Don't place exit - position doesn't exist
+            
             # Use exact trading symbol from token map if available (best practice)
             trading_symbol = self.symbol_tokens.get(f"{pos['symbol']}_TS")
             if not trading_symbol:
@@ -1243,6 +1253,8 @@ class TradingSession:
     
     def _oco_monitor_loop(self):
         """Background loop that checks order statuses and implements OCO logic"""
+        sync_counter = 0  # For less frequent position sync
+        
         while self.active and not self.stop_event.is_set():
             try:
                 # Check every 5 seconds
@@ -1250,6 +1262,16 @@ class TradingSession:
                 
                 if not self.smartApi:
                     continue
+                
+                sync_counter += 1
+                
+                # =====================================================
+                # LAYER 1: POSITION SYNC (Every 30 seconds)
+                # Detect if user manually exited from broker app
+                # =====================================================
+                if sync_counter >= 6:  # 6 * 5 seconds = 30 seconds
+                    sync_counter = 0
+                    self._sync_with_broker_positions()
                 
                 # Get all open positions with pending TP/SL orders
                 for pos in self.positions:
@@ -1306,6 +1328,145 @@ class TradingSession:
             except Exception as e:
                 self.log(f"⚠️ OCO Monitor Error: {e}", "WARNING")
                 time.sleep(10)  # Wait longer on error
+    
+    def _sync_with_broker_positions(self):
+        """
+        LAYER 1: Position Sync
+        Check broker's actual positions and detect manual exits.
+        If we have an OPEN position but broker doesn't, mark it as closed.
+        """
+        try:
+            # Get actual positions from broker
+            broker_positions = self.smartApi.position()
+            
+            if not broker_positions or broker_positions.get('status') != True:
+                return
+            
+            broker_data = broker_positions.get('data', [])
+            
+            # Extract symbols that have actual open positions at broker
+            # (netqty != 0 means position exists)
+            broker_open_symbols = set()
+            for bp in broker_data:
+                net_qty = int(bp.get('netqty', 0))
+                if net_qty != 0:
+                    # Get the trading symbol
+                    trading_sym = bp.get('tradingsymbol', '')
+                    broker_open_symbols.add(trading_sym)
+                    # Also add without -EQ suffix for matching
+                    broker_open_symbols.add(trading_sym.replace('-EQ', ''))
+            
+            # Check our OPEN positions against broker
+            for pos in self.positions:
+                if pos['status'] != 'OPEN':
+                    continue
+                
+                symbol = pos['symbol']
+                symbol_clean = symbol.replace('-EQ', '')
+                trading_symbol = self.symbol_tokens.get(f"{symbol}_TS", symbol)
+                
+                # Check if this position exists at broker
+                position_exists = (
+                    symbol in broker_open_symbols or
+                    symbol_clean in broker_open_symbols or
+                    trading_symbol in broker_open_symbols
+                )
+                
+                if not position_exists:
+                    # Position was manually closed by user from broker app!
+                    self.log(f"🔍 MANUAL EXIT DETECTED: {symbol} not found in broker positions", "WARNING")
+                    self.log(f"📝 Marking position as CLOSED (no exit order will be placed)", "INFO")
+                    
+                    # Cancel any pending TP/SL orders
+                    if pos.get('sl_order_id'):
+                        self._cancel_order(pos['sl_order_id'], "STOPLOSS", symbol)
+                        pos['sl_order_id'] = None
+                    if pos.get('tp_order_id'):
+                        self._cancel_order(pos['tp_order_id'], "NORMAL", symbol)
+                        pos['tp_order_id'] = None
+                    
+                    # Mark as closed with LTP (or entry as fallback)
+                    ltp = self.ltp_cache.get(symbol, pos['entry'])
+                    self._close_position_manual(pos, ltp, "MANUAL_EXIT_BROKER")
+                    
+        except Exception as e:
+            self.log(f"⚠️ Position Sync Error: {e}", "DEBUG")
+    
+    def _close_position_manual(self, pos, exit_price, reason):
+        """
+        Close a position that was manually exited from broker.
+        Does NOT place any exit order (position already closed at broker).
+        """
+        pos['status'] = "CLOSED"
+        pos['exit'] = exit_price
+        if pos['type'] == 'BUY':
+            pos['pnl'] = (exit_price - pos['entry']) * pos['qty']
+        else:
+            pos['pnl'] = (pos['entry'] - exit_price) * pos['qty']
+        
+        self.pnl += pos['pnl']
+        self.log(f"🔄 Position {pos['symbol']} marked CLOSED ({reason}) | Approx PnL: ₹{pos['pnl']:.2f}", "INFO")
+        
+        # Persist to backend DB
+        try:
+            payload = {
+                "user_id": self.user_id,
+                "symbol": pos['symbol'],
+                "mode": pos['type'],
+                "qty": pos['qty'],
+                "entry": pos['entry'],
+                "exit": pos['exit'],
+                "tp": pos.get('tp', 0),
+                "sl": pos.get('sl', 0),
+                "pnl": round(pos['pnl'], 2),
+                "status": "COMPLETED",
+                "date": pos.get('date', datetime.date.today().strftime('%Y-%m-%d')),
+                "time": self._get_ist_time().strftime("%H:%M:%S"),
+                "trade_mode": self.mode,
+                "strategy": self.strategy_name.upper(),
+                "exit_reason": reason
+            }
+            requests.post('http://localhost:5001/webhook/save_trade', json=payload, timeout=2)
+        except Exception as e:
+            self.log(f"Failed to sync manual exit to DB: {e}", "ERROR")
+    
+    def _verify_position_exists_at_broker(self, symbol):
+        """
+        LAYER 3: Pre-Exit Validation
+        Check if position actually exists at broker before placing exit order.
+        Returns True if position exists, False if not (or on error).
+        """
+        try:
+            broker_positions = self.smartApi.position()
+            
+            if not broker_positions or broker_positions.get('status') != True:
+                # Can't verify - assume position exists to be safe
+                self.log(f"⚠️ Could not verify broker position - proceeding with exit", "WARNING")
+                return True
+            
+            broker_data = broker_positions.get('data', [])
+            
+            symbol_clean = symbol.replace('-EQ', '')
+            trading_symbol = self.symbol_tokens.get(f"{symbol}_TS", symbol)
+            
+            for bp in broker_data:
+                net_qty = int(bp.get('netqty', 0))
+                if net_qty == 0:
+                    continue  # No open position for this symbol
+                
+                trading_sym = bp.get('tradingsymbol', '')
+                if (symbol == trading_sym or 
+                    symbol_clean == trading_sym or
+                    trading_symbol == trading_sym or
+                    symbol_clean == trading_sym.replace('-EQ', '')):
+                    return True  # Position exists at broker
+            
+            return False  # Position not found at broker
+            
+        except Exception as e:
+            self.log(f"⚠️ Error verifying broker position: {e}", "DEBUG")
+            # On error, assume position exists to prevent blocking legitimate exits
+            return True
     
     def _get_order_status(self, order_id):
         """Get the status of an order from Angel One"""
@@ -1556,6 +1717,30 @@ class TradingSession:
             if str(p['id']) == str(position_id) and p['status'] == 'OPEN':
                 ltp = self.ltp_cache.get(p['symbol'], p['entry'])
                 self._close_position(p, ltp, "MANUAL")
+                return True
+        return False
+
+    def dismiss_position(self, position_id):
+        """
+        LAYER 2: Dismiss a stale position WITHOUT placing any exit order.
+        Use when user manually exited from broker app.
+        """
+        for p in self.positions:
+            if str(p['id']) == str(position_id):
+                self.log(f"🗑️ Dismissing position {p['symbol']} (ID: {position_id}) - NO exit order placed", "INFO")
+                
+                # Cancel any pending TP/SL orders
+                if self.mode == "LIVE":
+                    if p.get('sl_order_id'):
+                        self._cancel_order(p['sl_order_id'], "STOPLOSS", p['symbol'])
+                        p['sl_order_id'] = None
+                    if p.get('tp_order_id'):
+                        self._cancel_order(p['tp_order_id'], "NORMAL", p['symbol'])
+                        p['tp_order_id'] = None
+                
+                # Mark as closed with entry price (unknown actual exit)
+                ltp = self.ltp_cache.get(p['symbol'], p['entry'])
+                self._close_position_manual(p, ltp, "DISMISSED_BY_USER")
                 return True
         return False
 

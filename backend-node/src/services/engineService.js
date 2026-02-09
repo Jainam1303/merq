@@ -117,6 +117,22 @@ class PythonEngineService {
             return { status: 'error', message: err.message };
         }
     }
+
+    // 7. Dismiss Position (remove from tracking without exit order)
+    // Used when user manually exited from broker app
+    async dismissPosition(userId, positionId) {
+        try {
+            const payload = { user_id: userId, position_id: positionId };
+            const res = await this.client.post('/engine/dismiss_position', payload, {
+                headers: this._getHeaders(payload)
+            });
+            return res.data;
+        } catch (err) {
+            console.error('Dismiss Position Failed:', err.message);
+            // Return success anyway - we just want to remove from UI
+            return { status: 'dismissed', message: 'Position removed from tracking' };
+        }
+    }
 }
 
 module.exports = new PythonEngineService();

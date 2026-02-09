@@ -215,6 +215,22 @@ exports.exitPosition = async (req, res) => {
     }
 };
 
+// LAYER 2: Dismiss a stale position WITHOUT placing exit order
+// Use when user manually exited from broker app
+exports.dismissPosition = async (req, res) => {
+    try {
+        const userId = String(req.user.id);
+        const { positionId } = req.body;
+
+        const result = await engineService.dismissPosition(userId, positionId);
+        res.json(result);
+    } catch (error) {
+        console.error('Dismiss Position Error:', error);
+        // Even if engine call fails, return success since we want to remove from UI
+        res.json({ status: 'dismissed', message: 'Position dismissed from dashboard' });
+    }
+};
+
 exports.getOrderBook = async (req, res) => {
     try {
         const userId = String(req.user.id);

@@ -115,6 +115,21 @@ def exit_position(data: dict):
         return {"status": "exited" if success else "not_found"}
     return {"status": "no_session"}
 
+@app.post("/engine/dismiss_position")
+def dismiss_position(data: dict):
+    """
+    Dismiss a stale position WITHOUT placing exit order.
+    Use when user manually exited from broker app.
+    """
+    user_id = data.get("user_id")
+    position_id = data.get("position_id")
+    
+    session = session_manager.get_session(user_id)
+    if session:
+        success = session.dismiss_position(position_id)
+        return {"status": "dismissed" if success else "not_found"}
+    return {"status": "no_session"}
+
 @app.post("/engine/test_order")
 def execute_test_order(data: dict):
     """

@@ -20,6 +20,7 @@ interface ActivePositionsProps {
   onSquareOffAll?: () => void;
   onExitPosition?: (id: string) => void;
   onUpdatePosition?: (id: string, tp: number, sl: number) => void;
+  onDismissPosition?: (id: string) => void;  // Layer 2: Manual dismiss for stale positions
 }
 
 // Mobile Position Card Component
@@ -27,6 +28,7 @@ function PositionCard({
   position,
   onEdit,
   onExit,
+  onDismiss,
   onUpdate,
   isEditing,
   editValues,
@@ -37,6 +39,7 @@ function PositionCard({
   position: Position;
   onEdit: () => void;
   onExit: () => void;
+  onDismiss: () => void;
   onUpdate: (tp: number, sl: number) => void;
   isEditing: boolean;
   editValues: { tp: string; sl: string };
@@ -175,18 +178,31 @@ function PositionCard({
             </div>
           )}
 
-          {/* Exit Button */}
-          <Button
-            variant={confirmExit ? "destructive" : "outline"}
-            className={cn(
-              "w-full min-h-[44px]",
-              !confirmExit && "border-loss/50 text-loss hover:bg-loss/10 hover:text-loss"
-            )}
-            onClick={(e) => { e.stopPropagation(); handleExitClick(); }}
-          >
-            <X size={18} className="mr-2" />
-            {confirmExit ? 'TAP AGAIN TO CONFIRM EXIT' : 'Exit Position'}
-          </Button>
+          {/* Exit and Dismiss Buttons */}
+          <div className="flex gap-2">
+            {/* Dismiss Button - removes stale position without exit order */}
+            <Button
+              variant="outline"
+              className="flex-1 min-h-[44px] border-muted-foreground/30 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+              onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+              title="Remove this position from dashboard (use if already exited from broker)"
+            >
+              Dismiss
+            </Button>
+
+            {/* Exit Button - places actual exit order */}
+            <Button
+              variant={confirmExit ? "destructive" : "outline"}
+              className={cn(
+                "flex-1 min-h-[44px]",
+                !confirmExit && "border-loss/50 text-loss hover:bg-loss/10 hover:text-loss"
+              )}
+              onClick={(e) => { e.stopPropagation(); handleExitClick(); }}
+            >
+              <X size={18} className="mr-2" />
+              {confirmExit ? 'CONFIRM' : 'Exit'}
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -197,7 +213,8 @@ export function ActivePositions({
   positions = [],
   onSquareOffAll,
   onExitPosition,
-  onUpdatePosition
+  onUpdatePosition,
+  onDismissPosition
 }: ActivePositionsProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ tp: string; sl: string }>({ tp: '', sl: '' });
@@ -275,6 +292,7 @@ export function ActivePositions({
                   position={position}
                   onEdit={() => startEditing(position)}
                   onExit={() => onExitPosition?.(position.id)}
+                  onDismiss={() => onDismissPosition?.(position.id)}
                   onUpdate={(tp, sl) => onUpdatePosition?.(position.id, tp, sl)}
                   isEditing={editingId === position.id}
                   editValues={editValues}
@@ -380,14 +398,25 @@ export function ActivePositions({
                                 size="icon"
                                 className="h-7 w-7"
                                 onClick={() => startEditing(position)}
+                                title="Edit TP/SL"
                               >
                                 <Edit2 className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                className="h-7 text-xs text-muted-foreground hover:bg-muted hover:text-muted-foreground"
+                                onClick={() => onDismissPosition && onDismissPosition(position.id)}
+                                title="Dismiss (use if already exited from broker)"
+                              >
+                                Dismiss
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="h-7 text-xs text-loss hover:bg-loss/10 hover:text-loss"
                                 onClick={() => onExitPosition && onExitPosition(position.id)}
+                                title="Exit (places exit order)"
                               >
                                 Exit
                               </Button>
