@@ -587,7 +587,10 @@ class TradingSession:
             "tp": round(tp, 2),
             "sl": round(sl, 2),
             "status": "OPEN",
-            "pnl": 0.0
+            "pnl": 0.0,
+            "order_id": None,      # Entry order ID
+            "sl_order_id": None,   # SL-M order ID (for LIVE mode)
+            "tp_order_id": None    # Target Limit order ID (for LIVE mode)
         }
         self.positions.append(pos)
         
@@ -686,7 +689,31 @@ class TradingSession:
                 if response.get('status') == True:
                     order_id = response.get('data', {}).get('orderid')
                     pos['order_id'] = order_id
-                    self.log(f"✅ LIVE ORDER PLACED: OrderID={order_id}", "SUCCESS")
+                    self.log(f"✅ LIVE ENTRY ORDER PLACED: OrderID={order_id}", "SUCCESS")
+                    
+                    # =====================================================
+                    # PLACE SL-M AND TARGET ORDERS AFTER SUCCESSFUL ENTRY
+                    # =====================================================
+                    time.sleep(0.5)  # Small delay to avoid rate limiting
+                    
+                    # Place SL-M Order (Stop Loss Market)
+                    sl_order_id = self._place_sl_order(pos, symbol, token, trading_symbol, order_type, qty)
+                    if sl_order_id:
+                        pos['sl_order_id'] = sl_order_id
+                        self.log(f"🛡️ SL-M ORDER PLACED: OrderID={sl_order_id} @ {pos['sl']}", "SUCCESS")
+                    else:
+                        self.log(f"⚠️ Failed to place SL order - Position unprotected!", "WARNING")
+                    
+                    time.sleep(0.3)  # Small delay between orders
+                    
+                    # Place Target Limit Order
+                    tp_order_id = self._place_tp_order(pos, symbol, token, trading_symbol, order_type, qty)
+                    if tp_order_id:
+                        pos['tp_order_id'] = tp_order_id
+                        self.log(f"🎯 TARGET ORDER PLACED: OrderID={tp_order_id} @ {pos['tp']}", "SUCCESS")
+                    else:
+                        self.log(f"⚠️ Failed to place TP order - Will use soft exit", "WARNING")
+                    
                     return True
                 else:
                     error_msg = response.get('message', str(response))
@@ -721,6 +748,104 @@ class TradingSession:
             return self.smartApi.access_token
         # Fallback to our stored token
         return self.auth_token
+
+    def _place_sl_order(self, pos, symbol, token, trading_symbol, entry_type, qty):
+        """
+        Place Stop Loss Market (SL-M) order on Angel One
+        For BUY entry -> SL is a SELL order triggered when price falls to SL
+        For SELL entry -> SL is a BUY order triggered when price rises to SL
+        """
+        try:
+            sl_price = pos['sl']
+            # Exit type is opposite of entry type
+            exit_type = "SELL" if entry_type == "BUY" else "BUY"
+            
+            # SL-M Order: triggerprice = SL level, price = 0 (market execution)
+            order_params = {
+                "variety": "STOPLOSS",
+                "tradingsymbol": trading_symbol,
+                "symboltoken": str(token),
+                "transactiontype": exit_type,
+                "exchange": "NSE",
+                "ordertype": "STOPLOSS_MARKET",  # SL-M order
+                "producttype": "INTRADAY",
+                "duration": "DAY",
+                "price": "0",  # Market price on trigger
+                "triggerprice": str(sl_price),  # Trigger at SL level
+                "quantity": str(qty)
+            }
+            
+            self.log(f"📤 Placing SL-M Order: {order_params}", "DEBUG")
+            
+            response = self.smartApi.placeOrder(order_params)
+            self.log(f"📥 SL-M API Response: {response}", "DEBUG")
+            
+            if response is None:
+                return None
+                
+            if isinstance(response, dict):
+                if response.get('status') == True:
+                    return response.get('data', {}).get('orderid')
+                else:
+                    self.log(f"❌ SL-M Order Rejected: {response.get('message')}", "ERROR")
+                    return None
+            elif isinstance(response, str):
+                return response
+                
+            return None
+            
+        except Exception as e:
+            self.log(f"❌ SL-M Order Exception: {e}", "ERROR")
+            return None
+
+    def _place_tp_order(self, pos, symbol, token, trading_symbol, entry_type, qty):
+        """
+        Place Target Limit order on Angel One
+        For BUY entry -> TP is a SELL LIMIT order at target price
+        For SELL entry -> TP is a BUY LIMIT order at target price
+        """
+        try:
+            tp_price = pos['tp']
+            # Exit type is opposite of entry type
+            exit_type = "SELL" if entry_type == "BUY" else "BUY"
+            
+            # Limit Order at target price
+            order_params = {
+                "variety": "NORMAL",
+                "tradingsymbol": trading_symbol,
+                "symboltoken": str(token),
+                "transactiontype": exit_type,
+                "exchange": "NSE",
+                "ordertype": "LIMIT",  # Limit order at TP price
+                "producttype": "INTRADAY",
+                "duration": "DAY",
+                "price": str(tp_price),  # Limit price at TP level
+                "quantity": str(qty)
+            }
+            
+            self.log(f"📤 Placing TP LIMIT Order: {order_params}", "DEBUG")
+            
+            response = self.smartApi.placeOrder(order_params)
+            self.log(f"📥 TP LIMIT API Response: {response}", "DEBUG")
+            
+            if response is None:
+                return None
+                
+            if isinstance(response, dict):
+                if response.get('status') == True:
+                    return response.get('data', {}).get('orderid')
+                else:
+                    self.log(f"❌ TP Order Rejected: {response.get('message')}", "ERROR")
+                    return None
+            elif isinstance(response, str):
+                return response
+                
+            return None
+            
+        except Exception as e:
+            self.log(f"❌ TP Order Exception: {e}", "ERROR")
+            return None
+
 
     def _place_order_direct_api(self, order_params, use_fresh_token=False):
         """
@@ -850,6 +975,8 @@ class TradingSession:
 
         # Real Order Exit (Close position on Angel One)
         if self.mode == "LIVE":
+            # Cancel pending SL and TP orders first (prevent double execution)
+            self._cancel_pending_orders(pos)
             self._execute_exit_order(pos)
 
     def _execute_exit_order(self, pos, retry_count=0):
@@ -920,6 +1047,56 @@ class TradingSession:
             self.log(f"❌ Exit Order Exception: {e}", "ERROR")
             return False
 
+    def _cancel_pending_orders(self, pos):
+        """Cancel pending SL and TP orders when closing a position"""
+        try:
+            # Cancel SL order if exists
+            if pos.get('sl_order_id'):
+                self._cancel_order(pos['sl_order_id'], "STOPLOSS", pos['symbol'])
+                pos['sl_order_id'] = None
+            
+            # Cancel TP order if exists
+            if pos.get('tp_order_id'):
+                self._cancel_order(pos['tp_order_id'], "NORMAL", pos['symbol'])
+                pos['tp_order_id'] = None
+                
+        except Exception as e:
+            self.log(f"⚠️ Error cancelling pending orders: {e}", "WARNING")
+
+    def _cancel_order(self, order_id, variety, symbol):
+        """Cancel an order on Angel One"""
+        try:
+            cancel_params = {
+                "variety": variety,
+                "orderid": str(order_id)
+            }
+            
+            self.log(f"📤 Cancelling Order: {order_id}", "DEBUG")
+            
+            response = self.smartApi.cancelOrder(order_id, variety)
+            self.log(f"📥 Cancel API Response: {response}", "DEBUG")
+            
+            if response is None:
+                self.log(f"⚠️ Cancel order returned None for {order_id}", "WARNING")
+                return False
+                
+            if isinstance(response, dict):
+                if response.get('status') == True:
+                    self.log(f"✅ ORDER CANCELLED: {order_id}", "SUCCESS")
+                    return True
+                else:
+                    # Order might already be filled or cancelled - not an error
+                    self.log(f"ℹ️ Cancel response for {order_id}: {response.get('message')}", "INFO")
+                    return False
+            
+            return True
+            
+        except Exception as e:
+            # Order might already be executed - this is not critical
+            self.log(f"ℹ️ Could not cancel order {order_id}: {e}", "INFO")
+            return False
+
+
     def _run_polling_loop(self):
         """Fallback polling mode if WebSocket fails"""
         symbols = self.config.get('symbols', [])
@@ -987,16 +1164,100 @@ class TradingSession:
         }
 
     def update_position(self, position_id, new_tp=None, new_sl=None):
-        """Update TP/SL for an open position"""
+        """Update TP/SL for an open position - modifies Angel One orders in LIVE mode"""
         for p in self.positions:
             if str(p['id']) == str(position_id) and p['status'] == 'OPEN':
+                old_tp = p['tp']
+                old_sl = p['sl']
+                
+                # Update internal values
                 if new_tp is not None:
                     p['tp'] = round(float(new_tp), 2)
                 if new_sl is not None:
                     p['sl'] = round(float(new_sl), 2)
+                
+                # In LIVE mode, modify the actual pending orders on Angel One
+                if self.mode == "LIVE":
+                    # Modify SL order if SL changed and order exists
+                    if new_sl is not None and p.get('sl_order_id') and float(new_sl) != old_sl:
+                        success = self._modify_order(
+                            p['sl_order_id'], 
+                            p['symbol'], 
+                            new_price=0,  # SL-M uses market price
+                            new_trigger=p['sl'],
+                            order_type="STOPLOSS_MARKET"
+                        )
+                        if success:
+                            self.log(f"🛡️ SL ORDER MODIFIED: OrderID={p['sl_order_id']} -> {p['sl']}", "SUCCESS")
+                        else:
+                            self.log(f"⚠️ Failed to modify SL order on exchange", "WARNING")
+                    
+                    # Modify TP order if TP changed and order exists
+                    if new_tp is not None and p.get('tp_order_id') and float(new_tp) != old_tp:
+                        success = self._modify_order(
+                            p['tp_order_id'], 
+                            p['symbol'], 
+                            new_price=p['tp'],
+                            new_trigger=0,
+                            order_type="LIMIT"
+                        )
+                        if success:
+                            self.log(f"🎯 TP ORDER MODIFIED: OrderID={p['tp_order_id']} -> {p['tp']}", "SUCCESS")
+                        else:
+                            self.log(f"⚠️ Failed to modify TP order on exchange", "WARNING")
+                
                 self.log(f"Updated {p['symbol']}: TP={p['tp']}, SL={p['sl']}", "INFO")
                 return True
         return False
+
+    def _modify_order(self, order_id, symbol, new_price, new_trigger, order_type):
+        """Modify an existing order on Angel One"""
+        try:
+            token = self.symbol_tokens.get(symbol)
+            if not token:
+                self.log(f"❌ Cannot modify order - no token for {symbol}", "ERROR")
+                return False
+            
+            trading_symbol = self.symbol_tokens.get(f"{symbol}_TS")
+            if not trading_symbol:
+                trading_symbol = symbol.replace("-EQ", "")
+            
+            # Determine variety based on order type
+            variety = "STOPLOSS" if "STOPLOSS" in order_type else "NORMAL"
+            
+            modify_params = {
+                "variety": variety,
+                "orderid": str(order_id),
+                "tradingsymbol": trading_symbol,
+                "symboltoken": str(token),
+                "exchange": "NSE",
+                "ordertype": order_type,
+                "producttype": "INTRADAY",
+                "duration": "DAY",
+                "price": str(new_price) if new_price else "0",
+            }
+            
+            # Add trigger price for SL orders
+            if new_trigger and new_trigger > 0:
+                modify_params["triggerprice"] = str(new_trigger)
+            
+            self.log(f"📤 Modifying Order: {modify_params}", "DEBUG")
+            
+            response = self.smartApi.modifyOrder(modify_params)
+            self.log(f"📥 Modify API Response: {response}", "DEBUG")
+            
+            if response is None:
+                return False
+                
+            if isinstance(response, dict):
+                return response.get('status') == True
+            
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Modify Order Exception: {e}", "ERROR")
+            return False
+
 
     def exit_position(self, position_id):
         """Manually exit a position"""
