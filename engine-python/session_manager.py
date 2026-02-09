@@ -1209,7 +1209,8 @@ class TradingSession:
                             p['symbol'], 
                             new_price=0,  # SL-M uses market price
                             new_trigger=p['sl'],
-                            order_type="STOPLOSS_MARKET"
+                            order_type="STOPLOSS_MARKET",
+                            qty=p['qty']
                         )
                         if success:
                             self.log(f"🛡️ SL ORDER MODIFIED: OrderID={p['sl_order_id']} -> {p['sl']}", "SUCCESS")
@@ -1223,7 +1224,8 @@ class TradingSession:
                             p['symbol'], 
                             new_price=p['tp'],
                             new_trigger=0,
-                            order_type="LIMIT"
+                            order_type="LIMIT",
+                            qty=p['qty']
                         )
                         if success:
                             self.log(f"🎯 TP ORDER MODIFIED: OrderID={p['tp_order_id']} -> {p['tp']}", "SUCCESS")
@@ -1234,7 +1236,7 @@ class TradingSession:
                 return True
         return False
 
-    def _modify_order(self, order_id, symbol, new_price, new_trigger, order_type):
+    def _modify_order(self, order_id, symbol, new_price, new_trigger, order_type, qty=None):
         """Modify an existing order on Angel One"""
         try:
             token = self.symbol_tokens.get(symbol)
@@ -1260,6 +1262,10 @@ class TradingSession:
                 "duration": "DAY",
                 "price": str(new_price) if new_price else "0",
             }
+            
+            # Add quantity if provided
+            if qty:
+                modify_params["quantity"] = str(qty)
             
             # Add trigger price for SL orders
             if new_trigger and new_trigger > 0:

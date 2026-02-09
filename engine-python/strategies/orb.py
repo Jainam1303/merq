@@ -119,6 +119,7 @@ class LiveORB(BaseLiveStrategy):
                 continue
             
             try:
+                time.sleep(1.0) # Rate limit delay for Angel One API
                 params = {
                     "exchange": "NSE",
                     "symboltoken": token,
