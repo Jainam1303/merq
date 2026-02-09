@@ -256,9 +256,9 @@ export function MobileStatusView({
                             <input
                                 type="text"
                                 value={newSymbol}
-                                onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
+                                onChange={(e) => setNewSymbol(e.target.value)}
                                 placeholder="Enter symbol (e.g. RELIANCE)"
-                                className="flex-1 px-4 py-3 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-h-[48px]"
+                                className="flex-1 px-4 py-3 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-h-[48px] uppercase"
                                 onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                         e.preventDefault();
