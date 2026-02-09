@@ -60,7 +60,7 @@ function TradeCard({
 
     return (
         <div className={cn(
-            "rounded-xl border transition-all duration-200 overflow-hidden",
+            "rounded-xl border transition-all duration-200 overflow-hidden shadow-sm",
             isProfitable
                 ? "border-emerald-200 dark:border-emerald-800/50 bg-white dark:bg-zinc-900"
                 : "border-red-200 dark:border-red-800/50 bg-white dark:bg-zinc-900"
@@ -68,14 +68,15 @@ function TradeCard({
             {/* Main Card Content - Always Visible */}
             <button
                 onClick={onToggleExpand}
-                className="w-full p-4 text-left flex items-center gap-3"
+                className="w-full p-4 text-left flex items-start gap-3 active:bg-zinc-50 dark:active:bg-zinc-800/30 transition-colors"
+                type="button"
             >
                 {/* Symbol & Type */}
-                <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                        <span className="font-bold text-zinc-900 dark:text-white">{trade.symbol}</span>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-bold text-base text-zinc-900 dark:text-white truncate">{trade.symbol}</span>
                         <span className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                            "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase shrink-0",
                             trade.type === 'BUY'
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
@@ -83,21 +84,21 @@ function TradeCard({
                             {trade.type}
                         </span>
                     </div>
-                    <div className="text-xs text-zinc-500 mt-0.5">
+                    <div className="text-xs text-zinc-500 font-medium">
                         {trade.qty} @ ₹{Number(trade.entry || 0).toFixed(2)} • {trade.time}
                     </div>
                 </div>
 
                 {/* P&L */}
-                <div className="text-right">
+                <div className="text-right shrink-0">
                     <div className={cn(
-                        "text-lg font-bold tabular-nums",
+                        "text-lg font-black tabular-nums mb-0.5",
                         isProfitable ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                     )}>
                         {isProfitable ? '+' : ''}₹{Number(trade.pnl || 0).toFixed(2)}
                     </div>
-                    <div className="flex items-center justify-end gap-1 text-zinc-400">
-                        {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    <div className="flex items-center justify-end text-zinc-400">
+                        {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </div>
                 </div>
             </button>
@@ -222,12 +223,12 @@ export function MobileTradesView({
     return (
         <div className="min-h-[calc(100vh-180px)] flex flex-col pb-4">
             {/* Summary Header */}
-            <div className="sticky top-16 z-10 bg-zinc-50/95 dark:bg-zinc-950/95 backdrop-blur-sm px-4 py-3 border-b border-zinc-200 dark:border-zinc-800">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="text-sm text-zinc-500">{trades.length} Position{trades.length !== 1 ? 's' : ''}</div>
+            <div className="sticky top-16 z-10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm px-4 py-4 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                        <div className="text-xs text-zinc-500 mb-1">{trades.length} Position{trades.length !== 1 ? 's' : ''}</div>
                         <div className={cn(
-                            "text-xl font-bold tabular-nums",
+                            "text-2xl font-black tabular-nums truncate",
                             (Number(totalPnl) || 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                         )}>
                             {(Number(totalPnl) || 0) >= 0 ? '+' : ''}₹{Number(totalPnl || 0).toFixed(2)}
@@ -237,14 +238,14 @@ export function MobileTradesView({
                         <button
                             onClick={handleSquareOffAll}
                             className={cn(
-                                "px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 min-h-[44px] transition-all",
+                                "px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 min-h-[44px] transition-all shrink-0 whitespace-nowrap",
                                 confirmSquareOff
-                                    ? "bg-red-500 text-white animate-pulse"
-                                    : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                                    ? "bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/30"
+                                    : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800"
                             )}
                         >
-                            <AlertTriangle size={16} />
-                            {confirmSquareOff ? 'CONFIRM' : 'Exit All'}
+                            <AlertTriangle size={14} />
+                            {confirmSquareOff ? 'TAP TO CONFIRM' : 'Exit All'}
                         </button>
                     )}
                 </div>

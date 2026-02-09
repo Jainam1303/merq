@@ -86,40 +86,45 @@ export function MobileStatusView({
         title: string;
         icon: typeof Target;
         children: React.ReactNode
-    }) => (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-            <button
-                onClick={() => setExpandedSection(expandedSection === id ? null : id)}
-                className="w-full p-4 flex items-center gap-3 text-left"
-                disabled={isSystemActive}
-            >
-                <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                </div>
-                <div className="flex-1">
-                    <div className="font-bold text-zinc-900 dark:text-white">{title}</div>
-                </div>
-                <ChevronRight className={cn(
-                    "w-5 h-5 text-zinc-400 transition-transform",
-                    expandedSection === id && "rotate-90"
-                )} />
-            </button>
-            {expandedSection === id && (
-                <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                    {isSystemActive ? (
-                        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
-                            Stop the bot to modify settings
-                        </div>
-                    ) : (
-                        children
-                    )}
-                </div>
-            )}
-        </div>
-    );
+    }) => {
+        const isExpanded = expandedSection === id;
+
+        return (
+            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+                <button
+                    onClick={() => setExpandedSection(isExpanded ? null : id)}
+                    className="w-full p-4 flex items-center gap-3 text-left active:bg-zinc-50 dark:active:bg-zinc-800/50 transition-colors"
+                    disabled={isSystemActive}
+                    type="button"
+                >
+                    <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                        <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="font-bold text-zinc-900 dark:text-white truncate">{title}</div>
+                    </div>
+                    <ChevronRight className={cn(
+                        "w-5 h-5 text-zinc-400 transition-transform shrink-0",
+                        isExpanded && "rotate-90"
+                    )} />
+                </button>
+                {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                        {isSystemActive ? (
+                            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
+                                Stop the bot to modify settings
+                            </div>
+                        ) : (
+                            children
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
-        <div className="min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] overflow-y-auto flex flex-col p-4 space-y-4 pb-24">
+        <div className="min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] overflow-y-auto overscroll-contain flex flex-col p-4 space-y-4 pb-24 scroll-smooth">
             {/* Primary Status Card - PnL Hero */}
             <div className={cn(
                 "rounded-2xl p-6 text-center transition-all duration-300",
@@ -225,8 +230,11 @@ export function MobileStatusView({
                     <div className="relative">
                         <select
                             value={config.strategy}
-                            onChange={(e) => onConfigChange({ ...config, strategy: e.target.value })}
-                            className="w-full appearance-none bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                onConfigChange({ ...config, strategy: e.target.value });
+                            }}
+                            className="w-full appearance-none bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm font-medium rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-h-[48px]"
                         >
                             <option value="orb">MerQ Alpha I (ORB)</option>
                             <option value="ema">MerQ Alpha II (EMA)</option>
@@ -235,7 +243,7 @@ export function MobileStatusView({
                             <option value="timebased">MerQ Alpha V (Time-Based)</option>
                             <option value="test">TEST (Debug)</option>
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
                             <ChevronRight className="w-4 h-4 rotate-90" />
                         </div>
                     </div>
@@ -248,14 +256,23 @@ export function MobileStatusView({
                             <input
                                 type="text"
                                 value={newSymbol}
-                                onChange={(e) => setNewSymbol(e.target.value)}
+                                onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
                                 placeholder="Enter symbol (e.g. RELIANCE)"
-                                className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm"
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddSymbol()}
+                                className="flex-1 px-4 py-3 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-h-[48px]"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddSymbol();
+                                    }
+                                }}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="characters"
                             />
                             <button
                                 onClick={handleAddSymbol}
-                                className="px-4 py-2 rounded-lg bg-blue-500 text-white font-medium text-sm min-h-[44px]"
+                                className="px-5 py-3 rounded-lg bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-bold text-sm min-h-[48px] min-w-[64px] transition-colors"
+                                type="button"
                             >
                                 Add
                             </button>
