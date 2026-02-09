@@ -372,22 +372,28 @@ export function MobileStatusView({
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="text-xs font-medium text-zinc-500 mb-1 block">Start Time</label>
-                                <input
-                                    type="time"
-                                    value={config.startTime}
-                                    onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
-                                />
+                                <label className="text-xs font-medium text-zinc-500 mb-2 block">Start Time</label>
+                                <div className="relative">
+                                    <input
+                                        type="time"
+                                        value={config.startTime}
+                                        onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
+                                        className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                                    />
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                                </div>
                             </div>
                             <div>
-                                <label className="text-xs font-medium text-zinc-500 mb-1 block">Stop Time</label>
-                                <input
-                                    type="time"
-                                    value={config.stopTime}
-                                    onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
-                                />
+                                <label className="text-xs font-medium text-zinc-500 mb-2 block">Stop Time</label>
+                                <div className="relative">
+                                    <input
+                                        type="time"
+                                        value={config.stopTime}
+                                        onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
+                                        className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 transition-all"
+                                    />
+                                    <Clock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                                </div>
                             </div>
                         </div>
 

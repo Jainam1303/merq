@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from 'react';
-import { BookOpen, Download, Trash2, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { BookOpen, Download, Trash2, CheckCircle, XCircle, Clock, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Order {
@@ -155,22 +155,29 @@ export function MobileOrderBookView({
                     </div>
                 </div>
 
+
                 {/* Date Filters */}
                 <div className="grid grid-cols-2 gap-2">
-                    <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-blue-500"
-                        placeholder="Start Date"
-                    />
-                    <input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-blue-500"
-                        placeholder="End Date"
-                    />
+                    <div className="relative">
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 text-zinc-900 dark:text-white transition-all"
+                            placeholder="Start Date"
+                        />
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                    </div>
+                    <div className="relative">
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-xs focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 text-zinc-900 dark:text-white transition-all"
+                            placeholder="End Date"
+                        />
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+                    </div>
                 </div>
 
                 {/* Select All */}

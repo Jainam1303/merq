@@ -1,18 +1,19 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, Calendar, DollarSign, Target, Play, X, Loader2, Save, History, ChevronLeft, Trash2, Upload } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign, Target, Play, X, Loader2, Save, History, ChevronLeft, Trash2, Upload, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 // Updated Strategies List
 const strategies = [
-    { label: "MerQ Alpha I", value: "orb", description: "Opening Range Breakout" },
-    { label: "MerQ Alpha II", value: "ema", description: "EMA Crossover" },
-    { label: "MerQ Alpha III", value: "pullback", description: "EMA Pullback" },
-    { label: "MerQ Alpha IV", value: "engulfing", description: "Engulfing Pattern" },
-    { label: "MerQ Alpha V", value: "timebased", description: "Time-Based Entry" },
-    { label: "TEST", value: "test", description: "Debug Strategy" },
+    { label: "MerQ Alpha I", value: "orb", description: "Opening Range Breakout (9:15-9:30)" },
+    { label: "MerQ Alpha II", value: "ema", description: "EMA 8/30 Crossover Strategy" },
+    { label: "MerQ Alpha III", value: "pullback", description: "EMA Pullback Trend Strategy" },
+    { label: "MerQ Alpha IV", value: "engulfing", description: "Bullish/Bearish Engulfing Pattern" },
+    { label: "MerQ Alpha V", value: "timebased", description: "Fixed Time Entry (10AM, 2PM)" },
+    { label: "TEST", value: "test", description: "Immediate BUY for testing orders" },
 ];
 
 interface MobileBacktestViewProps {
@@ -134,13 +135,97 @@ function MobileBacktestHistory({ onBack }: { onBack: () => void }) {
     );
 }
 
+// Date Time Picker Component
+function DateTimePicker({ value, onChange, label }: { value: string; onChange: (val: string) => void; label: string }) {
+    const [showPicker, setShowPicker] = useState(false);
+    const [date, setDate] = useState(value ? value.split(' ')[0] : '');
+    const [hour, setHour] = useState(value ? new Date(value.replace(' ', 'T')).getHours().toString().padStart(2, '0') : '09');
+    const [minute, setMinute] = useState(value ? new Date(value.replace(' ', 'T')).getMinutes().toString().padStart(2, '0') : '15');
+
+    useEffect(() => {
+        if (date) {
+            const newValue = `${date} ${hour}:${minute}`;
+            onChange(newValue);
+        }
+    }, [date, hour, minute]);
+
+    return (
+        <div className="relative">
+            <label className="text-xs text-zinc-500 mb-1 block">{label}</label>
+            <button
+                type="button"
+                onClick={() => setShowPicker(!showPicker)}
+                className="w-full px-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm text-left flex items-center justify-between min-h-[42px]"
+            >
+                <div className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-zinc-500" />
+                    <span className="text-zinc-900 dark:text-white font-medium">
+                        {value ? format(new Date(value.replace(' ', 'T')), 'dd-MM-yyyy HH:mm') : 'Select date & time'}
+                    </span>
+                </div>
+                {showPicker ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
+            </button>
+
+            {showPicker && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg z-50 p-4 space-y-3">
+                    <div>
+                        <label className="text-xs text-zinc-500 mb-1 block">Date</label>
+                        <input
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-900 dark:text-white"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className="text-xs text-zinc-500 mb-1 block">Hour</label>
+                            <select
+                                value={hour}
+                                onChange={(e) => setHour(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-900 dark:text-white"
+                            >
+                                {Array.from({ length: 24 }, (_, i) => i).map(h => (
+                                    <option key={h} value={h.toString().padStart(2, '0')}>
+                                        {h.toString().padStart(2, '0')}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs text-zinc-500 mb-1 block">Minute</label>
+                            <select
+                                value={minute}
+                                onChange={(e) => setMinute(e.target.value)}
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm text-zinc-900 dark:text-white"
+                            >
+                                {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                                    <option key={m} value={m.toString().padStart(2, '0')}>
+                                        {m.toString().padStart(2, '0')}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setShowPicker(false)}
+                        className="w-full py-2 bg-blue-500 text-white rounded-lg font-medium text-sm"
+                    >
+                        Done
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
     const [showHistory, setShowHistory] = useState(false);
     const [selectedStrategy, setSelectedStrategy] = useState('orb');
     const [symbols, setSymbols] = useState<string[]>(['RELIANCE-EQ', 'TCS-EQ']);
     const [newSymbol, setNewSymbol] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState('2025-01-01 09:15');
+    const [endDate, setEndDate] = useState('2025-01-31 15:30');
     const [capital, setCapital] = useState('100000');
     const [interval, setInterval] = useState('15');
     const [isRunning, setIsRunning] = useState(false);
@@ -148,7 +233,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleAddSymbol = () => {
-        if (newSymbol.trim() && !symbols.includes(newSymbol.trim().toUpperCase())) {
+        if (newSymbol.trim() && !symbols.includes(newSymbol.trim().toUpperCase() + '-EQ')) {
             setSymbols([...symbols, newSymbol.trim().toUpperCase() + '-EQ']);
             setNewSymbol('');
         }
@@ -167,32 +252,26 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
             const text = event.target?.result as string;
             if (!text) return;
 
-            // Parse CSV: split by new lines or commas, trim, filter empty
-            const symbolList = text
+            const newSymbols = text
                 .split(/[\n,]+/)
                 .map(s => s.trim().toUpperCase())
-                .filter(s => s && s.length > 2); // basic validation
+                .filter(s => s && s.length > 2)
+                .map(s => s + '-EQ');
 
-            if (symbolList.length > 0) {
-                // Merge with existing unique
-                const newSymbols = Array.from(new Set([...symbols, ...symbolList.map(s => s + '-EQ')]));
-                setSymbols(newSymbols);
-                toast.success(`Imported ${symbolList.length} symbols`);
+            if (newSymbols.length > 0) {
+                const unique = Array.from(new Set([...symbols, ...newSymbols]));
+                setSymbols(unique);
+                toast.success(`Imported ${newSymbols.length} symbols`);
             } else {
                 toast.error("No valid symbols found in CSV");
             }
 
-            // Reset input
             if (fileInputRef.current) fileInputRef.current.value = "";
         };
         reader.readAsText(file);
     };
 
     const handleRunBacktest = async () => {
-        if (!startDate || !endDate) {
-            toast.error('Please select start and end dates');
-            return;
-        }
         if (symbols.length === 0) {
             toast.error('Please add at least one symbol');
             return;
@@ -273,60 +352,36 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
             {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
 
-                {/* Strategy Selection - Dropdown */}
+                {/* Strategy Selection - Button-based */}
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-2 block">Strategy</label>
-                    <div className="relative">
-                        <select
-                            value={selectedStrategy}
-                            onChange={(e) => setSelectedStrategy(e.target.value)}
-                            className="w-full appearance-none bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500"
-                        >
-                            {strategies.map((s) => (
-                                <option key={s.value} value={s.value}>
-                                    {s.label}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-                            <ChevronLeft className="w-4 h-4 -rotate-90" />
-                        </div>
-                    </div>
-                    {/* Strategy Description */}
-                    <div className="mt-2 text-xs text-zinc-500 px-1">
-                        {strategies.find(s => s.value === selectedStrategy)?.description}
-                    </div>
-                </div>
-
-                {/* Timeframe Selection */}
-                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Timeframe</label>
-                    <div className="grid grid-cols-4 gap-2">
-                        {[
-                            { label: '5m', value: '5' },
-                            { label: '15m', value: '15' },
-                            { label: '30m', value: '30' },
-                            { label: '1h', value: '60' },
-                        ].map((tf) => (
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Strategy</label>
+                    <div className="space-y-2">
+                        {strategies.map((strategy) => (
                             <button
-                                key={tf.value}
-                                onClick={() => setInterval(tf.value)}
+                                key={strategy.value}
+                                onClick={() => setSelectedStrategy(strategy.value)}
                                 className={cn(
-                                    "py-2 rounded-lg text-sm font-medium transition-all active:scale-95",
-                                    interval === tf.value
-                                        ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/25"
-                                        : "bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                    "w-full p-3 rounded-lg text-left transition-all border-2",
+                                    selectedStrategy === strategy.value
+                                        ? "bg-cyan-50 dark:bg-cyan-900/20 border-cyan-500"
+                                        : "bg-zinc-50 dark:bg-zinc-800 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                 )}
                             >
-                                {tf.label}
+                                <div className={cn(
+                                    "font-bold text-sm mb-0.5",
+                                    selectedStrategy === strategy.value ? "text-cyan-700 dark:text-cyan-400" : "text-zinc-900 dark:text-white"
+                                )}>
+                                    {strategy.label}
+                                </div>
+                                <div className="text-xs text-zinc-500">{strategy.description}</div>
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* Symbols */}
+                {/* Stock Universe */}
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Symbols</label>
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Stock Universe</label>
                     <div className="flex gap-2 mb-3">
                         <input
                             type="text"
@@ -346,7 +401,6 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
 
                     {/* Action Buttons Row */}
                     <div className="flex gap-2 mb-3">
-                        {/* Import CSV Button */}
                         <input
                             type="file"
                             ref={fileInputRef}
@@ -363,7 +417,6 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                             Import CSV
                         </button>
 
-                        {/* Delete All Button */}
                         <button
                             onClick={() => setSymbols([])}
                             disabled={symbols.length === 0}
@@ -392,32 +445,63 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                     </div>
                 </div>
 
-                {/* Date Range */}
+                {/* Date Range with Time Picker */}
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
-                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Date Range</label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Date & Time Range</label>
+                    <div className="grid grid-cols-1 gap-3">
+                        <DateTimePicker
+                            label="From Date & Time"
+                            value={startDate}
+                            onChange={setStartDate}
+                        />
+                        <DateTimePicker
+                            label="To Date & Time"
+                            value={endDate}
+                            onChange={setEndDate}
+                        />
+                    </div>
+                </div>
+
+                {/* Additional Settings */}
+                <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
+                    <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Settings</label>
+                    <div className="space-y-3">
                         <div>
-                            <label className="text-xs text-zinc-500 mb-1 block">Start Date</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[42px] focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white"
-                            />
+                            <label className="text-xs text-zinc-500 mb-1 block">Timeframe</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { value: '5', label: '5 Min' },
+                                    { value: '15', label: '15 Min' },
+                                    { value: '30', label: '30 Min' },
+                                    { value: '60', label: '1 Hour' },
+                                ].map((tf) => (
+                                    <button
+                                        key={tf.value}
+                                        onClick={() => setInterval(tf.value)}
+                                        className={cn(
+                                            "px-3 py-2.5 rounded-lg text-sm font-medium transition-all border-2",
+                                            interval === tf.value
+                                                ? "bg-cyan-50 dark:bg-cyan-900/20 border-cyan-500 text-cyan-700 dark:text-cyan-400"
+                                                : "bg-zinc-50 dark:bg-zinc-800 border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                        )}
+                                    >
+                                        {tf.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                         <div>
-                            <label className="text-xs text-zinc-500 mb-1 block">End Date</label>
+                            <label className="text-xs text-zinc-500 mb-1 block">Initial Capital (₹)</label>
                             <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
+                                type="number"
+                                value={capital}
+                                onChange={(e) => setCapital(e.target.value)}
                                 className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[42px] focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white"
+                                placeholder="100000"
                             />
                         </div>
                     </div>
                 </div>
-
-
 
                 {/* Run Button */}
                 <button
@@ -450,45 +534,38 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                             <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Results</h3>
                             <button
                                 onClick={handleSaveResult}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-lg text-xs font-bold shadow-sm active:scale-95 transition-transform"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-medium"
                             >
                                 <Save size={14} />
                                 Save
                             </button>
                         </div>
-
-                        {results.map((r, i) => {
-                            const rawPnL = r['Total P&L'] || r.summary?.totalPnL || 0;
-                            // Handle string formatting like "₹5,000.00" or raw number
-                            const pnlVal = typeof rawPnL === 'string' ? parseFloat(rawPnL.replace(/,/g, '').replace(/₹/g, '')) : rawPnL;
-                            const isPositive = pnlVal >= 0;
-
-                            const symbol = r.Symbol || r.summary?.symbol || 'Unknown';
-                            const winRate = r['Win Rate %'] || r.summary?.winRate || '0%';
-                            const trades = r['Total Trades'] || r.summary?.totalTrades || 0;
-
+                        {results.map((result, index) => {
+                            const pnl = parseFloat(result.totalPnL || 0);
+                            const isPositive = pnl >= 0;
                             return (
-                                <div key={i} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
-                                    <div className="flex justify-between items-start mb-3">
-                                        <div>
-                                            <div className="font-bold text-zinc-900 dark:text-white text-lg">{symbol}</div>
-                                            <div className="text-xs text-zinc-500">{trades} Trades • {winRate} Win Rate</div>
-                                        </div>
-                                        <div className={cn(
-                                            "px-3 py-1 rounded-lg font-mono font-bold text-sm",
-                                            isPositive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                <div key={index} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="font-bold text-zinc-900 dark:text-white">{result.symbol || result.Symbol}</span>
+                                        <span className={cn(
+                                            "text-lg font-bold",
+                                            isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                                         )}>
-                                            {isPositive ? '+' : ''}{typeof rawPnL === 'number' ? rawPnL.toFixed(2) : rawPnL}
-                                        </div>
+                                            {isPositive ? '+' : ''}₹{pnl.toFixed(2)}
+                                        </span>
                                     </div>
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded-lg">
-                                            <div className="text-zinc-500 mb-1">Max Drawdown</div>
-                                            <div className="font-mono text-zinc-900 dark:text-white">{r['Max Drawdown'] || r.summary?.maxDrawdown || '0'}</div>
+                                    <div className="grid grid-cols-3 gap-2 text-xs">
+                                        <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded">
+                                            <div className="text-zinc-500 mb-0.5">Trades</div>
+                                            <div className="font-bold text-zinc-900 dark:text-white">{result.totalTrades || 0}</div>
                                         </div>
-                                        <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded-lg">
-                                            <div className="text-zinc-500 mb-1">Final Capital</div>
-                                            <div className="font-mono text-zinc-900 dark:text-white">{r['Final Capital'] || r.summary?.finalCapital || '0'}</div>
+                                        <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded">
+                                            <div className="text-zinc-500 mb-0.5">Win Rate</div>
+                                            <div className="font-bold text-zinc-900 dark:text-white">{parseFloat(result.winRate || 0).toFixed(1)}%</div>
+                                        </div>
+                                        <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded">
+                                            <div className="text-zinc-500 mb-0.5">Max DD</div>
+                                            <div className="font-bold text-zinc-900 dark:text-white">{parseFloat(result.maxDrawdown || 0).toFixed(1)}%</div>
                                         </div>
                                     </div>
                                 </div>
