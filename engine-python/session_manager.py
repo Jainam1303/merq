@@ -388,6 +388,7 @@ class TradingSession:
 
     def _on_ws_data(self, wsapp, message):
         """Called when live tick data arrives"""
+        if not self.active: return
         try:
             # Message format: {subscription_mode, exchange_type, token, ltp, ...}
             token = str(message.get('token'))
@@ -485,6 +486,8 @@ class TradingSession:
 
     def _check_signal(self, symbol, ltp, vwap=0, prev_ltp=0):
         """Check if price breaks ORB levels and generate signal"""
+        if not self.active: return
+        
         current_date = datetime.date.today()
         ist_now = self._get_ist_time()
         current_time = ist_now.time()
