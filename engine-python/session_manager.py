@@ -260,7 +260,6 @@ class TradingSession:
         for sym in symbols:
             try:
                 clean = sym.upper().replace("-EQ", "")
-                time.sleep(1.2)  # Rate limit: ~1 request per second (Angel One limit)
                 
                 search = self.smartApi.searchScrip("NSE", clean)
                 
