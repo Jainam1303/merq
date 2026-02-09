@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { TrendingUp, Calendar, DollarSign, Target, Play, X, Loader2, Save, History, ChevronLeft, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { TrendingUp, Calendar, DollarSign, Target, Play, X, Loader2, Save, History, ChevronLeft, Trash2, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
@@ -145,6 +145,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
     const [interval, setInterval] = useState('15');
     const [isRunning, setIsRunning] = useState(false);
     const [results, setResults] = useState<any[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleAddSymbol = () => {
         if (newSymbol.trim() && !symbols.includes(newSymbol.trim().toUpperCase())) {
@@ -155,6 +156,36 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
 
     const handleRemoveSymbol = (symbol: string) => {
         setSymbols(symbols.filter(s => s !== symbol));
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            if (!text) return;
+
+            // Parse CSV: split by new lines or commas, trim, filter empty
+            const symbolList = text
+                .split(/[\n,]+/)
+                .map(s => s.trim().toUpperCase())
+                .filter(s => s && s.length > 2); // basic validation
+
+            if (symbolList.length > 0) {
+                // Merge with existing unique
+                const newSymbols = Array.from(new Set([...symbols, ...symbolList.map(s => s + '-EQ')]));
+                setSymbols(newSymbols);
+                toast.success(`Imported ${symbolList.length} symbols`);
+            } else {
+                toast.error("No valid symbols found in CSV");
+            }
+
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        };
+        reader.readAsText(file);
     };
 
     const handleRunBacktest = async () => {
@@ -302,7 +333,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                             value={newSymbol}
                             onChange={(e) => setNewSymbol(e.target.value)}
                             placeholder="Enter symbol (e.g. RELIANCE)"
-                            className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white"
+                            className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white min-h-[42px]"
                             onKeyDown={(e) => e.key === 'Enter' && handleAddSymbol()}
                         />
                         <button
@@ -312,6 +343,37 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                             Add
                         </button>
                     </div>
+
+                    {/* Action Buttons Row */}
+                    <div className="flex gap-2 mb-3">
+                        {/* Import CSV Button */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".csv,.txt"
+                            onChange={handleFileUpload}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium text-sm min-h-[42px] transition-colors"
+                            type="button"
+                        >
+                            <Upload className="w-4 h-4" />
+                            Import CSV
+                        </button>
+
+                        {/* Delete All Button */}
+                        <button
+                            onClick={() => setSymbols([])}
+                            disabled={symbols.length === 0}
+                            className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 font-medium text-sm min-h-[42px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            type="button"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
+                    </div>
+
                     <div className="flex flex-wrap gap-2">
                         {symbols.map((symbol) => (
                             <span

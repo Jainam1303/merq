@@ -223,7 +223,7 @@ export function MobileTradesView({
     return (
         <div className="min-h-[calc(100vh-180px)] flex flex-col pb-4">
             {/* Summary Header */}
-            <div className="sticky top-16 z-10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm px-4 py-4 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
+            <div className="sticky top-0 z-10 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm px-4 py-4 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="text-xs text-zinc-500 mb-1">{trades.length} Position{trades.length !== 1 ? 's' : ''}</div>

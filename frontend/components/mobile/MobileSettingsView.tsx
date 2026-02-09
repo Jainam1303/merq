@@ -1,7 +1,8 @@
 "use client";
-import React, { useState } from 'react';
-import { ChevronRight, Plus, X, Clock, Target, Shield } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ChevronRight, Plus, X, Clock, Target, Shield, Upload, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface ConfigData {
     symbols: string[];
@@ -33,6 +34,7 @@ export function MobileSettingsView({
 }: MobileSettingsViewProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>('strategy');
     const [newSymbol, setNewSymbol] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleAddSymbol = () => {
         if (newSymbol.trim() && !config.symbols.includes(newSymbol.trim().toUpperCase())) {
@@ -49,6 +51,36 @@ export function MobileSettingsView({
             ...config,
             symbols: config.symbols.filter(s => s !== symbol)
         });
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            if (!text) return;
+
+            // Parse CSV: split by new lines or commas, trim, filter empty
+            const symbols = text
+                .split(/[\n,]+/)
+                .map(s => s.trim().toUpperCase())
+                .filter(s => s && s.length > 2); // basic validation
+
+            if (symbols.length > 0) {
+                // Merge with existing unique
+                const newSymbols = Array.from(new Set([...config.symbols, ...symbols.map(s => s + '-EQ')]));
+                onConfigChange({ ...config, symbols: newSymbols });
+                toast.success(`Imported ${symbols.length} symbols`);
+            } else {
+                toast.error("No valid symbols found in CSV");
+            }
+
+            // Reset input
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        };
+        reader.readAsText(file);
     };
 
     const Section = ({
@@ -129,7 +161,7 @@ export function MobileSettingsView({
                             value={newSymbol}
                             onChange={(e) => setNewSymbol(e.target.value)}
                             placeholder="Enter symbol (e.g. RELIANCE)"
-                            className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm"
+                            className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px] text-zinc-900 dark:text-white"
                             onKeyDown={(e) => e.key === 'Enter' && handleAddSymbol()}
                         />
                         <button
@@ -137,6 +169,36 @@ export function MobileSettingsView({
                             className="px-4 py-2 rounded-lg bg-blue-500 text-white font-medium text-sm min-h-[44px]"
                         >
                             Add
+                        </button>
+                    </div>
+
+                    {/* Action Buttons Row */}
+                    <div className="flex gap-2">
+                        {/* Import CSV Button */}
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="hidden"
+                            accept=".csv,.txt"
+                            onChange={handleFileUpload}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-medium text-sm min-h-[48px] transition-colors"
+                            type="button"
+                        >
+                            <Upload className="w-4 h-4" />
+                            Import CSV
+                        </button>
+
+                        {/* Delete All Button */}
+                        <button
+                            onClick={() => onConfigChange({ ...config, symbols: [] })}
+                            disabled={config.symbols.length === 0}
+                            className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 font-medium text-sm min-h-[48px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            type="button"
+                        >
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     </div>
 
