@@ -391,18 +391,31 @@ export function MobileStatusView({
                             </div>
                         </div>
 
+
                         <div>
-                            <label className="text-xs font-medium text-zinc-500 mb-1 block">Timeframe</label>
-                            <select
-                                value={config.interval}
-                                onChange={(e) => onConfigChange({ ...config, interval: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white min-h-[44px]"
-                            >
-                                <option value="5">5 Minutes</option>
-                                <option value="15">15 Minutes</option>
-                                <option value="30">30 Minutes</option>
-                                <option value="60">1 Hour</option>
-                            </select>
+                            <label className="text-xs font-medium text-zinc-500 mb-2 block">Timeframe</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[
+                                    { value: '5', label: '5 Minutes' },
+                                    { value: '15', label: '15 Minutes' },
+                                    { value: '30', label: '30 Minutes' },
+                                    { value: '60', label: '1 Hour' },
+                                ].map((timeframe) => (
+                                    <button
+                                        key={timeframe.value}
+                                        onClick={() => onConfigChange({ ...config, interval: timeframe.value })}
+                                        className={cn(
+                                            "px-3 py-2.5 rounded-lg text-sm font-medium transition-all border-2",
+                                            config.interval === timeframe.value
+                                                ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500 text-blue-700 dark:text-blue-400"
+                                                : "bg-zinc-50 dark:bg-zinc-800 border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                        )}
+                                        type="button"
+                                    >
+                                        {timeframe.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div>
