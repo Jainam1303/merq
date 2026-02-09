@@ -62,7 +62,7 @@ export function MobileHeader({
                         {isSystemActive ? 'ON' : 'OFF'}
                     </div>
 
-                    {/* PAPER/LIVE Mode Toggle Button */}
+                    {/* PAPER/REAL Mode Toggle Button */}
                     <button
                         onClick={onToggleTradingMode}
                         disabled={isSystemActive}
@@ -74,7 +74,7 @@ export function MobileHeader({
                                 : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
                         )}
                     >
-                        {tradingMode}
+                        {tradingMode === 'LIVE' ? 'REAL' : 'PAPER'}
                     </button>
 
 

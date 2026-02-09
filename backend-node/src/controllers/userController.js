@@ -111,10 +111,27 @@ exports.updateProfile = async (req, res) => {
             'backtest_api_key', 'backtest_client_code', 'backtest_password', 'backtest_totp'
         ];
 
+        // API Key fields that should NOT be overwritten with empty strings
+        const apiKeyFields = [
+            'angel_api_key', 'angel_client_code', 'angel_password', 'angel_totp',
+            'backtest_api_key', 'backtest_client_code', 'backtest_password', 'backtest_totp'
+        ];
+
         console.log('[UpdateProfile] Applying updates:', Object.keys(updates));
         for (let key of Object.keys(updates)) {
             if (allowedFields.includes(key)) {
-                user[key] = updates[key];
+                const value = updates[key];
+
+                // CRITICAL: Don't overwrite API keys with empty strings
+                // This prevents accidental deletion of API credentials
+                if (apiKeyFields.includes(key)) {
+                    if (!value || value.trim() === '') {
+                        console.log(`[UpdateProfile] SKIPPING empty API key field: ${key}`);
+                        continue; // Skip - don't overwrite existing value with empty
+                    }
+                }
+
+                user[key] = value;
                 console.log(`[UpdateProfile] Set field: ${key}`);
             }
         }

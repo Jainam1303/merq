@@ -5,9 +5,22 @@ let io;
 const initSocket = (server) => {
     io = socketIo(server, {
         cors: {
-            origin: "*", // Allow all for dev; restrict in prod
-            methods: ["GET", "POST"]
-        }
+            origin: [
+                'http://localhost:3000',
+                'http://127.0.0.1:3000',
+                'https://merq.vercel.app',
+                'https://merqprime.in',
+                'https://www.merqprime.in',
+                process.env.FRONTEND_URL
+            ].filter(Boolean),
+            methods: ["GET", "POST"],
+            credentials: true
+        },
+        transports: ['polling', 'websocket'], // Start with polling, upgrade to websocket
+        pingTimeout: 30000,
+        pingInterval: 25000,
+        upgradeTimeout: 20000,
+        allowUpgrades: true
     });
 
     io.on('connection', (socket) => {
@@ -19,8 +32,12 @@ const initSocket = (server) => {
             console.log(`Socket ${socket.id} joined room ${userId}`);
         });
 
-        socket.on('disconnect', () => {
-            console.log('Client Disconnected:', socket.id);
+        socket.on('error', (error) => {
+            console.log('Socket error:', error);
+        });
+
+        socket.on('disconnect', (reason) => {
+            console.log('Client Disconnected:', socket.id, 'Reason:', reason);
         });
     });
 };

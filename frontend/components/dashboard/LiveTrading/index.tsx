@@ -135,42 +135,58 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
   }, [isLoading]);
 
   // Socket Connection with WebSocket transport for lower latency
-  // Socket Connection with WebSocket transport for lower latency
   useEffect(() => {
     let socket: Socket | null = null;
+    let connectionTimeout: NodeJS.Timeout;
 
-    // Only connect if system is active (Running)
     // Only connect if system is active (Running)
     if (isSystemActive) {
       // Connect directly to Backend URL (Vercel cannot proxy WebSockets properly)
       const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
 
-      socket = io(socketUrl, {
-        path: '/socket.io',
-        withCredentials: true,
-        transports: ['websocket', 'polling'], // Try WS first, fall back to polling
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-      });
+      // Small delay to ensure backend is ready
+      connectionTimeout = setTimeout(() => {
+        try {
+          socket = io(socketUrl, {
+            path: '/socket.io',
+            withCredentials: true,
+            transports: ['polling', 'websocket'], // Try polling first (more reliable), then upgrade to WS
+            reconnectionAttempts: 3,
+            reconnectionDelay: 2000,
+            timeout: 10000,
+            autoConnect: true,
+          });
 
-      socket.on('connect', () => {
-        console.log('Socket Connected');
-      });
+          socket.on('connect', () => {
+            console.log('Socket Connected');
+          });
 
-      socket.on('tick_update', (data: any) => {
-        if (data.pnl !== undefined) {
-          setPnl(data.pnl);
+          socket.on('connect_error', (error) => {
+            console.log('Socket connection error (falling back to polling):', error.message);
+          });
+
+          socket.on('tick_update', (data: any) => {
+            if (data.pnl !== undefined) {
+              setPnl(data.pnl);
+            }
+            if (data.trades) {
+              setPositions(mapBackendTradesToPositions(data.trades));
+            }
+          });
+
+          socketRef.current = socket;
+        } catch (e) {
+          console.log('Socket init error:', e);
         }
-        if (data.trades) {
-          setPositions(mapBackendTradesToPositions(data.trades));
-        }
-      });
-
-      socketRef.current = socket;
+      }, 500); // 500ms delay before connecting
     }
 
     return () => {
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
+      }
       if (socket) {
+        socket.removeAllListeners();
         socket.disconnect();
       }
       socketRef.current = null;

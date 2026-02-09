@@ -587,15 +587,35 @@ class TradingSession:
 
     def _place_order(self, symbol, type, qty, price, tp, sl):
         """
-        Place an order. For LIVE mode, only adds to positions if broker confirms success.
+        Place an order. For LIVE/REAL mode, only adds to positions if broker confirms success.
         For PAPER mode, adds immediately (virtual trade).
+        
+        CRITICAL SAFETY GUARDS:
+        1. Check if session is active before placing ANY order
+        2. Double-check mode to prevent paper mode placing real orders
         """
+        
+        # ===============================================
+        # SAFETY GUARD 1: Engine must be ACTIVE
+        # ===============================================
+        if not self.active:
+            self.log(f"❌ ORDER BLOCKED: Engine is STOPPED - Cannot place {type} order for {symbol}", "ERROR")
+            return False
+        
+        # ===============================================
+        # SAFETY GUARD 2: Validate mode (prevent mode mismatch)
+        # ===============================================
+        current_mode = 'PAPER' if self.config.get('simulated', True) else 'LIVE'
+        if self.mode != current_mode:
+            self.log(f"⚠️ MODE MISMATCH DETECTED: Session={self.mode}, Config={current_mode}. Blocking order.", "ERROR")
+            return False
+        
         id = len(self.positions) + len(self.trades_history) + 1
         pos = {
             "id": id,
             "symbol": symbol,
             "type": type,
-            "mode": self.mode,  # PAPER or LIVE
+            "mode": self.mode,  # PAPER or LIVE (REAL)
             "time": self._get_ist_time().strftime("%H:%M:%S"),
             "date": self._get_ist_time().strftime("%Y-%m-%d"),
             "qty": qty,
@@ -617,6 +637,13 @@ class TradingSession:
         # =======================================================
         
         if self.mode == "LIVE":
+            # ===============================================
+            # SAFETY GUARD 3: Final check before REAL broker call
+            # ===============================================
+            if self.config.get('simulated', True):
+                self.log(f"🛡️ SAFETY BLOCK: Config says PAPER but mode is LIVE. Blocking real order!", "ERROR")
+                return False
+            
             # Attempt to place real order with broker
             order_success = self._execute_live_order(pos, symbol, type, qty, price)
             
@@ -624,11 +651,11 @@ class TradingSession:
                 # Order was confirmed by broker - NOW add to positions
                 self.positions.append(pos)
                 self.trades_history.append(pos)
-                self.log(f"✅ LIVE {type} Order CONFIRMED for {symbol} @ {price:.2f}", "SUCCESS")
+                self.log(f"✅ REAL {type} Order CONFIRMED for {symbol} @ {price:.2f}", "SUCCESS")
                 return True
             else:
                 # Order was REJECTED by broker - DO NOT add to positions
-                self.log(f"❌ LIVE {type} Order REJECTED for {symbol} - NOT added to Active Positions", "ERROR")
+                self.log(f"❌ REAL {type} Order REJECTED for {symbol} - NOT added to Active Positions", "ERROR")
                 return False
         else:
             # PAPER mode - add immediately (no broker validation needed)
@@ -1595,6 +1622,9 @@ class TradingSession:
         # Total P&L = realized (closed) + unrealized (open)
         total_pnl = self.pnl + unrealized_pnl
         
+        # Order Book should only show CLOSED trades
+        closed_trades = [t for t in self.trades_history if t.get('status') == 'CLOSED']
+        
         return {
             "active": self.active,
             "mode": self.mode,
@@ -1602,7 +1632,7 @@ class TradingSession:
             "realized_pnl": round(self.pnl, 2),
             "unrealized_pnl": round(unrealized_pnl, 2),
             "positions": open_positions,
-            "trades_history": self.trades_history,  # Order Book
+            "trades_history": closed_trades,  # Order Book - only CLOSED trades
             "logs": self.logs,
             "config": self.config,
             "orb_levels": getattr(self.strategy, 'orb_levels', {}) if self.strategy else {},

@@ -130,7 +130,7 @@ export function DashboardHeader({
               "text-xs font-semibold transition-colors",
               tradingMode === 'LIVE' ? "text-loss" : "text-muted-foreground"
             )}>
-              LIVE
+              REAL
             </span>
             {tradingMode === 'LIVE' && (
               <span className="ml-1 h-2 w-2 rounded-full bg-loss pulse-live" />
