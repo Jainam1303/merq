@@ -329,25 +329,32 @@ export function MobileStatusView({
                     onToggle={() => setExpandedSection(expandedSection === 'strategy' ? null : 'strategy')}
                     isSystemActive={isSystemActive}
                 >
-                    <div className="space-y-3">
-                        {['ORB', 'EMA', 'PULLBACK'].map((s) => (
+                    <div className="space-y-2">
+                        {[
+                            { value: 'ORB', label: 'MerQ Alpha I', desc: 'Opening Range Breakout (9:15-9:30)' },
+                            { value: 'EMA', label: 'MerQ Alpha II', desc: 'EMA 8/30 Crossover Strategy' },
+                            { value: 'PULLBACK', label: 'MerQ Alpha III', desc: 'EMA Pullback Trend Strategy' },
+                            { value: 'ENGULFING', label: 'MerQ Alpha IV', desc: 'Bullish/Bearish Engulfing Pattern' },
+                            { value: 'TIMEBASED', label: 'MerQ Alpha V', desc: 'Fixed Time Entry (10AM, 2PM)' },
+                            { value: 'TEST', label: 'TEST Mode', desc: 'Immediate BUY for testing orders' },
+                        ].map((s) => (
                             <button
-                                key={s}
-                                onClick={() => onConfigChange({ ...config, strategy: s })}
+                                key={s.value}
+                                onClick={() => onConfigChange({ ...config, strategy: s.value })}
                                 className={cn(
                                     "w-full p-3 rounded-lg border text-left transition-all",
-                                    config.strategy === s
+                                    config.strategy === s.value
                                         ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
                                         : "bg-zinc-50 dark:bg-zinc-800 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                 )}
                             >
                                 <div className={cn(
                                     "font-medium",
-                                    config.strategy === s ? "text-blue-700 dark:text-blue-400" : "text-zinc-700 dark:text-zinc-300"
+                                    config.strategy === s.value ? "text-blue-700 dark:text-blue-400" : "text-zinc-700 dark:text-zinc-300"
                                 )}>
-                                    {s === 'ORB' ? 'Opening Range Breakout' :
-                                        s === 'EMA' ? 'EMA Crossover' : 'Pullback Strategy'}
+                                    {s.label}
                                 </div>
+                                <div className="text-xs text-zinc-500">{s.desc}</div>
                             </button>
                         ))}
                     </div>
@@ -362,23 +369,50 @@ export function MobileStatusView({
                     onToggle={() => setExpandedSection(expandedSection === 'hours' ? null : 'hours')}
                     isSystemActive={isSystemActive}
                 >
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-xs font-medium text-zinc-500 mb-1 block">Start Time</label>
-                            <input
-                                type="time"
-                                value={config.startTime}
-                                onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
-                            />
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-medium text-zinc-500 mb-1 block">Start Time</label>
+                                <input
+                                    type="time"
+                                    value={config.startTime}
+                                    onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-zinc-500 mb-1 block">Stop Time</label>
+                                <input
+                                    type="time"
+                                    value={config.stopTime}
+                                    onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
+                                    className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
+                                />
+                            </div>
                         </div>
+
                         <div>
-                            <label className="text-xs font-medium text-zinc-500 mb-1 block">Stop Time</label>
+                            <label className="text-xs font-medium text-zinc-500 mb-1 block">Timeframe</label>
+                            <select
+                                value={config.interval}
+                                onChange={(e) => onConfigChange({ ...config, interval: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white min-h-[44px]"
+                            >
+                                <option value="5">5 Minutes</option>
+                                <option value="15">15 Minutes</option>
+                                <option value="30">30 Minutes</option>
+                                <option value="60">1 Hour</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-medium text-zinc-500 mb-1 block">Initial Capital (₹)</label>
                             <input
-                                type="time"
-                                value={config.stopTime}
-                                onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
+                                type="number"
+                                value={config.capital}
+                                onChange={(e) => onConfigChange({ ...config, capital: e.target.value })}
+                                placeholder="100000"
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white min-h-[44px]"
                             />
                         </div>
                     </div>

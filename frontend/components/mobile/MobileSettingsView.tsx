@@ -144,22 +144,26 @@ export function MobileSettingsView({
                 onToggle={() => setExpandedSection(expandedSection === 'strategy' ? null : 'strategy')}
                 isSystemActive={isSystemActive}
             >
-                <div className="space-y-3">
+                <div className="space-y-2">
                     {[
-                        { id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' },
-                        { id: 'ema', name: 'EMA Crossover', desc: '8/30 EMA Strategy' },
+                        { value: 'ORB', label: 'MerQ Alpha I', desc: 'Opening Range Breakout (9:15-9:30)' },
+                        { value: 'EMA', label: 'MerQ Alpha II', desc: 'EMA 8/30 Crossover Strategy' },
+                        { value: 'PULLBACK', label: 'MerQ Alpha III', desc: 'EMA Pullback Trend Strategy' },
+                        { value: 'ENGULFING', label: 'MerQ Alpha IV', desc: 'Bullish/Bearish Engulfing Pattern' },
+                        { value: 'TIMEBASED', label: 'MerQ Alpha V', desc: 'Fixed Time Entry (10AM, 2PM)' },
+                        { value: 'TEST', label: 'TEST Mode', desc: 'Immediate BUY for testing orders' },
                     ].map((strategy) => (
                         <button
-                            key={strategy.id}
-                            onClick={() => onConfigChange({ ...config, strategy: strategy.id.toUpperCase() })}
+                            key={strategy.value}
+                            onClick={() => onConfigChange({ ...config, strategy: strategy.value })}
                             className={cn(
                                 "w-full p-3 rounded-xl text-left transition-all",
-                                config.strategy.toUpperCase() === strategy.id.toUpperCase()
+                                config.strategy === strategy.value
                                     ? "bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-500"
                                     : "bg-zinc-50 dark:bg-zinc-800 border-2 border-transparent"
                             )}
                         >
-                            <div className="font-bold text-zinc-900 dark:text-white">{strategy.name}</div>
+                            <div className="font-bold text-zinc-900 dark:text-white">{strategy.label}</div>
                             <div className="text-xs text-zinc-500">{strategy.desc}</div>
                         </button>
                     ))}
