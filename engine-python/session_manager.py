@@ -42,12 +42,17 @@ class TradingSession:
         self.stop_event = threading.Event()
         self.thread = None
         self.ws_thread = None
+        self.oco_monitor_thread = None  # OCO (One-Cancels-Other) monitoring thread
         
         # Symbol Token Mapping
         self.symbol_tokens = {}  # {symbol: token}
         
         # Strategy (initialized after symbol tokens are loaded)
         self.strategy = None
+        
+        # OCO Tracking: positions with both TP and SL orders pending
+        # Format: {position_id: {"pos": pos_ref, "tp_order_id": ..., "sl_order_id": ...}}
+        self.pending_oco_positions = {}
         
         # Sync Throttle
         self.last_sync_time = 0
@@ -131,6 +136,10 @@ class TradingSession:
             
             # 4. Start WebSocket for Live Data
             self._start_websocket()
+            
+            # 5. Start OCO Monitor (for LIVE mode only)
+            if self.mode == "LIVE":
+                self._start_oco_monitor()
             
         except Exception as e:
             self.log(f"CRITICAL SESSION ERROR: {e}", "ERROR")
@@ -717,6 +726,25 @@ class TradingSession:
                     self.log(f"✅ LIVE ENTRY ORDER PLACED: OrderID={order_id}", "SUCCESS")
                     
                     # =====================================================
+                    # TASK 3: GET ACTUAL FILL PRICE FROM BROKER
+                    # Update entry price to reflect real execution price
+                    # =====================================================
+                    time.sleep(1.0)  # Wait for order to fully complete
+                    
+                    actual_fill_price = self._get_entry_fill_price(order_id)
+                    if actual_fill_price and actual_fill_price > 0:
+                        old_price = pos['entry']
+                        pos['entry'] = round(actual_fill_price, 2)
+                        
+                        # Recalculate TP/SL based on actual entry price if needed
+                        # (Keeping original TP/SL levels as they were calculated 
+                        # based on strategy rules, not just percentage of entry)
+                        
+                        self.log(f"📊 Entry Price Updated: Signal={old_price:.2f} → Actual={pos['entry']:.2f}", "INFO")
+                    else:
+                        self.log(f"⚠️ Could not fetch fill price, using signal price: {pos['entry']:.2f}", "WARNING")
+                    
+                    # =====================================================
                     # PLACE SL-M AND TARGET ORDERS AFTER SUCCESSFUL ENTRY
                     # =====================================================
                     time.sleep(0.5)  # Small delay to avoid rate limiting
@@ -755,6 +783,19 @@ class TradingSession:
                 # Direct order_id returned (older SDK versions)
                 pos['order_id'] = response
                 self.log(f"✅ LIVE ENTRY ORDER PLACED: OrderID={response}", "SUCCESS")
+                
+                # =====================================================
+                # TASK 3: GET ACTUAL FILL PRICE FROM BROKER
+                # =====================================================
+                time.sleep(1.0)
+                
+                actual_fill_price = self._get_entry_fill_price(response)
+                if actual_fill_price and actual_fill_price > 0:
+                    old_price = pos['entry']
+                    pos['entry'] = round(actual_fill_price, 2)
+                    self.log(f"📊 Entry Price Updated: Signal={old_price:.2f} → Actual={pos['entry']:.2f}", "INFO")
+                else:
+                    self.log(f"⚠️ Could not fetch fill price, using signal price: {pos['entry']:.2f}", "WARNING")
                 
                 # =====================================================
                 # PLACE SL-M AND TARGET ORDERS AFTER SUCCESSFUL ENTRY
@@ -797,6 +838,50 @@ class TradingSession:
             return self.smartApi.access_token
         # Fallback to our stored token
         return self.auth_token
+
+    def _get_entry_fill_price(self, order_id, max_retries=3):
+        """
+        Fetch the actual fill price for an entry order from Angel One.
+        Retries up to max_retries times as order status may take a moment to update.
+        """
+        for attempt in range(max_retries):
+            try:
+                order_book = self.smartApi.orderBook()
+                
+                if order_book and order_book.get('status') and order_book.get('data'):
+                    for order in order_book['data']:
+                        if str(order.get('orderid')) == str(order_id):
+                            # Check if order is complete/filled
+                            status = order.get('status', '').lower()
+                            
+                            if status in ['complete', 'filled', 'traded']:
+                                # Get average fill price (actual execution price)
+                                avg_price = order.get('averageprice')
+                                if avg_price:
+                                    price = float(avg_price)
+                                    if price > 0:
+                                        return price
+                                
+                                # Fallback to price field
+                                price_field = order.get('price')
+                                if price_field:
+                                    price = float(price_field)
+                                    if price > 0:
+                                        return price
+                            else:
+                                # Order not yet filled, wait and retry
+                                self.log(f"📊 Order {order_id} status: {status}, waiting...", "DEBUG")
+                
+                # Wait before retry
+                if attempt < max_retries - 1:
+                    time.sleep(0.5)
+                    
+            except Exception as e:
+                self.log(f"⚠️ Error fetching entry fill price (attempt {attempt+1}): {e}", "DEBUG")
+                if attempt < max_retries - 1:
+                    time.sleep(0.5)
+        
+        return None
 
     def _place_sl_order(self, pos, symbol, token, trading_symbol, entry_type, qty):
         """
@@ -1145,7 +1230,158 @@ class TradingSession:
             self.log(f"ℹ️ Could not cancel order {order_id}: {e}", "INFO")
             return False
 
-
+    # =========================================================================
+    # OCO (ONE-CANCELS-OTHER) MONITORING
+    # When TP fills -> Cancel SL | When SL fills -> Cancel TP
+    # =========================================================================
+    
+    def _start_oco_monitor(self):
+        """Start background thread to monitor OCO order pairs"""
+        self.oco_monitor_thread = threading.Thread(target=self._oco_monitor_loop, daemon=True)
+        self.oco_monitor_thread.start()
+        self.log("🔄 OCO Monitor Started - Will track TP/SL order fills", "INFO")
+    
+    def _oco_monitor_loop(self):
+        """Background loop that checks order statuses and implements OCO logic"""
+        while self.active and not self.stop_event.is_set():
+            try:
+                # Check every 5 seconds
+                time.sleep(5)
+                
+                if not self.smartApi:
+                    continue
+                
+                # Get all open positions with pending TP/SL orders
+                for pos in self.positions:
+                    if pos['status'] != 'OPEN':
+                        continue
+                    
+                    tp_order_id = pos.get('tp_order_id')
+                    sl_order_id = pos.get('sl_order_id')
+                    
+                    # Skip if no TP/SL orders placed
+                    if not tp_order_id and not sl_order_id:
+                        continue
+                    
+                    # Check TP order status
+                    if tp_order_id:
+                        tp_status = self._get_order_status(tp_order_id)
+                        if tp_status in ['complete', 'filled', 'traded']:
+                            # TP HIT! Cancel SL order (OCO logic)
+                            self.log(f"🎯 TP ORDER FILLED for {pos['symbol']} - Cancelling SL order", "SUCCESS")
+                            if sl_order_id:
+                                self._cancel_order(sl_order_id, "STOPLOSS", pos['symbol'])
+                                pos['sl_order_id'] = None
+                            
+                            # Get actual fill price from TP order
+                            fill_price = self._get_order_fill_price(tp_order_id)
+                            if fill_price:
+                                self._close_position_oco(pos, fill_price, "TARGET_HIT")
+                            else:
+                                self._close_position_oco(pos, pos['tp'], "TARGET_HIT")
+                            
+                            pos['tp_order_id'] = None
+                            continue
+                    
+                    # Check SL order status
+                    if sl_order_id:
+                        sl_status = self._get_order_status(sl_order_id)
+                        if sl_status in ['complete', 'filled', 'traded', 'triggered']:
+                            # SL HIT! Cancel TP order (OCO logic)
+                            self.log(f"🛡️ SL ORDER TRIGGERED for {pos['symbol']} - Cancelling TP order", "WARNING")
+                            if tp_order_id:
+                                self._cancel_order(tp_order_id, "NORMAL", pos['symbol'])
+                                pos['tp_order_id'] = None
+                            
+                            # Get actual fill price from SL order
+                            fill_price = self._get_order_fill_price(sl_order_id)
+                            if fill_price:
+                                self._close_position_oco(pos, fill_price, "SL_HIT")
+                            else:
+                                self._close_position_oco(pos, pos['sl'], "SL_HIT")
+                            
+                            pos['sl_order_id'] = None
+                            continue
+                            
+            except Exception as e:
+                self.log(f"⚠️ OCO Monitor Error: {e}", "WARNING")
+                time.sleep(10)  # Wait longer on error
+    
+    def _get_order_status(self, order_id):
+        """Get the status of an order from Angel One"""
+        try:
+            # Use orderBook to get order details
+            order_book = self.smartApi.orderBook()
+            
+            if order_book and order_book.get('status') and order_book.get('data'):
+                for order in order_book['data']:
+                    if str(order.get('orderid')) == str(order_id):
+                        status = order.get('status', '').lower()
+                        return status
+            
+            return None
+        except Exception as e:
+            self.log(f"⚠️ Error fetching order status for {order_id}: {e}", "DEBUG")
+            return None
+    
+    def _get_order_fill_price(self, order_id):
+        """Get the actual fill/average price of a completed order"""
+        try:
+            order_book = self.smartApi.orderBook()
+            
+            if order_book and order_book.get('status') and order_book.get('data'):
+                for order in order_book['data']:
+                    if str(order.get('orderid')) == str(order_id):
+                        # Average price is the actual fill price
+                        avg_price = order.get('averageprice')
+                        if avg_price:
+                            return float(avg_price)
+                        # Fallback to price field
+                        price = order.get('price')
+                        if price:
+                            return float(price)
+            
+            return None
+        except Exception as e:
+            self.log(f"⚠️ Error fetching fill price for {order_id}: {e}", "DEBUG")
+            return None
+    
+    def _close_position_oco(self, pos, exit_price, reason):
+        """Close position when OCO order fills (no need to place exit - already filled by TP/SL order)"""
+        pos['status'] = "CLOSED"
+        pos['exit'] = exit_price
+        if pos['type'] == 'BUY':
+            pos['pnl'] = (exit_price - pos['entry']) * pos['qty']
+        else:
+            pos['pnl'] = (pos['entry'] - exit_price) * pos['qty']
+        
+        self.pnl += pos['pnl']
+        pnl_emoji = "💰" if pos['pnl'] > 0 else "📉"
+        self.log(f"{pnl_emoji} Closed {pos['symbol']} ({reason}) @ {exit_price:.2f} | PnL: ₹{pos['pnl']:.2f}", 
+                 "SUCCESS" if pos['pnl'] > 0 else "WARNING")
+        
+        # Persist to backend DB
+        try:
+            payload = {
+                "user_id": self.user_id,
+                "symbol": pos['symbol'],
+                "mode": pos['type'],
+                "qty": pos['qty'],
+                "entry": pos['entry'],
+                "exit": pos['exit'],
+                "tp": pos.get('tp', 0),
+                "sl": pos.get('sl', 0),
+                "pnl": round(pos['pnl'], 2),
+                "status": "COMPLETED",
+                "date": pos.get('date', datetime.date.today().strftime('%Y-%m-%d')),
+                "time": self._get_ist_time().strftime("%H:%M:%S"),
+                "trade_mode": self.mode,
+                "strategy": self.strategy_name.upper()
+            }
+            requests.post('http://localhost:5001/webhook/save_trade', json=payload, timeout=2)
+            self.log(f"Synced {pos['symbol']} trade to DB", "DEBUG")
+        except Exception as e:
+            self.log(f"Failed to sync trade to DB: {e}", "ERROR")
     def _run_polling_loop(self):
         """Fallback polling mode if WebSocket fails"""
         symbols = self.config.get('symbols', [])
