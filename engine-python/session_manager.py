@@ -577,6 +577,10 @@ class TradingSession:
                         self._close_position(p, ltp, "SL")
 
     def _place_order(self, symbol, type, qty, price, tp, sl):
+        """
+        Place an order. For LIVE mode, only adds to positions if broker confirms success.
+        For PAPER mode, adds immediately (virtual trade).
+        """
         id = len(self.positions) + len(self.trades_history) + 1
         pos = {
             "id": id,
@@ -595,16 +599,34 @@ class TradingSession:
             "sl_order_id": None,   # SL-M order ID (for LIVE mode)
             "tp_order_id": None    # Target Limit order ID (for LIVE mode)
         }
-        self.positions.append(pos)
         
-        # Also add to trade history / order book (Store Reference, NOT COPY)
-        self.trades_history.append(pos)
+        # =======================================================
+        # CRITICAL FIX: For LIVE mode, only add position AFTER 
+        # broker confirms order success. This prevents rejected 
+        # orders (e.g., "security under surveillance") from 
+        # appearing in Active Positions.
+        # =======================================================
         
-        self.log(f"Placed {type} Order for {symbol} @ {price:.2f} ({self.mode})", "SUCCESS")
-        
-        # Real Order Placement (Angel One)
         if self.mode == "LIVE":
-            self._execute_live_order(pos, symbol, type, qty, price)
+            # Attempt to place real order with broker
+            order_success = self._execute_live_order(pos, symbol, type, qty, price)
+            
+            if order_success:
+                # Order was confirmed by broker - NOW add to positions
+                self.positions.append(pos)
+                self.trades_history.append(pos)
+                self.log(f"✅ LIVE {type} Order CONFIRMED for {symbol} @ {price:.2f}", "SUCCESS")
+                return True
+            else:
+                # Order was REJECTED by broker - DO NOT add to positions
+                self.log(f"❌ LIVE {type} Order REJECTED for {symbol} - NOT added to Active Positions", "ERROR")
+                return False
+        else:
+            # PAPER mode - add immediately (no broker validation needed)
+            self.positions.append(pos)
+            self.trades_history.append(pos)
+            self.log(f"📄 PAPER {type} Order for {symbol} @ {price:.2f}", "SUCCESS")
+            return True
 
     def _execute_live_order(self, pos, symbol, order_type, qty, price, retry_count=0):
         """Execute a live order on Angel One with retry and re-auth logic"""
