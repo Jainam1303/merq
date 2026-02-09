@@ -729,7 +729,31 @@ class TradingSession:
             elif isinstance(response, str):
                 # Direct order_id returned (older SDK versions)
                 pos['order_id'] = response
-                self.log(f"✅ LIVE ORDER PLACED: {response}", "SUCCESS")
+                self.log(f"✅ LIVE ENTRY ORDER PLACED: OrderID={response}", "SUCCESS")
+                
+                # =====================================================
+                # PLACE SL-M AND TARGET ORDERS AFTER SUCCESSFUL ENTRY
+                # =====================================================
+                time.sleep(0.5)  # Small delay to avoid rate limiting
+                
+                # Place SL-M Order (Stop Loss Market)
+                sl_order_id = self._place_sl_order(pos, symbol, token, trading_symbol, order_type, qty)
+                if sl_order_id:
+                    pos['sl_order_id'] = sl_order_id
+                    self.log(f"🛡️ SL-M ORDER PLACED: OrderID={sl_order_id} @ {pos['sl']}", "SUCCESS")
+                else:
+                    self.log(f"⚠️ Failed to place SL order - Position unprotected!", "WARNING")
+                
+                time.sleep(0.3)  # Small delay between orders
+                
+                # Place Target Limit Order
+                tp_order_id = self._place_tp_order(pos, symbol, token, trading_symbol, order_type, qty)
+                if tp_order_id:
+                    pos['tp_order_id'] = tp_order_id
+                    self.log(f"🎯 TARGET ORDER PLACED: OrderID={tp_order_id} @ {pos['tp']}", "SUCCESS")
+                else:
+                    self.log(f"⚠️ Failed to place TP order - Will use soft exit", "WARNING")
+                
                 return True
             else:
                 self.log(f"❌ Unexpected response type: {type(response)} - {response}", "ERROR")
