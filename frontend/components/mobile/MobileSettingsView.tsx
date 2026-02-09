@@ -23,6 +23,56 @@ interface MobileSettingsViewProps {
     onSafetyGuardToggle: (value: boolean) => void;
 }
 
+// Extracted Section Component to prevent re-renders losing input focus
+const SettingsSection = ({
+    id,
+    title,
+    icon: Icon,
+    isExpanded,
+    onToggle,
+    isSystemActive,
+    children
+}: {
+    id: string;
+    title: string;
+    icon: any;
+    isExpanded: boolean;
+    onToggle: () => void;
+    isSystemActive: boolean;
+    children: React.ReactNode
+}) => (
+    <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+        <button
+            onClick={onToggle}
+            className="w-full p-4 flex items-center gap-3 text-left"
+            disabled={isSystemActive}
+            type="button"
+        >
+            <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+            </div>
+            <div className="flex-1">
+                <div className="font-bold text-zinc-900 dark:text-white">{title}</div>
+            </div>
+            <ChevronRight className={cn(
+                "w-5 h-5 text-zinc-400 transition-transform",
+                isExpanded && "rotate-90"
+            )} />
+        </button>
+        {isExpanded && (
+            <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                {isSystemActive ? (
+                    <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
+                        Stop the bot to modify settings
+                    </div>
+                ) : (
+                    children
+                )}
+            </div>
+        )}
+    </div>
+);
+
 export function MobileSettingsView({
     config,
     onConfigChange,
@@ -83,52 +133,17 @@ export function MobileSettingsView({
         reader.readAsText(file);
     };
 
-    const Section = ({
-        id,
-        title,
-        icon: Icon,
-        children
-    }: {
-        id: string;
-        title: string;
-        icon: typeof Target;
-        children: React.ReactNode
-    }) => (
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-            <button
-                onClick={() => setExpandedSection(expandedSection === id ? null : id)}
-                className="w-full p-4 flex items-center gap-3 text-left"
-                disabled={isSystemActive}
-            >
-                <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                </div>
-                <div className="flex-1">
-                    <div className="font-bold text-zinc-900 dark:text-white">{title}</div>
-                </div>
-                <ChevronRight className={cn(
-                    "w-5 h-5 text-zinc-400 transition-transform",
-                    expandedSection === id && "rotate-90"
-                )} />
-            </button>
-            {expandedSection === id && (
-                <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                    {isSystemActive ? (
-                        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
-                            Stop the bot to modify settings
-                        </div>
-                    ) : (
-                        children
-                    )}
-                </div>
-            )}
-        </div>
-    );
-
     return (
         <div className="min-h-[calc(100vh-180px)] p-4 space-y-3 pb-8">
             {/* Strategy Selection */}
-            <Section id="strategy" title="Strategy" icon={Target}>
+            <SettingsSection
+                id="strategy"
+                title="Strategy"
+                icon={Target}
+                isExpanded={expandedSection === 'strategy'}
+                onToggle={() => setExpandedSection(expandedSection === 'strategy' ? null : 'strategy')}
+                isSystemActive={isSystemActive}
+            >
                 <div className="space-y-3">
                     {[
                         { id: 'orb', name: 'ORB', desc: 'Opening Range Breakout' },
@@ -149,10 +164,17 @@ export function MobileSettingsView({
                         </button>
                     ))}
                 </div>
-            </Section>
+            </SettingsSection>
 
             {/* Symbols */}
-            <Section id="symbols" title="Stock Universe" icon={Plus}>
+            <SettingsSection
+                id="symbols"
+                title="Stock Universe"
+                icon={Plus}
+                isExpanded={expandedSection === 'symbols'}
+                onToggle={() => setExpandedSection(expandedSection === 'symbols' ? null : 'symbols')}
+                isSystemActive={isSystemActive}
+            >
                 <div className="space-y-3">
                     {/* Add Symbol Input */}
                     <div className="flex gap-2">
@@ -225,10 +247,17 @@ export function MobileSettingsView({
                         </div>
                     )}
                 </div>
-            </Section>
+            </SettingsSection>
 
             {/* Timing */}
-            <Section id="timing" title="Trading Hours" icon={Clock}>
+            <SettingsSection
+                id="timing"
+                title="Trading Hours"
+                icon={Clock}
+                isExpanded={expandedSection === 'timing'}
+                onToggle={() => setExpandedSection(expandedSection === 'timing' ? null : 'timing')}
+                isSystemActive={isSystemActive}
+            >
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -276,10 +305,17 @@ export function MobileSettingsView({
                         />
                     </div>
                 </div>
-            </Section>
+            </SettingsSection>
 
             {/* Safety Guard */}
-            <Section id="safety" title="Safety Guard" icon={Shield}>
+            <SettingsSection
+                id="safety"
+                title="Safety Guard"
+                icon={Shield}
+                isExpanded={expandedSection === 'safety'}
+                onToggle={() => setExpandedSection(expandedSection === 'safety' ? null : 'safety')}
+                isSystemActive={isSystemActive}
+            >
                 <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
                         <div>
@@ -296,7 +332,7 @@ export function MobileSettingsView({
                             <div className={cn(
                                 "absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform",
                                 isSafetyGuardOn ? "left-5.5 translate-x-0" : "left-0.5"
-                            )} style={{ left: isSafetyGuardOn ? '22px' : '2px' }} />
+                            )} />
                         </button>
                     </div>
 
@@ -316,7 +352,7 @@ export function MobileSettingsView({
                         </div>
                     )}
                 </div>
-            </Section>
+            </SettingsSection>
         </div>
     );
 }

@@ -67,14 +67,25 @@ export function MobileHeader({
                         onClick={onToggleTradingMode}
                         disabled={isSystemActive}
                         className={cn(
-                            "px-2.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95",
+                            "group relative flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border transition-all active:scale-95",
                             isSystemActive && "opacity-50 cursor-not-allowed",
                             tradingMode === 'LIVE'
-                                ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
-                                : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                                ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/50"
+                                : "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50"
                         )}
                     >
-                        {tradingMode === 'LIVE' ? 'REAL' : 'PAPER'}
+                        <div className={cn(
+                            "w-6 h-6 rounded-full flex items-center justify-center shadow-sm transition-colors",
+                            tradingMode === 'LIVE' ? "bg-red-500" : "bg-blue-500"
+                        )}>
+                            <Power className="w-3 h-3 text-white" />
+                        </div>
+                        <span className={cn(
+                            "text-xs font-bold leading-none",
+                            tradingMode === 'LIVE' ? "text-red-700 dark:text-red-400" : "text-blue-700 dark:text-blue-400"
+                        )}>
+                            {tradingMode === 'LIVE' ? 'REAL' : 'PAPER'}
+                        </span>
                     </button>
 
 

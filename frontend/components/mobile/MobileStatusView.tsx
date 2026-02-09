@@ -30,6 +30,58 @@ interface MobileStatusViewProps {
     onSafetyGuardToggle: (value: boolean) => void;
 }
 
+// Extracted Section Component to prevent re-renders losing input focus
+const StatusSection = ({
+    id,
+    title,
+    icon: Icon,
+    isExpanded,
+    onToggle,
+    isSystemActive,
+    children
+}: {
+    id: string;
+    title: string;
+    icon: any;
+    isExpanded: boolean;
+    onToggle: () => void;
+    isSystemActive: boolean;
+    children: React.ReactNode
+}) => {
+    return (
+        <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
+            <button
+                onClick={onToggle}
+                className="w-full p-4 flex items-center gap-3 text-left active:bg-zinc-50 dark:active:bg-zinc-800/50 transition-colors"
+                disabled={isSystemActive}
+                type="button"
+            >
+                <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="font-bold text-zinc-900 dark:text-white truncate">{title}</div>
+                </div>
+                <ChevronRight className={cn(
+                    "w-5 h-5 text-zinc-400 transition-transform shrink-0",
+                    isExpanded && "rotate-90"
+                )} />
+            </button>
+            {isExpanded && (
+                <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                    {isSystemActive ? (
+                        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
+                            Stop the bot to modify settings
+                        </div>
+                    ) : (
+                        children
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export function MobileStatusView({
     isSystemActive,
     isLoading,
@@ -108,183 +160,87 @@ export function MobileStatusView({
         reader.readAsText(file);
     };
 
-    const Section = ({
-        id,
-        title,
-        icon: Icon,
-        children
-    }: {
-        id: string;
-        title: string;
-        icon: typeof Target;
-        children: React.ReactNode
-    }) => {
-        const isExpanded = expandedSection === id;
-
-        return (
-            <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden">
-                <button
-                    onClick={() => setExpandedSection(isExpanded ? null : id)}
-                    className="w-full p-4 flex items-center gap-3 text-left active:bg-zinc-50 dark:active:bg-zinc-800/50 transition-colors"
-                    disabled={isSystemActive}
-                    type="button"
-                >
-                    <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
-                        <Icon className="w-5 h-5 text-zinc-600 dark:text-zinc-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="font-bold text-zinc-900 dark:text-white truncate">{title}</div>
-                    </div>
-                    <ChevronRight className={cn(
-                        "w-5 h-5 text-zinc-400 transition-transform shrink-0",
-                        isExpanded && "rotate-90"
-                    )} />
-                </button>
-                {isExpanded && (
-                    <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
-                        {isSystemActive ? (
-                            <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm">
-                                Stop the bot to modify settings
-                            </div>
-                        ) : (
-                            children
-                        )}
-                    </div>
-                )}
-            </div>
-        );
-    };
-
     return (
-        <div className="min-h-[calc(100vh-180px)] max-h-[calc(100vh-180px)] overflow-y-auto overscroll-contain flex flex-col p-4 space-y-4 pb-24 scroll-smooth">
-            {/* Primary Status Card - PnL Hero */}
-            <div className={cn(
-                "rounded-2xl p-6 text-center transition-all duration-300",
-                pnl >= 0
-                    ? "bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-900/20 dark:to-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50"
-                    : "bg-gradient-to-br from-red-50 to-red-100/50 dark:from-red-900/20 dark:to-red-950/30 border border-red-200 dark:border-red-800/50"
-            )}>
-                <div className="flex items-center justify-center gap-2 mb-2">
-                    {pnl >= 0 ? (
-                        <TrendingUp className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                    ) : (
-                        <TrendingDown className="w-5 h-5 text-red-600 dark:text-red-400" />
-                    )}
-                    <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-                        Today's P&L
-                    </span>
-                </div>
-                <div className={cn(
-                    "text-4xl font-black tabular-nums tracking-tight",
-                    pnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                )}>
-                    {pnl >= 0 ? '+' : ''}₹{Math.abs(pnl).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-500">
-                    {mode === 'PAPER' ? '📝 Paper Trading' : '🔴 Live Trading'}
-                </div>
-            </div>
-
-            {/* System Status & Control */}
-            <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 p-4">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                        <div className={cn(
-                            "w-3 h-3 rounded-full transition-all",
-                            isSystemActive
-                                ? "bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.6)] animate-pulse"
-                                : "bg-zinc-400"
-                        )} />
-                        <div>
-                            <div className="font-bold text-zinc-900 dark:text-white">
-                                {isSystemActive ? 'Engine Running' : 'Engine Stopped'}
-                            </div>
-                            <div className="text-xs text-zinc-500">
-                                {positionsCount} active position{positionsCount !== 1 ? 's' : ''}
-                            </div>
+        <div className="space-y-4 p-4 pb-24">
+            {/* System Status Card */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <div className="text-sm font-medium text-zinc-500 mb-1">System Status</div>
+                        <div className="flex items-center gap-2">
+                            <div className={cn(
+                                "w-2.5 h-2.5 rounded-full",
+                                isSystemActive ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                            )} />
+                            <span className={cn(
+                                "text-lg font-bold",
+                                isSystemActive ? "text-emerald-500" : "text-red-500"
+                            )}>
+                                {isSystemActive ? "Engine Running" : "Engine Stopped"}
+                            </span>
                         </div>
                     </div>
-
-                    {/* Start/Stop Toggle */}
                     <button
-                        onClick={onToggleSystem}
+                        onClick={isSystemActive ? handleStopPress : onToggleSystem}
                         disabled={isLoading}
                         className={cn(
-                            "relative w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 shadow-lg active:scale-95",
-                            isLoading && "opacity-60 cursor-not-allowed",
-                            isSystemActive
-                                ? "bg-red-500 hover:bg-red-600 shadow-red-500/30"
-                                : "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30"
+                            "w-14 h-14 rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-lg",
+                            isLoading ? "bg-zinc-100 dark:bg-zinc-800 animate-pulse" :
+                                isSystemActive
+                                    ? confirmStop
+                                        ? "bg-red-500 text-white shadow-red-500/25 ring-2 ring-red-500 ring-offset-2 dark:ring-offset-zinc-900"
+                                        : "bg-emerald-500 text-white shadow-emerald-500/25"
+                                    : "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 shadow-zinc-900/10"
                         )}
                     >
-                        <Power className="w-7 h-7 text-white" strokeWidth={2.5} />
-                        {isLoading && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            </div>
+                        {isLoading ? (
+                            <div className="w-6 h-6 border-2 border-zinc-400 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                            <Power className="w-6 h-6" />
                         )}
                     </button>
                 </div>
 
-                {/* Quick Actions */}
-                {isSystemActive && (
-                    <div className="space-y-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
-                        <button
-                            onClick={onViewTrades}
-                            className="w-full flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                        >
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                                View Active Trades
-                            </span>
-                            <ChevronRight className="w-5 h-5 text-zinc-400" />
-                        </button>
-
-                        <button
-                            onClick={handleStopPress}
-                            className={cn(
-                                "w-full flex items-center justify-center gap-2 p-3 rounded-xl font-bold text-sm transition-all min-h-[48px]",
-                                confirmStop
-                                    ? "bg-red-500 text-white animate-pulse"
-                                    : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/50"
-                            )}
-                        >
-                            <AlertTriangle className="w-4 h-4" />
-                            {confirmStop ? 'TAP AGAIN TO CONFIRM STOP' : 'Emergency Stop'}
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* Configuration Sections */}
-            <div className="space-y-3 pb-8">
-                {/* Strategy Selection */}
-                <Section id="strategy" title="Strategy" icon={Target}>
-                    <div className="relative">
-                        <select
-                            value={config.strategy}
-                            onChange={(e) => {
-                                e.stopPropagation();
-                                onConfigChange({ ...config, strategy: e.target.value });
-                            }}
-                            className="w-full appearance-none bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-sm font-medium rounded-lg px-4 py-3 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 min-h-[48px]"
-                        >
-                            <option value="orb">MerQ Alpha I (ORB)</option>
-                            <option value="ema">MerQ Alpha II (EMA)</option>
-                            <option value="pullback">MerQ Alpha III (Pullback)</option>
-                            <option value="engulfing">MerQ Alpha IV (Engulfing)</option>
-                            <option value="timebased">MerQ Alpha V (Time-Based)</option>
-                            <option value="test">TEST (Debug)</option>
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500">
-                            <ChevronRight className="w-4 h-4 rotate-90" />
+                {/* P&L Display */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                        <div className="text-xs font-medium text-zinc-500 mb-1">Today's P&L</div>
+                        <div className={cn(
+                            "text-xl font-black tabular-nums tracking-tight",
+                            (Number(pnl) || 0) >= 0 ? "text-emerald-500" : "text-red-500"
+                        )}>
+                            {(Number(pnl) || 0) >= 0 ? "+" : ""}₹{Number(pnl || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </div>
                     </div>
-                </Section>
+                    <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-100 dark:border-zinc-800">
+                        <div className="text-xs font-medium text-zinc-500 mb-1">Active Positions</div>
+                        <div className="flex items-center justify-between">
+                            <span className="text-xl font-black text-zinc-900 dark:text-white">{positionsCount}</span>
+                            {positionsCount > 0 && (
+                                <button
+                                    onClick={onViewTrades}
+                                    className="text-xs font-bold text-blue-500 flex items-center gap-1 active:opacity-70"
+                                >
+                                    View <ChevronRight className="w-3 h-3" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                {/* Symbols */}
-                <Section id="symbols" title="Stock Universe" icon={Plus}>
+            {/* Config Sections */}
+            <div className="space-y-3">
+                {/* Stock Universe */}
+                <StatusSection
+                    id="symbols"
+                    title="Stock Universe"
+                    icon={Plus}
+                    isExpanded={expandedSection === 'symbols'}
+                    onToggle={() => setExpandedSection(expandedSection === 'symbols' ? null : 'symbols')}
+                    isSystemActive={isSystemActive}
+                >
                     <div className="space-y-3">
-                        {/* Input Row */}
                         <div className="flex gap-2">
                             <input
                                 type="text"
@@ -313,7 +269,6 @@ export function MobileStatusView({
 
                         {/* Action Buttons Row */}
                         <div className="flex gap-2">
-                            {/* Import CSV Button */}
                             <input
                                 type="file"
                                 ref={fileInputRef}
@@ -330,7 +285,6 @@ export function MobileStatusView({
                                 Import CSV
                             </button>
 
-                            {/* Delete All Button */}
                             <button
                                 onClick={() => onConfigChange({ ...config, symbols: [] })}
                                 disabled={config.symbols.length === 0}
@@ -341,7 +295,6 @@ export function MobileStatusView({
                             </button>
                         </div>
 
-                        {/* Selected Symbols */}
                         <div className="flex flex-wrap gap-2">
                             {config.symbols.map((symbol) => (
                                 <span
@@ -365,98 +318,110 @@ export function MobileStatusView({
                             </div>
                         )}
                     </div>
-                </Section>
+                </StatusSection>
 
-                {/* Timing */}
-                <Section id="timing" title="Trading Hours" icon={Clock}>
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="text-xs text-zinc-500 mb-1 block">Start Time</label>
-                                <input
-                                    type="time"
-                                    value={config.startTime}
-                                    onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-xs text-zinc-500 mb-1 block">End Time</label>
-                                <input
-                                    type="time"
-                                    value={config.stopTime}
-                                    onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
-                                    className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="text-xs text-zinc-500 mb-1 block">Timeframe</label>
-                            <select
-                                value={config.interval}
-                                onChange={(e) => onConfigChange({ ...config, interval: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
-                            >
-                                <option value="5">5 Minutes</option>
-                                <option value="15">15 Minutes</option>
-                                <option value="30">30 Minutes</option>
-                                <option value="60">1 Hour</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="text-xs text-zinc-500 mb-1 block">Initial Capital (₹)</label>
-                            <input
-                                type="number"
-                                value={config.capital}
-                                onChange={(e) => onConfigChange({ ...config, capital: e.target.value })}
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
-                                placeholder="100000"
-                            />
-                        </div>
-                    </div>
-                </Section>
-
-                {/* Safety Guard */}
-                <Section id="safety" title="Safety Guard" icon={Shield}>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800">
-                            <div>
-                                <div className="font-medium text-zinc-900 dark:text-white">Enable Safety Guard</div>
-                                <div className="text-xs text-zinc-500">Auto-stop on max loss</div>
-                            </div>
+                {/* Strategy */}
+                <StatusSection
+                    id="strategy"
+                    title="Strategy"
+                    icon={Target}
+                    isExpanded={expandedSection === 'strategy'}
+                    onToggle={() => setExpandedSection(expandedSection === 'strategy' ? null : 'strategy')}
+                    isSystemActive={isSystemActive}
+                >
+                    <div className="space-y-3">
+                        {['ORB', 'EMA', 'PULLBACK'].map((s) => (
                             <button
-                                onClick={() => onSafetyGuardToggle(!isSafetyGuardOn)}
+                                key={s}
+                                onClick={() => onConfigChange({ ...config, strategy: s })}
                                 className={cn(
-                                    "relative w-12 h-7 rounded-full transition-colors",
-                                    isSafetyGuardOn ? "bg-emerald-500" : "bg-zinc-300 dark:bg-zinc-600"
+                                    "w-full p-3 rounded-lg border text-left transition-all",
+                                    config.strategy === s
+                                        ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                                        : "bg-zinc-50 dark:bg-zinc-800 border-transparent hover:bg-zinc-100 dark:hover:bg-zinc-700"
                                 )}
                             >
                                 <div className={cn(
-                                    "absolute top-0.5 w-6 h-6 rounded-full bg-white shadow-sm transition-transform",
-                                    isSafetyGuardOn ? "left-5.5 translate-x-0" : "left-0.5"
-                                )} style={{ left: isSafetyGuardOn ? '22px' : '2px' }} />
+                                    "font-medium",
+                                    config.strategy === s ? "text-blue-700 dark:text-blue-400" : "text-zinc-700 dark:text-zinc-300"
+                                )}>
+                                    {s === 'ORB' ? 'Opening Range Breakout' :
+                                        s === 'EMA' ? 'EMA Crossover' : 'Pullback Strategy'}
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </StatusSection>
+
+                {/* Trading Hours */}
+                <StatusSection
+                    id="hours"
+                    title="Trading Hours"
+                    icon={Clock}
+                    isExpanded={expandedSection === 'hours'}
+                    onToggle={() => setExpandedSection(expandedSection === 'hours' ? null : 'hours')}
+                    isSystemActive={isSystemActive}
+                >
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-medium text-zinc-500 mb-1 block">Start Time</label>
+                            <input
+                                type="time"
+                                value={config.startTime}
+                                onChange={(e) => onConfigChange({ ...config, startTime: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-medium text-zinc-500 mb-1 block">Stop Time</label>
+                            <input
+                                type="time"
+                                value={config.stopTime}
+                                onChange={(e) => onConfigChange({ ...config, stopTime: e.target.value })}
+                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
+                            />
+                        </div>
+                    </div>
+                </StatusSection>
+
+                {/* Safety Guard */}
+                <StatusSection
+                    id="safety"
+                    title="Safety Guard"
+                    icon={Shield}
+                    isExpanded={expandedSection === 'safety'}
+                    onToggle={() => setExpandedSection(expandedSection === 'safety' ? null : 'safety')}
+                    isSystemActive={isSystemActive}
+                >
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Enable Safety Guard</span>
+                            <button
+                                onClick={() => onSafetyGuardToggle(!isSafetyGuardOn)}
+                                className={cn(
+                                    "w-11 h-6 rounded-full transition-colors relative",
+                                    isSafetyGuardOn ? "bg-emerald-500" : "bg-zinc-200 dark:bg-zinc-700"
+                                )}
+                            >
+                                <div className={cn(
+                                    "absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform",
+                                    isSafetyGuardOn && "translate-x-5"
+                                )} />
                             </button>
                         </div>
-
                         {isSafetyGuardOn && (
                             <div>
-                                <label className="text-xs text-zinc-500 mb-1 block">Max Daily Loss (₹)</label>
+                                <label className="text-xs font-medium text-zinc-500 mb-1 block">Max Daily Loss (₹)</label>
                                 <input
                                     type="number"
                                     value={maxLoss}
                                     onChange={(e) => onMaxLossChange(e.target.value)}
-                                    className="w-full px-3 py-2 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm min-h-[44px] text-red-700 dark:text-red-400 font-mono"
-                                    placeholder="5000"
+                                    className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm font-medium text-zinc-900 dark:text-white"
                                 />
-                                <p className="text-xs text-zinc-500 mt-2">
-                                    Bot will automatically stop and exit all positions if P&L drops below -₹{maxLoss || '0'}
-                                </p>
                             </div>
                         )}
                     </div>
-                </Section>
+                </StatusSection>
             </div>
         </div>
     );

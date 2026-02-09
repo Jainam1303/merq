@@ -4,16 +4,16 @@
 
 ## Issues Fixed
 
-### 1. ✅ Input Box Issues in Mobile View
-**Problem**: Input boxes required clicking after each letter typed
+### 1. ✅ Input Box Issues in Mobile View (PERMANENT FIX)
+**Problem**: Input boxes required clicking after each letter typed due to focus loss.
+**Root Cause**: React component anti-pattern - defining a sub-component (`Section`) *inside* the main component render function. This caused the sub-component (and its inputs) to be unmounted and remounted on every state update (keystroke).
 **Solution**: 
-- Added proper `text-zinc-900 dark:text-white` classes to all input fields
-- Added `autoComplete="off"`, `autoCorrect="off"`, and `autoCapitalize="characters"` attributes
-- Ensured consistent `min-h-[44px]` for better touch targets
-- Fixed in:
-  - `MobileStatusView.tsx`
-  - `MobileSettingsView.tsx`
-  - `MobileBacktestView.tsx`
+- Extracted `StatusSection` and `SettingsSection` components to be defined *outside* `MobileStatusView` and `MobileSettingsView`.
+- Passed necessary props (`isExpanded`, `onToggle`, etc.) down to these extracted components.
+- Verified stable component tree structure.
+- **Files Modified**:
+  - `MobileStatusView.tsx` (Major Refactor)
+  - `MobileSettingsView.tsx` (Major Refactor)
 
 ### 2. ✅ Stock Universe - Import CSV and Delete Buttons
 **Problem**: Mobile view lacked Import CSV and Delete All functionality present in desktop
@@ -29,12 +29,14 @@
 - Disabled state for Delete button when no symbols selected
 - Consistent styling with desktop version
 
-### 3. ✅ Header - Paper/Real Trading Mode Toggle
-**Status**: Already implemented in `MobileHeader.tsx`
-- Toggle button displays "PAPER" or "REAL" based on trading mode
-- Color-coded: Blue for PAPER, Red for REAL
-- Disabled when system is active
-- Located in header next to system status indicator
+### 3. ✅ Header - Paper/Real Trading Mode Toggle (REDESIGNED)
+**Status**: Enhanced UI for better usability.
+- **New Design**: Switch-style button with Power icon and clear text label.
+- **Visuals**: 
+  - **PAPER**: Blue theme, blue icon background.
+  - **REAL**: Red theme, red icon background.
+- **Function**: Toggles between Paper and Live trading modes. Disabled when system is active.
+- **File Modified**: `MobileHeader.tsx`
 
 ### 4. ✅ Trades Tab - First Active Position Display
 **Problem**: First active position was not displaying properly (hidden behind sticky header)
