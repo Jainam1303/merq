@@ -160,12 +160,16 @@ class TradingSession:
             clean_trades = []
             for p in self.positions:
                 if p['status'] == 'OPEN':
+                     # Get live LTP for this symbol
+                     symbol_ltp = self.ltp_cache.get(p['symbol'], p['entry'])
+                     
                      # Map fields to match what frontend expects
                      clean_trades.append({
                          "entry_order_id": p.get('order_id', p.get('id', f"pos_{p['symbol']}")),
                          "symbol": p['symbol'],
                          "quantity": p['qty'],
                          "entry_price": p['entry'],
+                         "ltp": round(symbol_ltp, 2),  # Live LTP for this position
                          "tp": p.get('tp'),
                          "sl": p.get('sl'),
                          "pnl": round(p['pnl'], 2),
@@ -177,7 +181,8 @@ class TradingSession:
             payload = {
                 "user_id": self.user_id,
                 "pnl": round(total_pnl, 2),
-                "trades": clean_trades
+                "trades": clean_trades,
+                "ltp_cache": {k: round(v, 2) for k, v in self.ltp_cache.items()}  # Full LTP cache
             }
             
             # Use backend internal URL

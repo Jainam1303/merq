@@ -228,10 +228,12 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
       entry: parseFloat(t.entry ?? t.entry_price ?? 0),
       tp: parseFloat(t.tp ?? 0),
       sl: parseFloat(t.sl ?? 0),
-      currentPrice: parseFloat(t.currentPrice ?? t.entry ?? 0),
+      currentPrice: parseFloat(t.currentPrice ?? t.ltp ?? t.entry ?? 0),
+      ltp: parseFloat(t.ltp ?? t.currentPrice ?? t.entry ?? 0),  // Live LTP
       pnl: parseFloat(t.pnl ?? 0)
     }));
   };
+
 
   const parseLogLine = (line: string, index: number): LogEntry => {
     // Example: "10:30:05 - INFO - Bot Started"

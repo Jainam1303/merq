@@ -93,6 +93,15 @@ function PositionCard({
           <div className="text-xs text-muted-foreground mt-0.5">
             {position.qty} @ ₹{parseFloat(String(position.entry ?? 0)).toFixed(2)} • {position.time}
           </div>
+          {/* Live LTP Display */}
+          {position.ltp && position.ltp > 0 && (
+            <div className={cn(
+              "text-xs font-mono mt-1",
+              position.ltp >= position.entry ? "text-profit" : "text-loss"
+            )}>
+              LTP: ₹{position.ltp.toFixed(2)}
+            </div>
+          )}
         </div>
 
         {/* P&L */}
@@ -313,6 +322,7 @@ export function ActivePositions({
                     <TableHead className="text-muted-foreground w-20">Type</TableHead>
                     <TableHead className="text-right text-muted-foreground w-16">Qty</TableHead>
                     <TableHead className="text-right text-muted-foreground w-24">Entry</TableHead>
+                    <TableHead className="text-right text-muted-foreground w-24">LTP</TableHead>
                     <TableHead className="text-right text-muted-foreground w-28">TP</TableHead>
                     <TableHead className="text-right text-muted-foreground w-28">SL</TableHead>
                     <TableHead className="text-right text-muted-foreground w-24">P&L</TableHead>
@@ -338,6 +348,12 @@ export function ActivePositions({
                       </TableCell>
                       <TableCell className="text-right">{position.qty}</TableCell>
                       <TableCell className="text-right font-mono">₹{Number(position.entry || 0).toFixed(2)}</TableCell>
+                      <TableCell className={cn(
+                        "text-right font-mono font-medium",
+                        (position.ltp ?? 0) >= position.entry ? "text-profit" : "text-loss"
+                      )}>
+                        {position.ltp && position.ltp > 0 ? `₹${position.ltp.toFixed(2)}` : '-'}
+                      </TableCell>
                       <TableCell className="text-right">
                         {editingId === position.id ? (
                           <Input

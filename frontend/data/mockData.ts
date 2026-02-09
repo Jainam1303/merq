@@ -10,8 +10,10 @@ export interface Position {
   tp: number;
   sl: number;
   currentPrice: number;
+  ltp?: number;  // Live LTP from WebSocket
   pnl: number;
 }
+
 
 export interface Trade {
   id: string;

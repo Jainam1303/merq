@@ -150,12 +150,22 @@ exports.getPnL = async (req, res) => {
 exports.getTrades = async (req, res) => {
     try {
         const status = await engineService.getStatus(req.user.id);
-        res.json({ status: 'success', data: status.positions || [] });
+        const positions = status.positions || [];
+        const ltpCache = status.ltp || {};  // Python sends ltp_cache as "ltp"
+
+        // Attach live LTP to each position
+        const positionsWithLtp = positions.map(p => ({
+            ...p,
+            ltp: ltpCache[p.symbol] || p.entry || 0
+        }));
+
+        res.json({ status: 'success', data: positionsWithLtp });
     } catch (e) {
         console.error('Get Trades Error:', e.message);
         res.json({ status: 'success', data: [] });
     }
 };
+
 
 exports.getLogs = async (req, res) => {
     try {
