@@ -1943,7 +1943,7 @@ function MultiSelect({ options, selected, onChange, label, placeholder = "Search
   );
 }
 
-function AuthForm({ type, onSuccess, switchTo }) {
+function AuthForm({ type, onSuccess, switchTo, referralCode }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1955,9 +1955,11 @@ function AuthForm({ type, onSuccess, switchTo }) {
     e.preventDefault();
     setLoading(true); setError("");
     try {
+      const registerBody = { username, password };
+      if (type === 'register' && referralCode) registerBody.referral_code = referralCode;
       const data = await fetchJson(type === 'login' ? '/login' : '/register', {
         method: 'POST',
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify(type === 'register' ? registerBody : { username, password })
       });
 
       if (data.status === 'success') {
@@ -2360,6 +2362,7 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);  // Track auth check status
   const [currentPage, setCurrentPage] = useState('landing');
+  const [referralCode, setReferralCode] = useState('');
   const [activeTab, setActiveTab] = useState('live');
   const [status, setStatus] = useState("OFFLINE");
 
@@ -2467,6 +2470,17 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // 0. Capture referral code from URL (?ref=CODE)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const refCode = params.get('ref');
+      if (refCode) {
+        setReferralCode(refCode.trim());
+        setCurrentPage('register');
+        console.log('[Referral] Code captured from URL:', refCode);
+      }
+    }
+
     // 1. Theme
     const savedTheme = localStorage.getItem('theme') || 'dark';
     setTheme(savedTheme);
@@ -2955,7 +2969,7 @@ export default function Home() {
   } else if (currentPage === 'login') {
     content = <AuthForm type="login" onSuccess={(u) => { setPendingUser(u); setShowRiskModal(true); }} switchTo={setCurrentPage} />;
   } else if (currentPage === 'register') {
-    content = <AuthForm type="register" onSuccess={() => setCurrentPage('login')} switchTo={setCurrentPage} />;
+    content = <AuthForm type="register" onSuccess={() => setCurrentPage('login')} switchTo={setCurrentPage} referralCode={referralCode} />;
   } else if (currentPage === 'pricing') {
     content = <Pricing onSubscribe={(plan) => { alert(`You selected ${plan.name} plan! Redirecting to payment...`); setCurrentPage('register'); }} />;
   } else {

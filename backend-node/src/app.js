@@ -46,12 +46,36 @@ const { verifyToken } = require('./middleware/authMiddleware');
 
 const userController = require('./controllers/userController');
 const tradingController = require('./controllers/tradingController');
+const adminRoutes = require('./routes/adminRoutes');
+const adminController = require('./controllers/adminController');
+const referralRoutes = require('./routes/referralRoutes');
+const referralController = require('./controllers/referralController');
 
 // API Versioning Prefix
 app.use('/api/auth', authRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
 app.use('/api/test', verifyToken, testOrderRoutes); // Test order execution
 app.use('/test', verifyToken, testOrderRoutes); // Legacy alias for Next.js proxy
+
+// Admin Routes
+app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes); // Legacy alias
+
+// Referral Routes
+app.use('/api/referral', referralRoutes);
+app.use('/referral', referralRoutes); // Legacy alias
+
+// Admin Referral Endpoints (under admin auth)
+const { verifyAdmin } = require('./middleware/adminMiddleware');
+app.get('/api/admin/referrals', verifyAdmin, referralController.adminGetReferrals);
+app.get('/admin/referrals', verifyAdmin, referralController.adminGetReferrals);
+app.put('/api/admin/referrals/:id/status', verifyAdmin, referralController.adminUpdateStatus);
+app.put('/admin/referrals/:id/status', verifyAdmin, referralController.adminUpdateStatus);
+app.get('/api/admin/referrals/settings', verifyAdmin, referralController.adminGetSettings);
+app.get('/admin/referrals/settings', verifyAdmin, referralController.adminGetSettings);
+
+// Public announcements endpoint (for regular users)
+app.get('/announcements/active', adminController.getActiveAnnouncements);
 
 // --- LEGACY ALIASES (For Frontend Proxy Support) ---
 // Note: Next.js proxies /api/:path* to /:path* on// Webhook for Python Engine to save completed trades
@@ -115,18 +139,27 @@ app.post('/webhook/tick', (req, res) => {
 app.post('/register', authController.register);
 app.post('/login', authController.login);
 
-app.get('/check_auth', (req, res) => {
+app.get('/check_auth', async (req, res) => {
     const token = req.cookies.token;
     if (!token) return res.json({ authenticated: false });
 
-    // Inline require to avoid messing with top of file if not present
     const jwt = require('jsonwebtoken');
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, process.env.JWT_SECRET, async (err, decoded) => {
         if (err) return res.json({ authenticated: false });
+
+        // Check if user is admin from DB
+        let is_admin = false;
+        try {
+            const { User } = require('./models');
+            const user = await User.findByPk(decoded.id, { attributes: ['is_admin'] });
+            is_admin = user?.is_admin || false;
+        } catch (e) { }
+
         res.json({
             authenticated: true,
             user: decoded.username,
-            id: decoded.id
+            id: decoded.id,
+            is_admin
         });
     });
 });

@@ -7,7 +7,8 @@ import {
   BookOpen,
   Settings,
   X,
-  Play
+  Play,
+  Gift
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const menuItems = [
   { id: 'backtest-history', label: 'Backtest History', icon: History },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'order-book', label: 'Order Book', icon: BookOpen },
+  { id: 'referrals', label: 'Refer & Earn', icon: Gift },
   { id: 'profile', label: 'Settings', icon: Settings },
 ];
 

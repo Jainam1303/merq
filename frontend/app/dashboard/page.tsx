@@ -9,6 +9,7 @@ import { Backtesting } from "@/components/dashboard/Backtesting";
 import { BacktestHistory } from "@/components/dashboard/BacktestHistory";
 import { Analytics } from "@/components/dashboard/Analytics";
 import { OrderBook } from "@/components/dashboard/OrderBook";
+import { Referrals } from "@/components/dashboard/Referrals";
 import { Profile } from "@/components/dashboard/Profile";
 import { MobileDashboard } from "@/components/mobile";
 import { fetchJson } from "@/lib/api";
@@ -140,6 +141,8 @@ export default function DashboardNewPage() {
                 return <Analytics />;
             case 'order-book':
                 return <OrderBook />;
+            case 'referrals':
+                return <Referrals />;
             case 'profile':
                 return <Profile />;
             default:
@@ -154,6 +157,7 @@ export default function DashboardNewPage() {
             case 'backtest-history': return 'Backtest History';
             case 'analytics': return 'Analytics';
             case 'order-book': return 'Order Book';
+            case 'referrals': return 'Refer & Earn';
             case 'profile': return 'Profile & Settings';
             default: return 'Dashboard';
         }

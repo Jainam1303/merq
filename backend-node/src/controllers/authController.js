@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_do_not_use_in_prod
 // Register User
 exports.register = async (req, res) => {
     try {
-        let { username, email, password } = req.body;
+        let { username, email, password, referral_code } = req.body;
 
         // Legacy Compatibility: If email is missing, generate one
         if (!email && username) {
@@ -32,11 +32,28 @@ exports.register = async (req, res) => {
         const password_hash = await bcrypt.hash(password, salt);
 
         // Create User
-        const newUser = await User.create({
+        const createData = {
             username,
             email,
-            password: password_hash // Field name is now 'password'
-        });
+            password: password_hash
+        };
+
+        // If referral code provided, link to referrer
+        if (referral_code) {
+            try {
+                const referrer = await User.findOne({ where: { referral_code: referral_code.trim() } });
+                if (referrer) {
+                    createData.referred_by = referrer.id;
+                    console.log(`[Register] User ${username} referred by ${referrer.username} (code: ${referral_code})`);
+                } else {
+                    console.log(`[Register] Invalid referral code: ${referral_code}`);
+                }
+            } catch (refErr) {
+                console.error('Referral lookup error:', refErr.message);
+            }
+        }
+
+        const newUser = await User.create(createData);
 
         // Assign Default "Free" Plan
         try {

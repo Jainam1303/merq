@@ -1,127 +1,81 @@
-# Deployment Guide: AWS (Backend) + Vercel (Frontend)
+# Deployment Guide for Admin Panel
 
-Hosting a trading system requires reliability and security. We will use **AWS** for the backend (Node.js + Python Engine + PostgreSQL) and **Vercel** for the frontend (React/Next.js).
+Since you have an **AWS (Backend)** and **Vercel (Frontend)** setup, follow these steps to deploy your new Admin Panel.
 
-**Budget**: Utilizing $100 AWS credits.
-**Architecture**:
-- **Frontend**: Vercel (HTTPS)
-- **Backend**: AWS EC2 (Must be HTTPS to communicate with Vercel)
-- **Database**: AWS RDS (PostgreSQL)
+## 1. Push Changes to Git
+First, ensure all the new code is committed and pushed to your repository (GitHub/GitLab).
 
----
-
-## Phase 1: Prepare Code (Local)
-
-### Backend (Node.js)
-1.  **CORS**: Update `backend-node/src/app.js` to allow the Vercel domain.
-2.  **Process Management**: Use `pm2` instead of `gunicorn` (since it's Node.js).
-
-### Engine (Python)
-1.  **Dependencies**: Ensure `requirements.txt` has necessary packages.
-2.  **Service**: Run as a systemd service or background process.
+```bash
+git add .
+git commit -m "Added Admin Panel features"
+git push origin main
+```
 
 ---
 
-## Phase 2: Cloud Database (AWS RDS)
-*Don't host DB on the app server.*
+## 2. Frontend Deployment (Vercel)
+Vercel is likely connected to your Git repository. It should **automatically detect the push** and start a new build.
 
-1.  **Log in to AWS Console**.
-2.  **Go to RDS** -> **Create Database**.
-    -   **Engine**: PostgreSQL.
-    -   **Template**: Free Tier.
-    -   **Identifier**: `merq-db`
-    -   **Master Username**: `postgres`
-    -   **Password**: *[SecurePassword]*
-    -   **Public Access**: Yes (for initial setup/debugging, can lock down later).
-    -   **Security Group**: Allow TCP Port 5432.
-3.  **Copy Endpoint**: `merq-db.cr6wci82gjyg.ap-south-1.rds.amazonaws.com`
+**Action Items:**
+1. Go to your Vercel Dashboard.
+2. Check if a new deployment has started.
+3. **Verify Environment Variables:** Ensure `NEXT_PUBLIC_API_URL` is set to your production AWS backend URL (e.g., `https://api.merqprime.in`).
+4. Wait for the build to complete (green checkmark).
 
 ---
 
-## Phase 3: Create Backend Server (AWS EC2)
-1.  **Go to EC2** -> **Launch Instance**.
-    -   **Name**: `MerQ-Backend`
-    -   **OS**: Ubuntu 22.04 LTS
-    -   **Instance Type**: `t3.micro` (or `t2.micro` eligible for free tier).
-    -   **Key Pair**: Create/Download `.pem` file.
-2.  **Security Group** (Firewall):
-    -   Allow **SSH** (Port 22)
-    -   Allow **HTTP** (Port 80)
-    -   Allow **HTTPS** (Port 443)
-    -   Allow **Custom TCP** (Port 5000/5001 - whichever port your Node app uses).
-3.  **Launch Instance**.
+## 3. Backend Deployment (AWS EC2)
+Your backend needs to be updated manually (unless you have a CI/CD pipeline).
+
+**step 3.1: Connect to AWS**
+SSH into your instance:
+```bash
+ssh -i "your-key.pem" ubuntu@your-ec2-ip
+```
+
+**Step 3.2: Update Code**
+Navigate to your project folder and pull the latest changes:
+```bash
+cd MerQprime/backend-node
+git pull origin main
+```
+
+**Step 3.3: Install Dependencies**
+We added some new logic, although no new packages were strictly required, it's good practice:
+```bash
+npm install
+```
+
+**Step 3.4: ⚠️ Update Database Schema (Critical)**
+We added new tables (AuditLogs, Payments, Announcements) and columns. You MUST run the sync script to update your production database without losing data.
+```bash
+node scripts/sync_db.js
+```
+*Output should say: "Database synced successfully."*
+
+**Step 3.5: Create Your Admin Account**
+Promote your existing user account to be an Admin:
+```bash
+node scripts/make_admin.js <your-username>
+```
+*Replace `<your-username>` with your actual username.*
+
+**Step 3.6: Restart Backend**
+Apply the changes by restarting the server process. If you use PM2:
+```bash
+pm2 restart all
+# OR specific process
+pm2 restart backend-node
+```
 
 ---
 
-## Phase 4: Deploy Backend (Node.js + Python)
+## 4. Verification
+1. Open your live website (e.g., `https://merqprime.in/admin`).
+2. You should see the login check or the dashboard.
+3. If it loads, **Success!**
 
-1.  **Connect via SSH**:
-    ```bash
-    ssh -i "your-key.pem" ubuntu@<PUBLIC_IP>
-    ```
-
-2.  **Update & Install Tools**:
-    ```bash
-    sudo apt update && sudo apt upgrade -y
-    sudo apt install nodejs npm python3-pip python3-venv nginx postgresql-client -y
-    sudo npm install -g pm2
-    ```
-
-3.  **Clone Capability**:
-    ```bash
-    git clone https://github.com/jainam1303/merq.git
-    cd merq
-    ```
-
-4.  **Setup Node Backend**:
-    ```bash
-    cd backend-node
-    npm install
-    # Create .env
-    nano .env
-    # Paste:
-    # PORT=5000
-    # DATABASE_URL=postgresql://postgres:<PASSWORD>@<RDS_ENDPOINT>:5432/postgres
-    # ... other keys
-    
-    # Start with PM2
-    pm2 start src/app.js --name "merq-backend"
-    ```
-
-5.  **Setup Python Engine**:
-    ```bash
-    cd ../engine-python
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install -r requirements.txt
-    
-    # Create systemd service for the engine
-    sudo nano /etc/systemd/system/merq-engine.service
-    ```
-    *Add content ensuring it runs your engine loop.*
-
----
-
-## Phase 5: Hosting Frontend (Vercel)
-1.  **Go to Vercel.com** -> Connect GitHub.
-2.  **Import Repo**: `merq`.
-3.  **Root Directory**: `frontend`.
-4.  **Env Variables**:
-    -   `NEXT_PUBLIC_API_URL`: `http://<AWS_EC2_IP>:5000` (Initially)
-5.  **Deploy**.
-
----
-
-## Phase 6: SSL (HTTPS) - CRITICAL
-*Required for Vercel <-> EC2 communication.*
-
-1.  **Domain**: Buy a domain (e.g., from Namecheap or Route53).
-2.  **DNS**: Point `A Record` to your EC2 Public IP.
-3.  **Nginx Reverse Proxy**:
-    -   Configure Nginx to listen on Port 80/443 and proxy to `localhost:5000`.
-4.  **Certbot**:
-    ```bash
-    sudo apt install certbot python3-certbot-nginx
-    sudo certbot --nginx -d yourdomain.com
-    ```
-5.  **Update Vercel**: Change `NEXT_PUBLIC_API_URL` to `https://yourdomain.com`.
+## Troubleshooting
+- **"Admin access denied"**: Ensure you ran `scripts/make_admin.js` on the *production* server, not just locally.
+- **"Table not found"**: Ensure you ran `scripts/sync_db.js`.
+- **Frontend errors**: Check Vercel logs.

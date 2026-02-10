@@ -1,4 +1,4 @@
-const { User, Subscription, Plan } = require('../models');
+const { User, Subscription, Plan, Payment, ReferralEarning } = require('../models');
 
 // Get Profile
 exports.getProfile = async (req, res) => {
@@ -287,6 +287,52 @@ exports.verifyPayment = async (req, res) => {
             end_date: endDate,
             status: 'active'
         });
+
+        // Track payment for revenue analytics
+        try {
+            await Payment.create({
+                user_id: req.user.id,
+                plan_id: plan.id,
+                razorpay_order_id: razorpay_order_id,
+                razorpay_payment_id: razorpay_payment_id,
+                amount: plan.price,
+                currency: 'INR',
+                status: 'success'
+            });
+        } catch (payErr) {
+            console.error('Payment tracking error:', payErr.message);
+        }
+
+        // ── Referral Commission ──
+        // If this user was referred by someone, award commission to the referrer
+        try {
+            const buyer = await User.findByPk(req.user.id, { attributes: ['id', 'referred_by'] });
+            if (buyer && buyer.referred_by && plan.price > 0) {
+                const COMMISSION_RATE = parseFloat(process.env.REFERRAL_COMMISSION_RATE || '5');
+                const commissionAmount = (plan.price * COMMISSION_RATE) / 100;
+
+                // Find the payment record we just created
+                const paymentRecord = await Payment.findOne({
+                    where: { razorpay_payment_id },
+                    order: [['createdAt', 'DESC']],
+                });
+
+                await ReferralEarning.create({
+                    referrer_id: buyer.referred_by,
+                    referred_id: buyer.id,
+                    payment_id: paymentRecord?.id || null,
+                    plan_id: plan.id,
+                    payment_amount: plan.price,
+                    commission_rate: COMMISSION_RATE,
+                    commission_amount: commissionAmount,
+                    status: 'pending',
+                });
+
+                console.log(`[Referral] Commission ₹${commissionAmount} earned by user ${buyer.referred_by} from user ${buyer.id}`);
+            }
+        } catch (refErr) {
+            console.error('Referral commission error:', refErr.message);
+        }
 
         res.json({ status: 'success', message: 'Subscription Activated' });
 
