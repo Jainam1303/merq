@@ -1374,7 +1374,7 @@ class TradingSession:
             if not broker_positions or broker_positions.get('status') != True:
                 return
             
-            broker_data = broker_positions.get('data', [])
+            broker_data = broker_positions.get('data') or []
             
             # Extract symbols that have actual open positions at broker
             # (netqty != 0 means position exists)
@@ -1476,7 +1476,7 @@ class TradingSession:
                 self.log(f"⚠️ Could not verify broker position - proceeding with exit", "WARNING")
                 return True
             
-            broker_data = broker_positions.get('data', [])
+            broker_data = broker_positions.get('data') or []
             
             symbol_clean = symbol.replace('-EQ', '')
             trading_symbol = self.symbol_tokens.get(f"{symbol}_TS", symbol)

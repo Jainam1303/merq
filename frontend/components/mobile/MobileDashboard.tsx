@@ -199,14 +199,22 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         let socket: Socket | null = null;
 
         if (isSystemActive) {
-            // Use relative path by default to leverage Next.js proxy
-            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || undefined;
+            // Connect directly to Backend URL (Vercel cannot proxy WebSockets properly)
+            let socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL;
+            if (!socketUrl) {
+                if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1'))) {
+                    socketUrl = 'http://localhost:3002';
+                } else {
+                    socketUrl = 'https://api.merqprime.in';
+                }
+            }
             socket = io(socketUrl, {
                 path: '/socket.io',
                 withCredentials: true,
-                transports: ['websocket', 'polling'],
-                reconnectionAttempts: 5,
-                reconnectionDelay: 1000,
+                transports: ['polling', 'websocket'], // Try polling first (more reliable), then upgrade to WS
+                reconnectionAttempts: 3,
+                reconnectionDelay: 2000,
+                timeout: 10000,
             });
 
             socket.on('connect', () => {

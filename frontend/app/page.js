@@ -37,6 +37,7 @@ const PasswordInput = ({ label, value, onChange, placeholder, color = "emerald" 
           value={value}
           onChange={onChange}
           placeholder={placeholder}
+          autoComplete="off"
           className={`w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] rounded px-3 py-2 text-xs text-zinc-900 dark:text-white focus:border-${color}-500 focus:outline-none pr-8`}
         />
         <button
@@ -242,12 +243,23 @@ function TickerMarquee() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch closing prices from Yahoo Finance (updates once per day after market close)
     const fetchClosingPrices = async () => {
       try {
         // Fetch fresh closing prices from Backend API (updates dynamically)
         console.log('Fetching closing prices from Alpha Vantage API...');
-        const res = await fetch('/api/market-ticker');
+        let res = await fetch('/api/market-ticker');
+
+        // If proxy fails (e.g., 403), try direct backend URL
+        if (!res.ok) {
+          console.log(`Proxy returned ${res.status}, trying direct backend...`);
+          const directUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
+          res = await fetch(`${directUrl}/market-ticker`);
+        }
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
         const data = await res.json();
 
         if (Array.isArray(data) && data.length > 0) {
@@ -259,6 +271,7 @@ function TickerMarquee() {
       } catch (err) {
         console.log('Using fallback market data:', err);
         setLoading(false);
+
       }
     };
 
@@ -687,7 +700,7 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
                 </div>
               </div>
 
-              <div className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
+              <form onSubmit={(e) => { e.preventDefault(); handleChangePassword(); }} className="bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 rounded-xl p-6">
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">Change Password</h3>
                 <div className="space-y-4">
                   <div>
@@ -696,6 +709,7 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
                       type="password"
                       value={securityData.currentPassword}
                       onChange={(e) => setSecurityData({ ...securityData, currentPassword: e.target.value })}
+                      autoComplete="current-password"
                       className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
                     />
                   </div>
@@ -705,6 +719,7 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
                       type="password"
                       value={securityData.newPassword}
                       onChange={(e) => setSecurityData({ ...securityData, newPassword: e.target.value })}
+                      autoComplete="new-password"
                       className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
                     />
                   </div>
@@ -714,18 +729,19 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
                       type="password"
                       value={securityData.confirmPassword}
                       onChange={(e) => setSecurityData({ ...securityData, confirmPassword: e.target.value })}
+                      autoComplete="new-password"
                       className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
                     />
                   </div>
                   <button
-                    onClick={handleChangePassword}
+                    type="submit"
                     disabled={saving}
                     className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
                   >
                     {saving ? 'Changing...' : 'Change Password'}
                   </button>
                 </div>
-              </div>
+              </form>
             </div>
           )}
 
@@ -1966,7 +1982,7 @@ function AuthForm({ type, onSuccess, switchTo }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Username</label>
-            <input type="text" value={username} onChange={e => setUsername(e.target.value)} className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] p-3 rounded text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none" required />
+            <input type="text" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] p-3 rounded text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none" required />
           </div>
           <div>
             <label className="block text-xs font-bold text-zinc-500 uppercase mb-1">Password</label>
@@ -1975,6 +1991,7 @@ function AuthForm({ type, onSuccess, switchTo }) {
                 type={showPassword ? "text" : "password"}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
+                autoComplete="current-password"
                 className="w-full bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-[#27272a] p-3 rounded text-zinc-900 dark:text-white focus:border-emerald-500 focus:outline-none pr-10"
                 required
               />

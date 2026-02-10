@@ -318,7 +318,7 @@ export function Profile() {
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t">
+                            <form onSubmit={(e) => e.preventDefault()}>
                                 <h3 className="text-sm font-medium mb-4">Change Password</h3>
                                 <div className="grid gap-6 md:grid-cols-2">
                                     <div className="space-y-2">
@@ -330,6 +330,7 @@ export function Profile() {
                                                 value={formData.new_password}
                                                 onChange={handleChange}
                                                 placeholder="Leave empty to keep current"
+                                                autoComplete="new-password"
                                             />
                                             <Button
                                                 type="button" variant="ghost" size="icon"
@@ -341,7 +342,7 @@ export function Profile() {
                                         </div>
                                     </div>
                                 </div>
-                            </div>
+                            </form>
 
                             <Button onClick={() => handleUpdate('Security')} disabled={saving}>
                                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -369,6 +370,7 @@ export function Profile() {
                                             value={formData.angel_api_key}
                                             onChange={handleChange}
                                             placeholder="Enter API Key"
+                                            autoComplete="off"
                                         />
                                         <Button
                                             type="button" variant="ghost" size="icon"
@@ -392,6 +394,7 @@ export function Profile() {
                                             value={formData.angel_password}
                                             onChange={handleChange}
                                             placeholder="Enter password"
+                                            autoComplete="off"
                                         />
                                         <Button
                                             type="button" variant="ghost" size="icon"
@@ -411,6 +414,7 @@ export function Profile() {
                                             value={formData.angel_totp}
                                             onChange={handleChange}
                                             placeholder="Enter TOTP Secret"
+                                            autoComplete="off"
                                         />
                                         <Button
                                             type="button" variant="ghost" size="icon"
@@ -442,6 +446,7 @@ export function Profile() {
                                             value={formData.backtest_api_key}
                                             onChange={handleChange}
                                             placeholder="Enter API Key"
+                                            autoComplete="off"
                                         />
                                         <Button
                                             type="button" variant="ghost" size="icon"
@@ -465,6 +470,7 @@ export function Profile() {
                                             value={formData.backtest_password}
                                             onChange={handleChange}
                                             placeholder="Enter password"
+                                            autoComplete="off"
                                         />
                                         <Button
                                             type="button" variant="ghost" size="icon"
@@ -484,6 +490,7 @@ export function Profile() {
                                             value={formData.backtest_totp}
                                             onChange={handleChange}
                                             placeholder="Enter TOTP Secret"
+                                            autoComplete="off"
                                         />
                                         <Button
                                             type="button" variant="ghost" size="icon"
