@@ -108,7 +108,18 @@ export default function UserDetailPage() {
                 <Card>
                     <CardHeader className="uppercase text-xs font-bold text-muted-foreground pb-2">Plan</CardHeader>
                     <CardContent className="text-2xl font-bold flex items-center gap-2">
-                        {user.Subscriptions?.[0]?.Plan?.name || "Free"}
+                        {(() => {
+                            const subs = user.Subscriptions || [];
+                            // Sort: paid plans first (price DESC), then by newest
+                            const sorted = [...subs].sort((a: any, b: any) => {
+                                const priceA = parseFloat(a.Plan?.price) || 0;
+                                const priceB = parseFloat(b.Plan?.price) || 0;
+                                if (priceB !== priceA) return priceB - priceA;
+                                return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                            });
+                            const best = sorted[0];
+                            return best?.Plan?.display_name || best?.Plan?.name || "Free";
+                        })()}
                         <Badge variant={user.is_active ? "default" : "destructive"}>
                             {user.is_active ? "Active" : "Banned"}
                         </Badge>

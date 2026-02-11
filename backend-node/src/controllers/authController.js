@@ -121,6 +121,11 @@ exports.login = async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
 
+        // Check if user is banned
+        if (!user.is_active) {
+            return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
+        }
+
         // Verify Password
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {

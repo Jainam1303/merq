@@ -155,19 +155,25 @@ exports.getUsers = async (req, res) => {
                 model: Subscription,
                 where: { status: 'active' },
                 required: false,
-                include: [{ model: Plan, attributes: ['name', 'display_name', 'price'] }],
-                order: [['end_date', 'DESC']],
-                limit: 1
+                include: [{ model: Plan, attributes: ['name', 'display_name', 'price'] }]
             }],
             order: orderClause,
             limit: parseInt(limit),
             offset
         });
 
-        // Format users
+        // Format users - pick the BEST active subscription (paid > free)
         const formattedUsers = users.map(u => {
             const userData = u.toJSON();
-            const activeSub = userData.Subscriptions?.[0];
+            const subs = userData.Subscriptions || [];
+            // Sort: paid plans first (price DESC), then by end_date DESC
+            subs.sort((a, b) => {
+                const priceA = parseFloat(a.Plan?.price) || 0;
+                const priceB = parseFloat(b.Plan?.price) || 0;
+                if (priceB !== priceA) return priceB - priceA; // Higher price first
+                return new Date(b.end_date) - new Date(a.end_date); // Later expiry first
+            });
+            const bestSub = subs[0];
             return {
                 id: userData.id,
                 username: userData.username,
@@ -177,9 +183,9 @@ exports.getUsers = async (req, res) => {
                 is_active: userData.is_active,
                 last_login_at: userData.last_login_at,
                 has_api_key: !!(userData.angel_api_key),
-                plan: activeSub?.Plan?.display_name || activeSub?.Plan?.name || 'Free',
-                plan_id: activeSub?.plan_id || null,
-                plan_expires: activeSub?.end_date || null,
+                plan: bestSub?.Plan?.display_name || bestSub?.Plan?.name || 'Free',
+                plan_id: bestSub?.plan_id || null,
+                plan_expires: bestSub?.end_date || null,
             };
         });
 
@@ -203,10 +209,12 @@ exports.getUserDetail = async (req, res) => {
             include: [
                 {
                     model: Subscription,
-                    include: [{ model: Plan, attributes: ['name', 'display_name', 'price', 'duration_days'] }],
-                    order: [['createdAt', 'DESC']]
+                    where: { status: 'active' },
+                    required: false,
+                    include: [{ model: Plan, attributes: ['name', 'display_name', 'price', 'duration_days'] }]
                 }
-            ]
+            ],
+            order: [[Subscription, 'createdAt', 'DESC']]
         });
 
         if (!user) return res.status(404).json({ message: 'User not found' });
