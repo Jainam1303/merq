@@ -1,46 +1,116 @@
 "use client";
-import React, { useState } from 'react';
-import { BookOpen, Download, Trash2, CheckCircle, XCircle, Clock, Calendar } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BookOpen, Download, Trash2, CheckCircle, XCircle, Clock, Calendar, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { fetchJson } from '@/lib/api';
+import { toast } from 'sonner';
 
-interface Order {
+interface Trade {
     id: string;
+    date: string;
+    time: string;
     symbol: string;
-    entry_price: number;
-    quantity: number;
-    sl: number;
+    type: string;
+    qty: number;
+    entry: number;
     tp: number;
-    status: 'filled' | 'pending' | 'cancelled';
+    sl: number;
+    exit: number;
     pnl: number;
-    timestamp: string;
+    status: string;
 }
 
 interface MobileOrderBookViewProps {
-    orders?: Order[];
+    // These props are kept for backward compatibility but we also fetch directly
+    orders?: any[];
     onDeleteOrders?: (ids: string[]) => void;
 }
 
 export function MobileOrderBookView({
-    orders = [],
+    orders: propOrders,
     onDeleteOrders
 }: MobileOrderBookViewProps) {
+    const [trades, setTrades] = useState<Trade[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
-    // Ensure orders is always an array
-    const safeOrders = Array.isArray(orders) ? orders : [];
+    // Fetch orders from backend - same logic as desktop OrderBook
+    const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
 
-    const filteredOrders = safeOrders.filter(order => {
-        if (!startDate && !endDate) return true;
-        const orderDate = new Date(order.timestamp);
-        const start = startDate ? new Date(startDate) : null;
-        const end = endDate ? new Date(endDate) : null;
+            const url = `/orderbook${params.toString() ? `?${params.toString()}` : ''}`;
+            const res = await fetchJson(url);
 
-        if (start && orderDate < start) return false;
-        if (end && orderDate > end) return false;
-        return true;
-    });
+            if (res.status === 'success') {
+                const mapped = res.data.map((t: any) => {
+                    let exitPrice = 0;
+                    if (t.status === 'COMPLETED' || t.status === 'CLOSED_SL' || t.status === 'CLOSED_TP' || t.status === 'CLOSED_MANUAL' || t.pnl !== 0) {
+                        const pnl = parseFloat(t.pnl || 0);
+                        const qty = parseInt(t.quantity || t.qty || 1);
+                        const entry = parseFloat(t.entry_price || t.entry || 0);
+                        if (t.mode === 'BUY' || t.type === 'BUY') exitPrice = entry + (pnl / qty);
+                        else exitPrice = entry - (pnl / qty);
+                    } else if (t.exit) {
+                        exitPrice = parseFloat(t.exit);
+                    }
+
+                    const dateStr = t.date || '';
+                    const timeStr = t.time || '';
+
+                    return {
+                        id: String(t.id),
+                        date: dateStr,
+                        time: timeStr,
+                        symbol: t.symbol,
+                        type: t.mode || t.type,
+                        qty: parseInt(t.quantity || t.qty || 0),
+                        entry: parseFloat(t.entry_price || t.entry || 0),
+                        tp: parseFloat(t.tp || 0),
+                        sl: parseFloat(t.sl || 0),
+                        exit: exitPrice,
+                        pnl: parseFloat(t.pnl || 0),
+                        status: t.status === 'COMPLETED' ? 'Completed' :
+                            t.status === 'CANCELLED' ? 'Cancelled' :
+                                t.status === 'CLOSED_SL' ? 'CLOSED_SL' :
+                                    t.status === 'CLOSED_TP' ? 'CLOSED_TP' :
+                                        t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status
+                    };
+                });
+                setTrades(mapped);
+            }
+        } catch (e) {
+            console.error("Failed to fetch orders", e);
+            toast.error("Failed to fetch order book");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Fetch on mount and when date filters change
+    useEffect(() => {
+        fetchOrders();
+    }, [startDate, endDate]);
+
+    // Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [startDate, endDate]);
+
+    const filteredTrades = trades;
+
+    const totalPages = Math.ceil(filteredTrades.length / ITEMS_PER_PAGE);
+    const paginatedTrades = filteredTrades.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
 
     const toggleSelect = (id: string) => {
         const newSet = new Set(selectedIds);
@@ -53,52 +123,83 @@ export function MobileOrderBookView({
     };
 
     const toggleSelectAll = () => {
-        if (selectedIds.size === filteredOrders.length) {
+        if (selectedIds.size === paginatedTrades.length && paginatedTrades.length > 0) {
             setSelectedIds(new Set());
         } else {
-            setSelectedIds(new Set(filteredOrders.map(o => o.id)));
+            setSelectedIds(new Set(paginatedTrades.map(o => o.id)));
         }
     };
 
     const handleDownloadCSV = () => {
-        const csvContent = "data:text/csv;charset=utf-8," +
-            "ID,Symbol,Entry,Qty,SL,TP,Status,PnL,Time\n" +
-            filteredOrders.map(row =>
-                `${row.id},${row.symbol},${row.entry_price},${row.quantity},${row.sl},${row.tp},${row.status},${row.pnl},${row.timestamp}`
-            ).join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "orderbook.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        if (filteredTrades.length === 0) {
+            toast.error("No trades to export");
+            return;
+        }
+
+        const headers = ['Date', 'Time', 'Symbol', 'Type', 'Qty', 'Entry', 'TP', 'SL', 'Exit', 'P&L', 'Status'];
+        const rows = filteredTrades.map(t => [
+            t.date, t.time, `"${t.symbol}"`, t.type, t.qty, t.entry, t.tp, t.sl, t.exit, t.pnl, t.status
+        ]);
+
+        const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `orderbook_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`Exported ${filteredTrades.length} trades to CSV`);
     };
 
-    const handleDelete = () => {
-        if (selectedIds.size > 0 && onDeleteOrders) {
-            onDeleteOrders(Array.from(selectedIds));
-            setSelectedIds(new Set());
+    const handleDelete = async () => {
+        if (selectedIds.size === 0) return;
+        try {
+            const ids = Array.from(selectedIds);
+            const res = await fetchJson('/delete_orders', {
+                method: 'POST',
+                body: JSON.stringify({ order_ids: ids })
+            });
+            if (res.status === 'success') {
+                toast.success(`Deleted ${ids.length} order(s)`);
+                setTrades(trades.filter(t => !ids.includes(t.id)));
+                setSelectedIds(new Set());
+            } else {
+                toast.error('Failed to delete orders');
+            }
+        } catch (err) {
+            toast.error('Failed to delete orders');
         }
     };
 
-    const getStatusIcon = (status: Order['status']) => {
-        switch (status) {
-            case 'filled': return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-            case 'cancelled': return <XCircle className="w-4 h-4 text-red-500" />;
-            default: return <Clock className="w-4 h-4 text-amber-500" />;
-        }
+    const getStatusColor = (status: string) => {
+        const s = status.toLowerCase();
+        if (s === 'completed' || s.startsWith('closed')) return 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20';
+        if (s === 'cancelled') return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
+        return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20';
     };
 
-    const getStatusColor = (status: Order['status']) => {
-        switch (status) {
-            case 'filled': return 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20';
-            case 'cancelled': return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20';
-            default: return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20';
-        }
+    const getStatusIcon = (status: string) => {
+        const s = status.toLowerCase();
+        if (s === 'completed' || s.startsWith('closed')) return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+        if (s === 'cancelled') return <XCircle className="w-4 h-4 text-red-500" />;
+        return <Clock className="w-4 h-4 text-amber-500" />;
     };
 
-    if (safeOrders.length === 0) {
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="min-h-[calc(100vh-180px)] flex items-center justify-center p-4">
+                <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin text-zinc-400 mx-auto mb-4" />
+                    <p className="text-zinc-500">Loading orders...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Empty state
+    if (trades.length === 0) {
         return (
             <div className="min-h-[calc(100vh-180px)] flex items-center justify-center p-4">
                 <div className="text-center">
@@ -114,28 +215,13 @@ export function MobileOrderBookView({
         );
     }
 
-    const [currentPage, setCurrentPage] = useState(1);
-
-    // Reset pagination when filters change
-    React.useEffect(() => {
-        setCurrentPage(1);
-    }, [startDate, endDate]);
-
-    const ITEMS_PER_PAGE = 5;
-
-    const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
-    const paginatedOrders = filteredOrders.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
-
     return (
         <div className="flex flex-col h-full bg-zinc-50 dark:bg-zinc-950">
             {/* Controls Header - Sticky inside the view */}
             <div className="sticky top-0 z-10 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 p-4 space-y-3 shrink-0">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-xs text-zinc-500">{filteredOrders.length} orders found</p>
+                        <p className="text-xs text-zinc-500">{filteredTrades.length} orders found</p>
                     </div>
                     <div className="flex gap-2">
                         <button
@@ -184,7 +270,7 @@ export function MobileOrderBookView({
                 <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
                     <input
                         type="checkbox"
-                        checked={selectedIds.size === filteredOrders.length && filteredOrders.length > 0}
+                        checked={selectedIds.size === paginatedTrades.length && paginatedTrades.length > 0}
                         onChange={toggleSelectAll}
                         className="rounded border-zinc-300 dark:border-zinc-600 text-blue-500 focus:ring-blue-500"
                     />
@@ -194,12 +280,12 @@ export function MobileOrderBookView({
 
             {/* Orders List - Scrollable Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
-                {paginatedOrders.map((order) => {
-                    const isSelected = selectedIds.has(order.id);
+                {paginatedTrades.map((trade) => {
+                    const isSelected = selectedIds.has(trade.id);
                     return (
                         <div
-                            key={order.id}
-                            onClick={() => toggleSelect(order.id)}
+                            key={trade.id}
+                            onClick={() => toggleSelect(trade.id)}
                             className={cn(
                                 "bg-white dark:bg-zinc-900 border rounded-xl p-4 transition-all cursor-pointer relative overflow-hidden",
                                 isSelected
@@ -218,20 +304,26 @@ export function MobileOrderBookView({
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <span className="font-bold text-zinc-900 dark:text-white text-base">
-                                            {order.symbol}
+                                            {trade.symbol}
                                         </span>
                                         <span className={cn(
-                                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
-                                            getStatusColor(order.status).replace('text-', 'bg-opacity-10 text-')
+                                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                            trade.type === 'BUY' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
                                         )}>
-                                            {order.status}
+                                            {trade.type}
+                                        </span>
+                                        <span className={cn(
+                                            "px-2 py-0.5 rounded-full text-[10px] font-bold",
+                                            getStatusColor(trade.status)
+                                        )}>
+                                            {trade.status}
                                         </span>
                                     </div>
                                     <span className={cn(
                                         "text-sm font-bold font-mono",
-                                        (Number(order.pnl) || 0) >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
+                                        trade.pnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                                     )}>
-                                        {(Number(order.pnl) || 0) >= 0 ? '+' : ''}{(Number(order.pnl) || 0).toFixed(2)}
+                                        {trade.pnl >= 0 ? '+' : ''}₹{trade.pnl.toFixed(2)}
                                     </span>
                                 </div>
 
@@ -239,26 +331,29 @@ export function MobileOrderBookView({
                                 <div className="grid grid-cols-4 gap-2 text-xs border-t border-dashed border-zinc-200 dark:border-zinc-800 pt-3">
                                     <div>
                                         <div className="text-zinc-500 mb-0.5">Entry</div>
-                                        <div className="font-medium text-zinc-900 dark:text-white">{order.entry_price}</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{trade.entry.toFixed(2)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-zinc-500 mb-0.5">Qty</div>
-                                        <div className="font-medium text-zinc-900 dark:text-white">{order.quantity}</div>
+                                        <div className="text-zinc-500 mb-0.5">Exit</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{trade.exit.toFixed(2)}</div>
                                     </div>
                                     <div>
                                         <div className="text-zinc-500 mb-0.5">SL</div>
-                                        <div className="font-medium text-zinc-900 dark:text-white">{order.sl}</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{trade.sl.toFixed(2)}</div>
                                     </div>
                                     <div>
                                         <div className="text-zinc-500 mb-0.5">TP</div>
-                                        <div className="font-medium text-zinc-900 dark:text-white">{order.tp}</div>
+                                        <div className="font-medium text-zinc-900 dark:text-white">{trade.tp.toFixed(2)}</div>
                                     </div>
                                 </div>
 
-                                {/* Timestamp */}
-                                <div className="flex items-center gap-1 text-[10px] text-zinc-400">
-                                    <Clock size={10} />
-                                    {new Date(order.timestamp).toLocaleString()}
+                                {/* Qty + Timestamp */}
+                                <div className="flex items-center justify-between text-xs text-zinc-400 border-t border-dashed border-zinc-200 dark:border-zinc-800 pt-2">
+                                    <span>Qty: <span className="font-medium text-zinc-600 dark:text-zinc-300">{trade.qty}</span></span>
+                                    <div className="flex items-center gap-1">
+                                        <Clock size={10} />
+                                        {trade.date} {trade.time}
+                                    </div>
                                 </div>
                             </div>
                         </div>

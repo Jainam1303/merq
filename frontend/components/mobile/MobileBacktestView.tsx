@@ -1,12 +1,12 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, Calendar, DollarSign, Target, Play, X, Loader2, Save, History, ChevronLeft, Trash2, Upload, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingUp, Calendar, Play, X, Loader2, Save, History, ChevronLeft, Trash2, Upload, Clock, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { fetchJson } from '@/lib/api';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
-// Updated Strategies List
+// Updated Strategies List - same as desktop
 const strategies = [
     { label: "MerQ Alpha I", value: "orb", description: "Opening Range Breakout (9:15-9:30)" },
     { label: "MerQ Alpha II", value: "ema", description: "EMA 8/30 Crossover Strategy" },
@@ -222,25 +222,104 @@ function DateTimePicker({ value, onChange, label }: { value: string; onChange: (
 export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
     const [showHistory, setShowHistory] = useState(false);
     const [selectedStrategy, setSelectedStrategy] = useState('orb');
-    const [symbols, setSymbols] = useState<string[]>(['RELIANCE-EQ', 'TCS-EQ']);
-    const [newSymbol, setNewSymbol] = useState('');
+    // Store stocks as objects like desktop: { symbol, token, exchange }
+    const [selectedStocks, setSelectedStocks] = useState<any[]>([]);
+    const [savedStocks, setSavedStocks] = useState<string[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searching, setSearching] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
     const [startDate, setStartDate] = useState('2025-01-01 09:15');
     const [endDate, setEndDate] = useState('2025-01-31 15:30');
-    const [capital, setCapital] = useState('100000');
     const [interval, setInterval] = useState('15');
     const [isRunning, setIsRunning] = useState(false);
     const [results, setResults] = useState<any[]>([]);
+    const [rawResults, setRawResults] = useState<any[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleAddSymbol = () => {
-        if (newSymbol.trim() && !symbols.includes(newSymbol.trim().toUpperCase() + '-EQ')) {
-            setSymbols([...symbols, newSymbol.trim().toUpperCase() + '-EQ']);
-            setNewSymbol('');
+    // Load saved stocks on mount - same as desktop
+    useEffect(() => {
+        loadSavedStocks();
+    }, []);
+
+    const loadSavedStocks = async () => {
+        try {
+            const res = await fetchJson('/symbols');
+            setSavedStocks(res || []);
+        } catch (e) { console.error(e); }
+    };
+
+    // Debounced Search Effect - same as desktop
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (searchQuery.length >= 2) {
+                setSearching(true);
+                try {
+                    const res = await fetchJson(`/search_scrip?q=${searchQuery}`);
+                    setSearchResults(res || []);
+                    setShowDropdown(true);
+                } catch (e) {
+                    console.error(e);
+                    setSearchResults([]);
+                } finally {
+                    setSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+                setShowDropdown(false);
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
+
+    // Helper to resolve token if missing - same as desktop
+    const resolveToken = async (symbol: string): Promise<any> => {
+        try {
+            const res = await fetchJson(`/search_scrip?q=${symbol}`);
+            const match = res.find((r: any) => r.symbol === symbol) || res[0];
+            return match ? { symbol: match.symbol, token: match.token, exchange: match.exchange } : null;
+        } catch (e) {
+            console.error("Token resolution failed for", symbol, e);
+            return null;
         }
     };
 
-    const handleRemoveSymbol = (symbol: string) => {
-        setSymbols(symbols.filter(s => s !== symbol));
+    const addStock = async (stock: any) => {
+        let stockObj = stock;
+
+        // If it's just a symbol string or object without token, resolve it
+        if (!stockObj.token) {
+            const sym = stockObj.symbol || stockObj;
+            const resolved = await resolveToken(sym);
+            if (resolved) {
+                stockObj = resolved;
+            } else {
+                stockObj = { symbol: sym, token: null, exchange: 'NSE' };
+            }
+        }
+
+        if (!selectedStocks.some(s => s.symbol === stockObj.symbol)) {
+            setSelectedStocks(prev => [...prev, {
+                symbol: stockObj.symbol,
+                token: stockObj.token,
+                exchange: stockObj.exchange || 'NSE'
+            }]);
+        }
+
+        // Add to My Stocklist (DB) - same as desktop
+        try {
+            await fetchJson('/add_token', { method: 'POST', body: JSON.stringify(stockObj) });
+            loadSavedStocks();
+        } catch (e) { console.error(e); }
+
+        setSearchQuery('');
+        setSearchResults([]);
+        setShowDropdown(false);
+    };
+
+    const removeStock = (symbol: string) => {
+        setSelectedStocks(selectedStocks.filter(s => s.symbol !== symbol));
     };
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -252,16 +331,19 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
             const text = event.target?.result as string;
             if (!text) return;
 
-            const newSymbols = text
+            const symbols = text
                 .split(/[\n,]+/)
                 .map(s => s.trim().toUpperCase())
-                .filter(s => s && s.length > 2)
-                .map(s => s + '-EQ');
+                .filter(s => s && s.length > 2);
 
-            if (newSymbols.length > 0) {
-                const unique = Array.from(new Set([...symbols, ...newSymbols]));
-                setSymbols(unique);
-                toast.success(`Imported ${newSymbols.length} symbols`);
+            if (symbols.length > 0) {
+                const existing = new Set(selectedStocks.map(s => s.symbol));
+                const newItems = symbols
+                    .filter(s => !existing.has(s))
+                    .map(s => ({ symbol: s, token: null, exchange: 'NSE' }));
+
+                setSelectedStocks([...selectedStocks, ...newItems]);
+                toast.success(`Imported ${symbols.length} symbols`);
             } else {
                 toast.error("No valid symbols found in CSV");
             }
@@ -271,38 +353,64 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
         reader.readAsText(file);
     };
 
+    // Run backtest - matching desktop payload format exactly
     const handleRunBacktest = async () => {
-        if (symbols.length === 0) {
-            toast.error('Please add at least one symbol');
+        if (selectedStocks.length === 0) {
+            toast.error('Please add at least one stock');
             return;
         }
 
         setIsRunning(true);
         setResults([]);
+        setRawResults([]);
 
         try {
+            // Build payload matching desktop format exactly
             const payload = {
                 strategy: selectedStrategy,
-                symbols: symbols,
                 interval: interval,
-                startDate: startDate,
-                endDate: endDate,
-                capital: capital
+                capital: 100000,  // Default capital - same as desktop
+                from_date: startDate,
+                to_date: endDate,
+                symbols: selectedStocks  // Array of objects { symbol, token, exchange }
             };
 
+            console.log('[Mobile Backtest] Sending payload:', payload);
             const res = await fetchJson('/backtest', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             });
+            console.log('[Mobile Backtest] Response:', res);
 
-            if (res.status === 'success' && Array.isArray(res.results)) {
-                setResults(res.results);
-                toast.success(`Backtest completed with ${res.results.length} results`);
+            if (res.status === 'success' && res.results && res.results.length > 0) {
+                setRawResults(res.results);
+
+                // Parse results matching desktop format
+                // Backend returns: { Symbol, 'Total Trades', 'Win Rate %', 'Total P&L', 'Final Capital', 'Max Drawdown %' }
+                const parsedResults = res.results.map((r: any) => {
+                    const pnl = parseFloat((r['Total P&L'] || '0').toString().replace(/,/g, '').replace(/%/g, ''));
+                    const winRate = parseFloat((r['Win Rate %'] || '0').toString().replace(/%/g, ''));
+                    const totalTrades = parseInt(r['Total Trades'] || '0');
+                    const maxDrawdown = parseFloat((r['Max Drawdown %'] || '0').toString().replace(/%/g, ''));
+
+                    return {
+                        symbol: r.Symbol || r.symbol || 'Unknown',
+                        totalPnL: pnl,
+                        totalTrades: totalTrades,
+                        winRate: winRate,
+                        maxDrawdown: maxDrawdown,
+                        finalCapital: r['Final Capital'] || 0
+                    };
+                });
+
+                setResults(parsedResults);
+                toast.success(`Backtest completed with ${parsedResults.length} results`);
             } else {
-                toast.error(res.message || 'Backtest failed');
+                console.log('[Mobile Backtest] No results or error:', res);
+                toast.error(res.message || 'No results returned');
             }
         } catch (error: any) {
-            console.error(error);
+            console.error('[Mobile Backtest] Error:', error);
             toast.error(error.message || 'Failed to run backtest');
         } finally {
             setIsRunning(false);
@@ -310,12 +418,12 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
     };
 
     const handleSaveResult = async () => {
-        if (results.length === 0) return;
+        if (rawResults.length === 0) return;
         try {
             await fetchJson('/save_backtest', {
                 method: 'POST',
                 body: JSON.stringify({
-                    results: results,
+                    results: rawResults,
                     strategy: selectedStrategy,
                     interval: interval,
                     fromDate: startDate,
@@ -379,25 +487,73 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                     </div>
                 </div>
 
-                {/* Stock Universe */}
+                {/* Stock Universe - with search like desktop */}
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
                     <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Stock Universe</label>
-                    <div className="flex gap-2 mb-3">
-                        <input
-                            type="text"
-                            value={newSymbol}
-                            onChange={(e) => setNewSymbol(e.target.value)}
-                            placeholder="Enter symbol (e.g. RELIANCE)"
-                            className="flex-1 px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white min-h-[42px]"
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddSymbol()}
-                        />
-                        <button
-                            onClick={handleAddSymbol}
-                            className="px-4 py-2 rounded-lg bg-cyan-500 text-white font-medium text-sm min-h-[42px]"
-                        >
-                            Add
-                        </button>
+
+                    {/* Search Input */}
+                    <div className="relative mb-3">
+                        <div className="flex gap-2">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder="Search stocks (e.g. RELIANCE)"
+                                    className="w-full pl-10 pr-3 py-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white min-h-[42px]"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Search Dropdown */}
+                        {showDropdown && searchResults.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg z-50 max-h-[200px] overflow-y-auto">
+                                {searchResults.map((result, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => addStock(result)}
+                                        className="w-full px-4 py-2.5 text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-b-0"
+                                    >
+                                        <div className="font-medium text-sm text-zinc-900 dark:text-white">{result.symbol}</div>
+                                        <div className="text-xs text-zinc-500">{result.exchange} • Token: {result.token}</div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {searching && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-lg z-50 p-4 text-center">
+                                <Loader2 className="w-4 h-4 animate-spin mx-auto text-zinc-400" />
+                            </div>
+                        )}
                     </div>
+
+                    {/* Saved Stocks Quick Add */}
+                    {savedStocks.length > 0 && (
+                        <div className="mb-3">
+                            <label className="text-xs text-zinc-500 mb-1.5 block">My Stocklist</label>
+                            <div className="flex flex-wrap gap-1.5">
+                                {savedStocks.slice(0, 10).map((sym, idx) => {
+                                    const isAdded = selectedStocks.some(s => s.symbol === sym);
+                                    return (
+                                        <button
+                                            key={idx}
+                                            onClick={() => !isAdded && addStock({ symbol: sym })}
+                                            disabled={isAdded}
+                                            className={cn(
+                                                "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+                                                isAdded
+                                                    ? "bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 opacity-50"
+                                                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-cyan-50 dark:hover:bg-cyan-900/20"
+                                            )}
+                                        >
+                                            {sym}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Action Buttons Row */}
                     <div className="flex gap-2 mb-3">
@@ -418,8 +574,8 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                         </button>
 
                         <button
-                            onClick={() => setSymbols([])}
-                            disabled={symbols.length === 0}
+                            onClick={() => setSelectedStocks([])}
+                            disabled={selectedStocks.length === 0}
                             className="px-4 py-3 rounded-lg bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 font-medium text-sm min-h-[42px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             type="button"
                         >
@@ -427,21 +583,25 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                         </button>
                     </div>
 
+                    {/* Selected Stocks */}
                     <div className="flex flex-wrap gap-2">
-                        {symbols.map((symbol) => (
+                        {selectedStocks.map((stock) => (
                             <span
-                                key={symbol}
+                                key={stock.symbol}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-sm font-medium text-zinc-700 dark:text-zinc-300"
                             >
-                                {symbol}
+                                {stock.symbol}
                                 <button
-                                    onClick={() => handleRemoveSymbol(symbol)}
+                                    onClick={() => removeStock(stock.symbol)}
                                     className="w-4 h-4 rounded-full bg-zinc-300 dark:bg-zinc-600 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
                                 >
                                     <X size={10} />
                                 </button>
                             </span>
                         ))}
+                        {selectedStocks.length === 0 && (
+                            <p className="text-xs text-zinc-400 italic">Search and add stocks above</p>
+                        )}
                     </div>
                 </div>
 
@@ -462,43 +622,31 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                     </div>
                 </div>
 
-                {/* Additional Settings */}
+                {/* Timeframe Setting (no Initial Capital) */}
                 <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
                     <label className="text-xs font-bold text-zinc-500 uppercase mb-3 block">Settings</label>
-                    <div className="space-y-3">
-                        <div>
-                            <label className="text-xs text-zinc-500 mb-1 block">Timeframe</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { value: '5', label: '5 Min' },
-                                    { value: '15', label: '15 Min' },
-                                    { value: '30', label: '30 Min' },
-                                    { value: '60', label: '1 Hour' },
-                                ].map((tf) => (
-                                    <button
-                                        key={tf.value}
-                                        onClick={() => setInterval(tf.value)}
-                                        className={cn(
-                                            "px-3 py-2.5 rounded-lg text-sm font-medium transition-all border-2",
-                                            interval === tf.value
-                                                ? "bg-cyan-50 dark:bg-cyan-900/20 border-cyan-500 text-cyan-700 dark:text-cyan-400"
-                                                : "bg-zinc-50 dark:bg-zinc-800 border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-                                        )}
-                                    >
-                                        {tf.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-xs text-zinc-500 mb-1 block">Initial Capital (₹)</label>
-                            <input
-                                type="number"
-                                value={capital}
-                                onChange={(e) => setCapital(e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[42px] focus:outline-none focus:border-cyan-500 text-zinc-900 dark:text-white"
-                                placeholder="100000"
-                            />
+                    <div>
+                        <label className="text-xs text-zinc-500 mb-1 block">Timeframe</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { value: '5', label: '5 Min' },
+                                { value: '15', label: '15 Min' },
+                                { value: '30', label: '30 Min' },
+                                { value: '60', label: '1 Hour' },
+                            ].map((tf) => (
+                                <button
+                                    key={tf.value}
+                                    onClick={() => setInterval(tf.value)}
+                                    className={cn(
+                                        "px-3 py-2.5 rounded-lg text-sm font-medium transition-all border-2",
+                                        interval === tf.value
+                                            ? "bg-cyan-50 dark:bg-cyan-900/20 border-cyan-500 text-cyan-700 dark:text-cyan-400"
+                                            : "bg-zinc-50 dark:bg-zinc-800 border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+                                    )}
+                                >
+                                    {tf.label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -546,7 +694,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                             return (
                                 <div key={index} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
                                     <div className="flex items-center justify-between mb-3">
-                                        <span className="font-bold text-zinc-900 dark:text-white">{result.symbol || result.Symbol}</span>
+                                        <span className="font-bold text-zinc-900 dark:text-white">{result.symbol}</span>
                                         <span className={cn(
                                             "text-lg font-bold",
                                             isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
