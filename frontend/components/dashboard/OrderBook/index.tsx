@@ -240,7 +240,7 @@ export function OrderBook() {
               </Select>
 
               {/* Date Filters */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button

@@ -14,6 +14,17 @@ export function SafetyGuard() {
 
   // Fetch initial state
   useEffect(() => {
+    // Load from localStorage first for instant state restoration
+    const savedEnabled = localStorage.getItem('safety_guard_enabled');
+    const savedMaxLoss = localStorage.getItem('safety_guard_max_loss');
+
+    if (savedEnabled !== null) {
+      setIsEnabled(savedEnabled === 'true');
+    }
+    if (savedMaxLoss !== null) {
+      setMaxLoss(savedMaxLoss);
+    }
+
     async function loadConfig() {
       // Don't update if user is actively interacting
       if (isInteractingRef.current) return;
@@ -24,9 +35,11 @@ export function SafetyGuard() {
           // Only update if values actually changed to prevent unnecessary re-renders
           if (config.safety_guard_enabled !== undefined && config.safety_guard_enabled !== isEnabled) {
             setIsEnabled(config.safety_guard_enabled);
+            localStorage.setItem('safety_guard_enabled', String(config.safety_guard_enabled));
           }
           if (config.max_daily_loss !== undefined && String(config.max_daily_loss) !== maxLoss) {
             setMaxLoss(String(config.max_daily_loss));
+            localStorage.setItem('safety_guard_max_loss', String(config.max_daily_loss));
           }
         }
       } catch (e) {
@@ -44,6 +57,7 @@ export function SafetyGuard() {
   const handleToggle = async (enabled: boolean) => {
     isInteractingRef.current = true;
     setIsEnabled(enabled);
+    localStorage.setItem('safety_guard_enabled', String(enabled));
     await saveConfig(enabled, maxLoss);
     // Allow polling to resume after a short delay
     setTimeout(() => {
@@ -57,6 +71,7 @@ export function SafetyGuard() {
   };
 
   const handleBlur = async () => {
+    localStorage.setItem('safety_guard_max_loss', maxLoss);
     await saveConfig(isEnabled, maxLoss);
     // Allow polling to resume after save completes
     setTimeout(() => {

@@ -294,7 +294,7 @@ export function Backtesting() {
                                     <div className="p-3 bg-background border-b border-border">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Label className="text-xs text-muted-foreground w-12">Time</Label>
-                                            <div className="flex gap-1 items-center flex-1">
+                                            <div className="flex gap-2 items-center flex-1">
                                                 {/* Hour */}
                                                 <Select
                                                     value={(() => {
@@ -415,7 +415,7 @@ export function Backtesting() {
                                     <div className="p-3 bg-background border-b border-border">
                                         <div className="flex items-center gap-2 mb-2">
                                             <Label className="text-xs text-muted-foreground w-12">Time</Label>
-                                            <div className="flex gap-1 items-center flex-1">
+                                            <div className="flex gap-2 items-center flex-1">
                                                 {/* Hour */}
                                                 <Select
                                                     value={(() => {
