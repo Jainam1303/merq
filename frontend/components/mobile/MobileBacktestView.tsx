@@ -81,6 +81,9 @@ function MobileBacktestHistory({ onBack }: { onBack: () => void }) {
                         const strategyLabel = strategies.find(s => s.value === record.strategy)?.label || record.strategy;
                         const pnl = parseFloat(record.summary?.totalPnL || 0);
                         const isPositive = pnl >= 0;
+                        const finalCap = parseFloat(record.summary?.finalCapital || 0);
+                        const timeframeMap: Record<string, string> = { '5': '5 Min', '15': '15 Min', '30': '30 Min', '60': '1 Hour' };
+                        const timeframeLabel = timeframeMap[record.interval] || record.interval || '-';
 
                         return (
                             <div key={record.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
@@ -95,12 +98,13 @@ function MobileBacktestHistory({ onBack }: { onBack: () => void }) {
                                     </div>
                                     <button
                                         onClick={() => handleDelete(record.id)}
-                                        className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
+                                        className="p-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30"
                                     >
                                         <Trash2 size={14} />
                                     </button>
                                 </div>
 
+                                {/* Row 1: Symbol + P&L */}
                                 <div className="grid grid-cols-2 gap-3 mb-3">
                                     <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg">
                                         <div className="text-[10px] text-zinc-500 uppercase font-bold mb-0.5">Symbol</div>
@@ -122,6 +126,31 @@ function MobileBacktestHistory({ onBack }: { onBack: () => void }) {
                                     </div>
                                 </div>
 
+                                {/* Row 2: Timeframe + Date Range + Final Cap */}
+                                <div className="grid grid-cols-3 gap-2 mb-3">
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg">
+                                        <div className="text-[10px] text-zinc-500 uppercase font-bold mb-0.5">Timeframe</div>
+                                        <div className="font-medium text-xs text-zinc-900 dark:text-white">
+                                            {timeframeLabel}
+                                        </div>
+                                    </div>
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg">
+                                        <div className="text-[10px] text-zinc-500 uppercase font-bold mb-0.5">Date Range</div>
+                                        <div className="font-medium text-[10px] text-zinc-900 dark:text-white leading-tight">
+                                            {record.from_date || '-'}
+                                            <br />
+                                            <span className="text-zinc-400">to</span> {record.to_date || '-'}
+                                        </div>
+                                    </div>
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-2 rounded-lg">
+                                        <div className="text-[10px] text-zinc-500 uppercase font-bold mb-0.5">Final Cap</div>
+                                        <div className="font-medium text-xs text-zinc-900 dark:text-white">
+                                            {finalCap > 0 ? finalCap.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Row 3: Trades + Win Rate */}
                                 <div className="flex items-center gap-4 text-xs text-zinc-500 border-t border-zinc-100 dark:border-zinc-800 pt-2 mt-2">
                                     <span>Trades: <b className="text-zinc-900 dark:text-white">{record.summary?.totalTrades || 0}</b></span>
                                     <span>Win Rate: <b className="text-zinc-900 dark:text-white">{parseFloat(record.summary?.winRate || 0).toFixed(1)}%</b></span>
@@ -231,7 +260,7 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
     const [showDropdown, setShowDropdown] = useState(false);
     const [startDate, setStartDate] = useState('2025-01-01 09:15');
     const [endDate, setEndDate] = useState('2025-01-31 15:30');
-    const [interval, setInterval] = useState('15');
+    const [interval, setInterval] = useState('5');
     const [isRunning, setIsRunning] = useState(false);
     const [results, setResults] = useState<any[]>([]);
     const [rawResults, setRawResults] = useState<any[]>([]);
@@ -691,18 +720,13 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                         {results.map((result, index) => {
                             const pnl = parseFloat(result.totalPnL || 0);
                             const isPositive = pnl >= 0;
+                            const finalCap = parseFloat(result.finalCapital || 0);
                             return (
                                 <div key={index} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 shadow-sm">
                                     <div className="flex items-center justify-between mb-3">
                                         <span className="font-bold text-zinc-900 dark:text-white">{result.symbol}</span>
-                                        <span className={cn(
-                                            "text-lg font-bold",
-                                            isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                                        )}>
-                                            {isPositive ? '+' : ''}₹{pnl.toFixed(2)}
-                                        </span>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2 text-xs">
+                                    <div className="grid grid-cols-4 gap-2 text-xs">
                                         <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded">
                                             <div className="text-zinc-500 mb-0.5">Trades</div>
                                             <div className="font-bold text-zinc-900 dark:text-white">{result.totalTrades || 0}</div>
@@ -711,9 +735,17 @@ export function MobileBacktestView({ onRunBacktest }: MobileBacktestViewProps) {
                                             <div className="text-zinc-500 mb-0.5">Win Rate</div>
                                             <div className="font-bold text-zinc-900 dark:text-white">{parseFloat(result.winRate || 0).toFixed(1)}%</div>
                                         </div>
+                                        <div className={cn("p-2 rounded", isPositive ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-red-50 dark:bg-red-900/20")}>
+                                            <div className="text-zinc-500 mb-0.5">P&L</div>
+                                            <div className={cn("font-bold", isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                                                {isPositive ? '+' : ''}{pnl.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </div>
+                                        </div>
                                         <div className="bg-zinc-50 dark:bg-zinc-800 p-2 rounded">
-                                            <div className="text-zinc-500 mb-0.5">Max DD</div>
-                                            <div className="font-bold text-zinc-900 dark:text-white">{parseFloat(result.maxDrawdown || 0).toFixed(1)}%</div>
+                                            <div className="text-zinc-500 mb-0.5">Final Cap</div>
+                                            <div className="font-bold text-zinc-900 dark:text-white">
+                                                {finalCap > 0 ? finalCap.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
