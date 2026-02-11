@@ -121,3 +121,22 @@ useEffect(() => {
 - All CSS lint warnings about `@tailwind` and `@apply` are expected and can be ignored (they're standard Tailwind directives)
 - The backend orderbook endpoint is functioning correctly and combines trades from both Python engine and database
 - All changes maintain backward compatibility with existing functionality
+
+### 6. Admin Dashboard Fixes ✅
+**Files Modified:**
+- `backend-node/src/controllers/adminController.js`
+
+**Changes:**
+- **Active Subscriptions:** Now properly filters to count only **Paid** users (Plan price > 0).
+- **Total Users:** Counts all users (Free + Paid).
+- **Today's Trades & P&L:** Updated logic to dynamically query the database for ALL trades created within the current day (00:00 to 23:59 server time), ensuring stats are not stuck at 0.
+- **New Users:** Uses `createdAt` instead of `last_login_at` for more accurate "New User" tracking.
+
+### 7. Trade History Persistence Fix ✅
+**Files Modified:**
+- `engine-python/session_manager.py`
+
+**Changes:**
+- Fixed a critical bug where the Python engine was trying to save trades to port `5001` (wrong) instead of `3002` (correct backend port).
+- Added `BACKEND_URL` environment variable support for AWS/Production deployments.
+- Trades now persist to the PostgreSQL database correctly after completion.
