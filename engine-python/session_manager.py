@@ -14,6 +14,10 @@ from SmartApi import SmartConnect
 from SmartApi.smartWebSocketV2 import SmartWebSocketV2
 import pyotp
 import datetime
+import os
+
+# Configuration
+BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:3002')
 
 class TradingSession:
     def __init__(self, user_id, config, credentials):
@@ -186,7 +190,7 @@ class TradingSession:
             }
             
             # Use backend internal URL
-            requests.post('http://localhost:3002/webhook/tick', json=payload, timeout=2.0)
+            requests.post(f'{BACKEND_URL}/webhook/tick', json=payload, timeout=2.0)
             self.last_sync_time = time.time()
             
         except Exception:
@@ -1133,8 +1137,8 @@ class TradingSession:
                 "trade_mode": self.mode,
                 "strategy": self.strategy_name.upper()
             }
-            # Use backend internal URL (localhost)
-            requests.post('http://localhost:3002/webhook/save_trade', json=payload, timeout=2)
+            # Use backend internal URL
+            requests.post(f'{BACKEND_URL}/webhook/save_trade', json=payload, timeout=2)
             self.log(f"Synced {pos['symbol']} trade to DB", "DEBUG")
         except Exception as e:
             self.log(f"Failed to sync trade to DB: {e}", "ERROR")
