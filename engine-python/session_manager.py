@@ -186,7 +186,7 @@ class TradingSession:
             }
             
             # Use backend internal URL
-            requests.post('http://localhost:5001/webhook/tick', json=payload, timeout=2.0)
+            requests.post('http://localhost:3002/webhook/tick', json=payload, timeout=2.0)
             self.last_sync_time = time.time()
             
         except Exception:
@@ -1134,7 +1134,7 @@ class TradingSession:
                 "strategy": self.strategy_name.upper()
             }
             # Use backend internal URL (localhost)
-            requests.post('http://localhost:5001/webhook/save_trade', json=payload, timeout=2)
+            requests.post('http://localhost:3002/webhook/save_trade', json=payload, timeout=2)
             self.log(f"Synced {pos['symbol']} trade to DB", "DEBUG")
         except Exception as e:
             self.log(f"Failed to sync trade to DB: {e}", "ERROR")
