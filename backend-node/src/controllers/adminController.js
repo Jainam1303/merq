@@ -23,38 +23,49 @@ const logAction = async (adminId, action, targetType, targetId, details, ip) => 
 // ============================================
 // DASHBOARD
 // ============================================
+// ============================================
+// DASHBOARD
+// ============================================
 exports.getDashboard = async (req, res) => {
     try {
         const totalUsers = await User.count();
         const activeUsers = await User.count({ where: { is_active: true } });
         const adminCount = await User.count({ where: { is_admin: true } });
 
-        // Active subscriptions
-        const activeSubscriptions = await Subscription.count({ where: { status: 'active' } });
+        // Active subscriptions (PAID ONLY)
+        const activeSubscriptions = await Subscription.count({
+            where: { status: 'active' },
+            include: [{
+                model: Plan,
+                where: { price: { [Op.gt]: 0 } } // Exclude Free Plans (Price > 0)
+            }]
+        });
 
-        // Today's date range
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        // Today's date range (Start of day to End of day)
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
 
-        // Today's trades
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Today's trades (ALL Users)
         const todayTrades = await Trade.count({
             where: {
-                createdAt: { [Op.gte]: today, [Op.lt]: tomorrow }
+                createdAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay } // Use entire day range
             }
         });
 
-        // Today's P&L
+        // Today's P&L (ALL Users)
         const todayPnlResult = await Trade.findOne({
             attributes: [[fn('COALESCE', fn('SUM', col('pnl')), 0), 'total_pnl']],
             where: {
-                createdAt: { [Op.gte]: today, [Op.lt]: tomorrow }
+                createdAt: { [Op.gte]: startOfDay, [Op.lte]: endOfDay }
             },
             raw: true
         });
 
         // Revenue this month
+        const today = new Date();
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
         let monthlyRevenue = 0;
         try {
@@ -76,7 +87,7 @@ exports.getDashboard = async (req, res) => {
         try {
             // Try createdAt if available, otherwise count all
             newUsersWeek = await User.count({
-                where: { last_login_at: { [Op.gte]: weekStart } }
+                where: { createdAt: { [Op.gte]: weekStart } } // Changed to createdAt for reliability
             });
         } catch (e) { }
 
