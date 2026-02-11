@@ -163,13 +163,6 @@ export default function DashboardNewPage() {
         }
     };
 
-    const getPageDescription = () => {
-        if (tradingMode === 'LIVE') {
-            return <span className="text-loss">Live trading mode - Real money at risk</span>;
-        }
-        return <span className="text-primary">Paper trading mode - Simulation only</span>;
-    };
-
     // Prevent rendering if not authenticated (optional, avoids flash)
     if (!isAuthenticated) return null;
 
@@ -206,9 +199,6 @@ export default function DashboardNewPage() {
                     <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                         <div className="mb-6">
                             <h1 className="text-2xl font-bold">{getPageTitle()}</h1>
-                            <p className="text-muted-foreground">
-                                {getPageDescription()}
-                            </p>
                         </div>
 
                         {renderContent()}

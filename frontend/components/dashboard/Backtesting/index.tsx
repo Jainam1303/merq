@@ -292,7 +292,7 @@ export function Backtesting() {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
                                     <div className="p-3 bg-background border-b border-border">
-                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                        <div className="flex items-center gap-2 mb-2">
                                             <Label className="text-xs text-muted-foreground w-12">Time</Label>
                                             <div className="flex gap-1 items-center flex-1">
                                                 {/* Hour */}
@@ -413,7 +413,7 @@ export function Backtesting() {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-auto p-0" align="start">
                                     <div className="p-3 bg-background border-b border-border">
-                                        <div className="flex items-center justify-between gap-2 mb-2">
+                                        <div className="flex items-center gap-2 mb-2">
                                             <Label className="text-xs text-muted-foreground w-12">Time</Label>
                                             <div className="flex gap-1 items-center flex-1">
                                                 {/* Hour */}

@@ -25,6 +25,10 @@ export function SafetyGuard() {
       }
     }
     loadConfig();
+
+    // Poll every 3 seconds to keep state in sync
+    const interval = setInterval(loadConfig, 3000);
+    return () => clearInterval(interval);
   }, []);
 
   // Sync to Backend
