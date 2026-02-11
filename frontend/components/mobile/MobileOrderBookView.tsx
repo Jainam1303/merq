@@ -53,14 +53,19 @@ export function MobileOrderBookView({
             if (res.status === 'success') {
                 const mapped = res.data.map((t: any) => {
                     let exitPrice = 0;
-                    if (t.status === 'COMPLETED' || t.status === 'CLOSED_SL' || t.status === 'CLOSED_TP' || t.status === 'CLOSED_MANUAL' || t.pnl !== 0) {
+                    // Try direct exit_price from DB first
+                    if (t.exit_price && parseFloat(t.exit_price) > 0) {
+                        exitPrice = parseFloat(t.exit_price);
+                    } else if (t.exit && parseFloat(t.exit) > 0) {
+                        exitPrice = parseFloat(t.exit);
+                    } else if (t.status === 'COMPLETED' || t.status === 'CLOSED' || t.status === 'CLOSED_SL' || t.status === 'CLOSED_TP' || t.status === 'CLOSED_MANUAL' || t.pnl !== 0) {
                         const pnl = parseFloat(t.pnl || 0);
                         const qty = parseInt(t.quantity || t.qty || 1);
                         const entry = parseFloat(t.entry_price || t.entry || 0);
-                        if (t.mode === 'BUY' || t.type === 'BUY') exitPrice = entry + (pnl / qty);
-                        else exitPrice = entry - (pnl / qty);
-                    } else if (t.exit) {
-                        exitPrice = parseFloat(t.exit);
+                        if (qty > 0 && entry > 0) {
+                            if (t.mode === 'BUY' || t.type === 'BUY') exitPrice = entry + (pnl / qty);
+                            else exitPrice = entry - (pnl / qty);
+                        }
                     }
 
                     const dateStr = t.date || '';
@@ -78,11 +83,11 @@ export function MobileOrderBookView({
                         sl: parseFloat(t.sl || 0),
                         exit: exitPrice,
                         pnl: parseFloat(t.pnl || 0),
-                        status: t.status === 'COMPLETED' ? 'Completed' :
+                        status: (t.status === 'COMPLETED' || t.status === 'CLOSED') ? 'CLOSED' :
                             t.status === 'CANCELLED' ? 'Cancelled' :
-                                t.status === 'CLOSED_SL' ? 'CLOSED_SL' :
-                                    t.status === 'CLOSED_TP' ? 'CLOSED_TP' :
-                                        t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status,
+                                t.status === 'CLOSED_SL' ? 'CLOSED' :
+                                    t.status === 'CLOSED_TP' ? 'CLOSED' :
+                                        t.status === 'CLOSED_MANUAL' ? 'CLOSED' : t.status,
                         is_simulated: t.is_simulated === true || t.trade_mode === 'PAPER'
                     };
                 });

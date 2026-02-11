@@ -83,13 +83,28 @@ app.post('/webhook/save_trade', async (req, res) => {
     try {
         const { user_id, symbol, mode, qty, entry, exit, tp, sl, pnl, status, date, time, trade_mode, strategy } = req.body;
 
+        console.log(`[SaveTrade Webhook] Received: user=${user_id}, symbol=${symbol}, pnl=${pnl}, mode=${trade_mode}`);
+
+        if (!user_id || !symbol) {
+            console.error('[SaveTrade Webhook] Missing required fields: user_id or symbol');
+            return res.status(400).json({ status: 'error', message: 'Missing user_id or symbol' });
+        }
+
         const { Trade } = require('./models');
 
-        // Check for duplicate (optional but good)
-        // const exists = await Trade.findOne({ where: { user_id, symbol, date, time } });
-        // if (exists) return res.json({ status: 'skipped' });
+        // Check for duplicate trade (same user, symbol, date, time)
+        const timestamp = `${date || ''} ${time || ''}`.trim();
+        if (timestamp) {
+            const existing = await Trade.findOne({
+                where: { user_id, symbol, timestamp }
+            });
+            if (existing) {
+                console.log(`[SaveTrade Webhook] Duplicate skipped: ${symbol} at ${timestamp}`);
+                return res.json({ status: 'success', message: 'duplicate_skipped' });
+            }
+        }
 
-        await Trade.create({
+        const trade = await Trade.create({
             user_id,
             symbol,
             mode: mode || 'BUY',
@@ -100,15 +115,16 @@ app.post('/webhook/save_trade', async (req, res) => {
             sl: sl || 0,
             pnl: pnl || 0,
             status: status || 'COMPLETED',
-            timestamp: `${date} ${time}`.trim(),
+            timestamp: timestamp || new Date().toISOString(),
             is_simulated: trade_mode === 'PAPER',
             strategy: strategy || 'ORB'
         });
 
-        console.log(`Saved trade via webhook: ${symbol} ${pnl}`);
-        res.json({ status: 'success' });
+        console.log(`[SaveTrade Webhook] ✅ Saved trade ID=${trade.id}: ${symbol} PnL=${pnl} (${trade_mode})`);
+        res.json({ status: 'success', trade_id: trade.id });
     } catch (e) {
-        console.error("Save Trade Webhook Error:", e);
+        console.error("[SaveTrade Webhook] ❌ Error:", e.message);
+        console.error("[SaveTrade Webhook] Stack:", e.stack);
         res.status(500).json({ status: 'error', message: e.message });
     }
 });

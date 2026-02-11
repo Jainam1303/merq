@@ -1106,6 +1106,61 @@ class TradingSession:
 
 
 
+    def _persist_trade_to_db(self, pos, exit_reason=None):
+        """
+        Centralized method to persist a closed trade to the Node.js backend DB.
+        Includes retry logic to prevent data loss.
+        """
+        payload = {
+            "user_id": self.user_id,
+            "symbol": pos['symbol'],
+            "mode": pos['type'],
+            "qty": pos['qty'],
+            "entry": pos['entry'],
+            "exit": pos.get('exit', 0),
+            "tp": pos.get('tp', 0),
+            "sl": pos.get('sl', 0),
+            "pnl": round(pos.get('pnl', 0), 2),
+            "status": "COMPLETED",
+            "date": pos.get('date', datetime.date.today().strftime('%Y-%m-%d')),
+            "time": pos.get('time', self._get_ist_time().strftime("%H:%M:%S")),
+            "trade_mode": self.mode,
+            "strategy": self.strategy_name.upper()
+        }
+        if exit_reason:
+            payload["exit_reason"] = exit_reason
+
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                resp = requests.post(
+                    f'{BACKEND_URL}/webhook/save_trade',
+                    json=payload,
+                    timeout=5
+                )
+                if resp.status_code == 200:
+                    resp_data = resp.json()
+                    if resp_data.get('status') == 'success':
+                        self.log(f"✅ Trade {pos['symbol']} saved to DB (PnL: ₹{pos.get('pnl', 0):.2f})", "SUCCESS")
+                        return True
+                    else:
+                        self.log(f"⚠️ DB save returned non-success: {resp_data}", "WARNING")
+                else:
+                    self.log(f"⚠️ DB save HTTP {resp.status_code}: {resp.text[:200]}", "WARNING")
+            except requests.exceptions.ConnectionError as e:
+                self.log(f"❌ DB sync connection error (attempt {attempt+1}/{max_retries}): {e}", "ERROR")
+            except requests.exceptions.Timeout:
+                self.log(f"❌ DB sync timeout (attempt {attempt+1}/{max_retries})", "ERROR")
+            except Exception as e:
+                self.log(f"❌ DB sync error (attempt {attempt+1}/{max_retries}): {e}", "ERROR")
+            
+            if attempt < max_retries - 1:
+                time.sleep(1)  # Wait before retry
+        
+        self.log(f"🚨 CRITICAL: Failed to save trade {pos['symbol']} to DB after {max_retries} attempts! Trade data may be lost.", "ERROR")
+        self.log(f"🚨 Trade payload: {payload}", "ERROR")
+        return False
+
     def _close_position(self, pos, price, reason):
         pos['status'] = "CLOSED"
         pos['exit'] = price
@@ -1120,28 +1175,7 @@ class TradingSession:
         # ----------------------------------------------------
         # PERSIST TO BACKEND DB (Fix for data loss)
         # ----------------------------------------------------
-        try:
-            payload = {
-                "user_id": self.user_id,
-                "symbol": pos['symbol'],
-                "mode": pos['type'],
-                "qty": pos['qty'],
-                "entry": pos['entry'],
-                "exit": pos['exit'],
-                "tp": pos.get('tp', 0),
-                "sl": pos.get('sl', 0),
-                "pnl": round(pos['pnl'], 2),
-                "status": "COMPLETED",
-                "date": pos.get('date', datetime.date.today().strftime('%Y-%m-%d')),
-                "time": self._get_ist_time().strftime("%H:%M:%S"),
-                "trade_mode": self.mode,
-                "strategy": self.strategy_name.upper()
-            }
-            # Use backend internal URL
-            requests.post(f'{BACKEND_URL}/webhook/save_trade', json=payload, timeout=2)
-            self.log(f"Synced {pos['symbol']} trade to DB", "DEBUG")
-        except Exception as e:
-            self.log(f"Failed to sync trade to DB: {e}", "ERROR")
+        self._persist_trade_to_db(pos)
 
         # Real Order Exit (Close position on Angel One)
         if self.mode == "LIVE":
@@ -1444,27 +1478,7 @@ class TradingSession:
         self.log(f"🔄 Position {pos['symbol']} marked CLOSED ({reason}) | Approx PnL: ₹{pos['pnl']:.2f}", "INFO")
         
         # Persist to backend DB
-        try:
-            payload = {
-                "user_id": self.user_id,
-                "symbol": pos['symbol'],
-                "mode": pos['type'],
-                "qty": pos['qty'],
-                "entry": pos['entry'],
-                "exit": pos['exit'],
-                "tp": pos.get('tp', 0),
-                "sl": pos.get('sl', 0),
-                "pnl": round(pos['pnl'], 2),
-                "status": "COMPLETED",
-                "date": pos.get('date', datetime.date.today().strftime('%Y-%m-%d')),
-                "time": self._get_ist_time().strftime("%H:%M:%S"),
-                "trade_mode": self.mode,
-                "strategy": self.strategy_name.upper(),
-                "exit_reason": reason
-            }
-            requests.post('http://localhost:5001/webhook/save_trade', json=payload, timeout=2)
-        except Exception as e:
-            self.log(f"Failed to sync manual exit to DB: {e}", "ERROR")
+        self._persist_trade_to_db(pos, exit_reason=reason)
     
     def _verify_position_exists_at_broker(self, symbol):
         """
@@ -1558,27 +1572,7 @@ class TradingSession:
                  "SUCCESS" if pos['pnl'] > 0 else "WARNING")
         
         # Persist to backend DB
-        try:
-            payload = {
-                "user_id": self.user_id,
-                "symbol": pos['symbol'],
-                "mode": pos['type'],
-                "qty": pos['qty'],
-                "entry": pos['entry'],
-                "exit": pos['exit'],
-                "tp": pos.get('tp', 0),
-                "sl": pos.get('sl', 0),
-                "pnl": round(pos['pnl'], 2),
-                "status": "COMPLETED",
-                "date": pos.get('date', datetime.date.today().strftime('%Y-%m-%d')),
-                "time": self._get_ist_time().strftime("%H:%M:%S"),
-                "trade_mode": self.mode,
-                "strategy": self.strategy_name.upper()
-            }
-            requests.post('http://localhost:5001/webhook/save_trade', json=payload, timeout=2)
-            self.log(f"Synced {pos['symbol']} trade to DB", "DEBUG")
-        except Exception as e:
-            self.log(f"Failed to sync trade to DB: {e}", "ERROR")
+        self._persist_trade_to_db(pos)
     def _run_polling_loop(self):
         """Fallback polling mode if WebSocket fails"""
         symbols = self.config.get('symbols', [])

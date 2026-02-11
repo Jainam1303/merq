@@ -84,14 +84,20 @@ export function OrderBook() {
       if (res.status === 'success') {
         const mapped = res.data.map((t: any) => {
           let exitPrice = 0;
-          if (t.status === 'COMPLETED' || t.status === 'CLOSED_SL' || t.status === 'CLOSED_TP' || t.status === 'CLOSED_MANUAL' || t.pnl !== 0) {
+          // Try direct exit_price from DB first
+          if (t.exit_price && parseFloat(t.exit_price) > 0) {
+            exitPrice = parseFloat(t.exit_price);
+          } else if (t.exit && parseFloat(t.exit) > 0) {
+            exitPrice = parseFloat(t.exit);
+          } else if (t.status === 'COMPLETED' || t.status === 'CLOSED' || t.status === 'CLOSED_SL' || t.status === 'CLOSED_TP' || t.status === 'CLOSED_MANUAL' || t.pnl !== 0) {
+            // Calculate exit from PnL if not directly available
             const pnl = parseFloat(t.pnl || 0);
             const qty = parseInt(t.quantity || t.qty || 1);
             const entry = parseFloat(t.entry_price || t.entry || 0);
-            if (t.mode === 'BUY' || t.type === 'BUY') exitPrice = entry + (pnl / qty);
-            else exitPrice = entry - (pnl / qty);
-          } else if (t.exit) {
-            exitPrice = parseFloat(t.exit);
+            if (qty > 0 && entry > 0) {
+              if (t.mode === 'BUY' || t.type === 'BUY') exitPrice = entry + (pnl / qty);
+              else exitPrice = entry - (pnl / qty);
+            }
           }
 
           // Use direct date and time fields from API
@@ -110,11 +116,11 @@ export function OrderBook() {
             sl: parseFloat(t.sl || 0),
             exit: exitPrice,
             pnl: parseFloat(t.pnl || 0),
-            status: t.status === 'COMPLETED' ? 'Completed' :
+            status: (t.status === 'COMPLETED' || t.status === 'CLOSED') ? 'CLOSED' :
               t.status === 'CANCELLED' ? 'Cancelled' :
-                t.status === 'CLOSED_SL' ? 'CLOSED_SL' :
-                  t.status === 'CLOSED_TP' ? 'CLOSED_TP' :
-                    t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status,
+                t.status === 'CLOSED_SL' ? 'CLOSED' :
+                  t.status === 'CLOSED_TP' ? 'CLOSED' :
+                    t.status === 'CLOSED_MANUAL' ? 'CLOSED' : t.status,
             is_simulated: t.is_simulated === true || t.trade_mode === 'PAPER'
           };
         });
@@ -450,7 +456,7 @@ export function OrderBook() {
                         <Badge
                           variant="outline"
                           className={cn(
-                            trade.status === 'Completed' && "border-profit/50 text-profit",
+                            (trade.status === 'CLOSED' || trade.status === 'Completed') && "border-profit/50 text-profit",
                             trade.status === 'Cancelled' && "border-loss/50 text-loss",
                             trade.status === 'Pending' && "border-warning/50 text-warning"
                           )}

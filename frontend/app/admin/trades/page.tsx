@@ -100,9 +100,9 @@ export default function TradesPage() {
                 <Card className="p-4 flex flex-col justify-center">
                     <span className="text-xs text-muted-foreground uppercase font-bold">Live vs Paper</span>
                     <span className="text-lg font-medium">
-                        <span className="text-blue-500">{trades.filter(t => !t.is_simulated).length} Live</span>
+                        <span className="text-blue-500">{stats.live_count || 0} Live</span>
                         {' / '}
-                        <span className="text-yellow-500">{trades.filter(t => t.is_simulated).length} Paper</span>
+                        <span className="text-yellow-500">{stats.paper_count || 0} Paper</span>
                     </span>
                 </Card>
             </div>

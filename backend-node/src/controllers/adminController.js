@@ -413,7 +413,7 @@ exports.getGlobalTrades = async (req, res) => {
         let whereClause = {};
         if (user_id) whereClause.user_id = user_id;
         if (symbol) whereClause.symbol = { [Op.iLike]: `%${symbol}%` };
-        if (status) whereClause.status = status;
+        if (status && status !== 'all') whereClause.status = status;
         if (mode === 'paper') whereClause.is_simulated = true;
         if (mode === 'live') whereClause.is_simulated = false;
 
@@ -435,14 +435,16 @@ exports.getGlobalTrades = async (req, res) => {
             offset
         });
 
-        // Aggregate stats
+        // Aggregate stats (without include to avoid column ambiguity)
         const stats = await Trade.findOne({
             where: whereClause,
             attributes: [
-                [fn('COUNT', col('Trade.id')), 'total'],
+                [fn('COUNT', col('id')), 'total'],
                 [fn('COALESCE', fn('SUM', col('pnl')), 0), 'total_pnl'],
                 [fn('COUNT', literal("CASE WHEN pnl > 0 THEN 1 END")), 'winners'],
                 [fn('COUNT', literal("CASE WHEN pnl < 0 THEN 1 END")), 'losers'],
+                [fn('COUNT', literal("CASE WHEN is_simulated = false THEN 1 END")), 'live_count'],
+                [fn('COUNT', literal("CASE WHEN is_simulated = true THEN 1 END")), 'paper_count'],
             ],
             raw: true
         });
@@ -457,6 +459,8 @@ exports.getGlobalTrades = async (req, res) => {
                 total_pnl: parseFloat(stats?.total_pnl) || 0,
                 winners: parseInt(stats?.winners) || 0,
                 losers: parseInt(stats?.losers) || 0,
+                live_count: parseInt(stats?.live_count) || 0,
+                paper_count: parseInt(stats?.paper_count) || 0,
                 win_rate: stats?.total > 0
                     ? ((parseInt(stats.winners) / parseInt(stats.total)) * 100).toFixed(1)
                     : '0.0'
