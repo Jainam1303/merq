@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Shield } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -10,15 +10,24 @@ export function SafetyGuard() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [maxLoss, setMaxLoss] = useState('5000');
   const [loading, setLoading] = useState(false);
+  const isInteractingRef = useRef(false);
 
   // Fetch initial state
   useEffect(() => {
     async function loadConfig() {
+      // Don't update if user is actively interacting
+      if (isInteractingRef.current) return;
+
       try {
         const config = await fetchJson('/config');
         if (config) {
-          if (config.safety_guard_enabled !== undefined) setIsEnabled(config.safety_guard_enabled);
-          if (config.max_daily_loss !== undefined) setMaxLoss(String(config.max_daily_loss));
+          // Only update if values actually changed to prevent unnecessary re-renders
+          if (config.safety_guard_enabled !== undefined && config.safety_guard_enabled !== isEnabled) {
+            setIsEnabled(config.safety_guard_enabled);
+          }
+          if (config.max_daily_loss !== undefined && String(config.max_daily_loss) !== maxLoss) {
+            setMaxLoss(String(config.max_daily_loss));
+          }
         }
       } catch (e) {
         console.error("Failed to load safety guard config", e);
@@ -29,18 +38,30 @@ export function SafetyGuard() {
     // Poll every 3 seconds to keep state in sync
     const interval = setInterval(loadConfig, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isEnabled, maxLoss]);
 
   // Sync to Backend
   const handleToggle = async (enabled: boolean) => {
+    isInteractingRef.current = true;
     setIsEnabled(enabled);
     await saveConfig(enabled, maxLoss);
+    // Allow polling to resume after a short delay
+    setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 1000);
+  };
+
+  const handleMaxLossChange = (value: string) => {
+    isInteractingRef.current = true;
+    setMaxLoss(value);
   };
 
   const handleBlur = async () => {
-    if (!isEnabled) {
-      await saveConfig(isEnabled, maxLoss);
-    }
+    await saveConfig(isEnabled, maxLoss);
+    // Allow polling to resume after save completes
+    setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 500);
   }
 
   const saveConfig = async (enabled: boolean, loss: string) => {
@@ -95,7 +116,7 @@ export function SafetyGuard() {
             <Input
               type="number"
               value={maxLoss}
-              onChange={(e) => setMaxLoss(e.target.value)}
+              onChange={(e) => handleMaxLossChange(e.target.value)}
               onBlur={handleBlur}
               disabled={isEnabled} // DISABLED WHEN ON
               className={cn(

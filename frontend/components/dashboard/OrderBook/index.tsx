@@ -246,7 +246,7 @@ export function OrderBook() {
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-[240px] justify-start text-left font-normal",
+                        "w-[180px] justify-start text-left font-normal",
                         !startDate && "text-muted-foreground"
                       )}
                     >
@@ -254,7 +254,7 @@ export function OrderBook() {
                       {startDate ? format(startDate, "dd-MM-yyyy") : <span>Start Date</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0" align="center">
                     <Calendar
                       mode="single"
                       selected={startDate}
@@ -272,7 +272,7 @@ export function OrderBook() {
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-[240px] justify-start text-left font-normal",
+                        "w-[180px] justify-start text-left font-normal",
                         !endDate && "text-muted-foreground"
                       )}
                     >
@@ -280,7 +280,7 @@ export function OrderBook() {
                       {endDate ? format(endDate, "dd-MM-yyyy") : <span>End Date</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0" align="center">
                     <Calendar
                       mode="single"
                       selected={endDate}
