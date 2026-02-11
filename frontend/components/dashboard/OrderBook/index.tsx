@@ -52,6 +52,7 @@ interface Trade {
   exit: number;
   pnl: number;
   status: string;
+  is_simulated: boolean;
 }
 
 export function OrderBook() {
@@ -59,6 +60,7 @@ export function OrderBook() {
   const [selectedTrades, setSelectedTrades] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [modeFilter, setModeFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,7 +114,8 @@ export function OrderBook() {
               t.status === 'CANCELLED' ? 'Cancelled' :
                 t.status === 'CLOSED_SL' ? 'CLOSED_SL' :
                   t.status === 'CLOSED_TP' ? 'CLOSED_TP' :
-                    t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status
+                    t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status,
+            is_simulated: t.is_simulated === true || t.trade_mode === 'PAPER'
           };
         });
         setTrades(mapped);
@@ -132,13 +135,16 @@ export function OrderBook() {
   const filteredTrades = trades.filter(trade => {
     const matchesSearch = trade.symbol.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = typeFilter === 'all' || trade.type === typeFilter;
-    return matchesSearch && matchesType;
+    const matchesMode = modeFilter === 'all' ||
+      (modeFilter === 'paper' && trade.is_simulated) ||
+      (modeFilter === 'live' && !trade.is_simulated);
+    return matchesSearch && matchesType && matchesMode;
   });
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, typeFilter, startDate, endDate]);
+  }, [searchQuery, typeFilter, modeFilter, startDate, endDate]);
 
   // Pagination Logic
   const totalItems = filteredTrades.length;
@@ -193,9 +199,9 @@ export function OrderBook() {
       return;
     }
 
-    const headers = ['Date', 'Time', 'Symbol', 'Type', 'Qty', 'Entry', 'TP', 'SL', 'Exit', 'P&L', 'Status'];
+    const headers = ['Date', 'Time', 'Symbol', 'Type', 'Mode', 'Qty', 'Entry', 'TP', 'SL', 'Exit', 'P&L', 'Status'];
     const rows = filteredTrades.map(t => [
-      t.date, t.time, `"${t.symbol}"`, t.type, t.qty, t.entry, t.tp, t.sl, t.exit, t.pnl, t.status
+      t.date, t.time, `"${t.symbol}"`, t.type, t.is_simulated ? 'PAPER' : 'LIVE', t.qty, t.entry, t.tp, t.sl, t.exit, t.pnl, t.status
     ]);
 
     const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n');
@@ -236,6 +242,18 @@ export function OrderBook() {
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="BUY">BUY</SelectItem>
                   <SelectItem value="SELL">SELL</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Mode Filter */}
+              <Select value={modeFilter} onValueChange={setModeFilter}>
+                <SelectTrigger className="w-32">
+                  <SelectValue placeholder="Mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Modes</SelectItem>
+                  <SelectItem value="paper">Paper</SelectItem>
+                  <SelectItem value="live">Live</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -352,6 +370,7 @@ export function OrderBook() {
                   <TableHead className="text-muted-foreground">Time</TableHead>
                   <TableHead className="text-muted-foreground">Symbol</TableHead>
                   <TableHead className="text-muted-foreground">Type</TableHead>
+                  <TableHead className="text-muted-foreground">Mode</TableHead>
                   <TableHead className="text-right text-muted-foreground">Qty</TableHead>
                   <TableHead className="text-right text-muted-foreground">Entry</TableHead>
                   <TableHead className="text-right text-muted-foreground">TP</TableHead>
@@ -364,11 +383,11 @@ export function OrderBook() {
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">Loading...</TableCell>
+                    <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">Loading...</TableCell>
                   </TableRow>
                 ) : paginatedTrades.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
+                    <TableCell colSpan={13} className="py-8 text-center text-muted-foreground">
                       No trades found
                     </TableCell>
                   </TableRow>
@@ -394,6 +413,18 @@ export function OrderBook() {
                           )}
                         >
                           {trade.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            trade.is_simulated
+                              ? "border-yellow-500/50 bg-yellow-500/10 text-yellow-500"
+                              : "border-blue-500/50 bg-blue-500/10 text-blue-500"
+                          )}
+                        >
+                          {trade.is_simulated ? 'PAPER' : 'LIVE'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">{trade.qty}</TableCell>

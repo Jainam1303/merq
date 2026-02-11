@@ -18,6 +18,7 @@ interface Trade {
     exit: number;
     pnl: number;
     status: string;
+    is_simulated: boolean;
 }
 
 interface MobileOrderBookViewProps {
@@ -81,7 +82,8 @@ export function MobileOrderBookView({
                             t.status === 'CANCELLED' ? 'Cancelled' :
                                 t.status === 'CLOSED_SL' ? 'CLOSED_SL' :
                                     t.status === 'CLOSED_TP' ? 'CLOSED_TP' :
-                                        t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status
+                                        t.status === 'CLOSED_MANUAL' ? 'CLOSED_MANUAL' : t.status,
+                        is_simulated: t.is_simulated === true || t.trade_mode === 'PAPER'
                     };
                 });
                 setTrades(mapped);
@@ -311,6 +313,14 @@ export function MobileOrderBookView({
                                             trade.type === 'BUY' ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
                                         )}>
                                             {trade.type}
+                                        </span>
+                                        <span className={cn(
+                                            "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                            trade.is_simulated
+                                                ? "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400"
+                                                : "bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400"
+                                        )}>
+                                            {trade.is_simulated ? 'PAPER' : 'LIVE'}
                                         </span>
                                         <span className={cn(
                                             "px-2 py-0.5 rounded-full text-[10px] font-bold",
