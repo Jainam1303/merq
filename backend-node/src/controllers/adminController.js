@@ -526,11 +526,31 @@ exports.getPlans = async (req, res) => {
     try {
         const plans = await Plan.findAll({ order: [['price', 'ASC']] });
 
-        // Get subscriber counts for each plan
+        // 1. Calculate Implicit Free Count
+        const paidPlanIds = plans.filter(p => parseFloat(p.price) > 0).map(p => p.id);
+        const paidUsersCount = await Subscription.count({
+            where: {
+                plan_id: { [Op.in]: paidPlanIds },
+                status: 'active'
+            },
+            distinct: true,
+            col: 'user_id'
+        });
+        const totalUsers = await User.count();
+        const implicitFreeCount = Math.max(0, totalUsers - paidUsersCount);
+
+        // 2. Get subscriber count for each plan
         const plansWithCounts = await Promise.all(plans.map(async (p) => {
-            const count = await Subscription.count({
-                where: { plan_id: p.id, status: 'active' }
-            });
+            let count = 0;
+            if (parseFloat(p.price) <= 0) {
+                // Free Plan = Implicit users (Active Paid subtracted from Total)
+                count = implicitFreeCount;
+            } else {
+                // Paid Plan = Explicit Active Subscriptions
+                count = await Subscription.count({
+                    where: { plan_id: p.id, status: 'active' }
+                });
+            }
             return { ...p.toJSON(), subscriber_count: count };
         }));
 
