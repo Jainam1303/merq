@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load .env before anything else reads os.getenv()
+
 from fastapi import FastAPI, HTTPException, Header, BackgroundTasks
 from pydantic import BaseModel
 import hmac
