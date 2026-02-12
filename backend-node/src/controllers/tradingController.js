@@ -59,7 +59,11 @@ exports.startBot = async (req, res) => {
             backtest_api_key: user.backtest_api_key,
             backtest_client_code: user.backtest_client_code,
             backtest_password: user.backtest_password,
-            backtest_totp: user.backtest_totp
+            backtest_totp: user.backtest_totp,
+
+            // WhatsApp alert credentials (per-user)
+            whatsapp_phone: user.whatsapp_phone || '',
+            whatsapp_api_key: user.whatsapp_api_key || ''
         };
 
         // 3. Call Python Engine

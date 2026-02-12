@@ -321,6 +321,94 @@ export function MobileAnalyticsView({
                 </div>
             </div>
 
+            {/* PnL Heatmap (Mobile) */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Activity className="w-4 h-4" />
+                    PnL Heatmap (60 Days)
+                </h3>
+                {(() => {
+                    const heatmapDays = 60;
+                    const heatmapEnd = new Date();
+                    const heatmapStart = subDays(heatmapEnd, heatmapDays - 1);
+                    const allDays = eachDayOfInterval({ start: heatmapStart, end: heatmapEnd });
+
+                    const pnlMap = new Map<string, number>();
+                    (dailyPnl || []).forEach((d: any) => {
+                        pnlMap.set(d.day, d.pnl);
+                    });
+
+                    const pnlValues = allDays.map(d => pnlMap.get(format(d, 'yyyy-MM-dd')) ?? 0);
+                    const maxAbsPnl = Math.max(...pnlValues.map(Math.abs), 1);
+
+                    const getColor = (pnl: number) => {
+                        if (pnl === 0) return 'bg-zinc-100 dark:bg-zinc-800';
+                        const intensity = Math.min(Math.abs(pnl) / maxAbsPnl, 1);
+                        if (pnl > 0) {
+                            if (intensity > 0.6) return 'bg-emerald-500';
+                            if (intensity > 0.3) return 'bg-emerald-300 dark:bg-emerald-600/70';
+                            return 'bg-emerald-200 dark:bg-emerald-700/50';
+                        } else {
+                            if (intensity > 0.6) return 'bg-red-500';
+                            if (intensity > 0.3) return 'bg-red-300 dark:bg-red-600/70';
+                            return 'bg-red-200 dark:bg-red-700/50';
+                        }
+                    };
+
+                    // Group into weeks
+                    const weeks: (Date | null)[][] = [];
+                    let currentWeek: (Date | null)[] = [];
+                    const startDow = allDays[0].getDay();
+                    for (let i = 0; i < startDow; i++) currentWeek.push(null);
+
+                    allDays.forEach(day => {
+                        if (day.getDay() === 0 && currentWeek.length > 0) {
+                            weeks.push(currentWeek);
+                            currentWeek = [];
+                        }
+                        currentWeek.push(day);
+                    });
+                    if (currentWeek.length > 0) {
+                        while (currentWeek.length < 7) currentWeek.push(null);
+                        weeks.push(currentWeek);
+                    }
+
+                    return (
+                        <div>
+                            <div className="flex gap-[2px] overflow-x-auto">
+                                {weeks.map((week, wi) => (
+                                    <div key={wi} className="flex flex-col gap-[2px]">
+                                        {week.map((day, di) => {
+                                            if (!day) return <div key={`e-${di}`} className="w-[10px] h-[10px]" />;
+                                            const dateKey = format(day, 'yyyy-MM-dd');
+                                            const pnl = pnlMap.get(dateKey) ?? 0;
+                                            return (
+                                                <div
+                                                    key={dateKey}
+                                                    className={`w-[10px] h-[10px] rounded-[2px] ${getColor(pnl)}`}
+                                                    title={`${format(day, 'dd MMM')}: ₹${pnl.toFixed(0)}`}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex items-center justify-end gap-2 mt-2">
+                                <span className="text-[10px] text-zinc-500">Loss</span>
+                                <div className="flex gap-[2px]">
+                                    <div className="w-[8px] h-[8px] rounded-[1px] bg-red-500" />
+                                    <div className="w-[8px] h-[8px] rounded-[1px] bg-red-300 dark:bg-red-600/70" />
+                                    <div className="w-[8px] h-[8px] rounded-[1px] bg-zinc-100 dark:bg-zinc-800" />
+                                    <div className="w-[8px] h-[8px] rounded-[1px] bg-emerald-300 dark:bg-emerald-600/70" />
+                                    <div className="w-[8px] h-[8px] rounded-[1px] bg-emerald-500" />
+                                </div>
+                                <span className="text-[10px] text-zinc-500">Profit</span>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </div>
+
             {/* Info Card */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/50 rounded-xl p-4">
                 <p className="text-sm text-blue-700 dark:text-blue-400">

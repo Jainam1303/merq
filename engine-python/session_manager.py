@@ -16,6 +16,13 @@ import pyotp
 import datetime
 import os
 
+# WhatsApp Alerts (per-user, optional)
+try:
+    from whatsapp_alerts import WhatsAppAlerter
+    WHATSAPP_AVAILABLE = True
+except ImportError:
+    WHATSAPP_AVAILABLE = False
+
 # Configuration
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:3002')
 
@@ -60,6 +67,14 @@ class TradingSession:
         
         # Sync Throttle
         self.last_sync_time = 0
+        
+        # WhatsApp Alerter (per-user)
+        if WHATSAPP_AVAILABLE:
+            wa_phone = credentials.get('whatsapp_phone', '')
+            wa_key = credentials.get('whatsapp_api_key', '')
+            self.wa_alerter = WhatsAppAlerter(phone=wa_phone, api_key=wa_key)
+        else:
+            self.wa_alerter = None
 
     def log(self, message, type="INFO"):
         timestamp = self._get_ist_time().strftime("%H:%M:%S")
@@ -76,6 +91,11 @@ class TradingSession:
         # Mark as active immediately so UI updates
         self.active = True
         self.stop_event.clear()
+        
+        # WhatsApp Alert: Session Started
+        if self.wa_alerter:
+            symbols = self.config.get('symbols', [])
+            self.wa_alerter.session_started(self.user_id, self.mode, self.strategy_name, symbols)
         
         # Start background thread which will handle login + WebSocket
         self.thread = threading.Thread(target=self._login_and_run, daemon=True)
@@ -661,6 +681,9 @@ class TradingSession:
                 self.positions.append(pos)
                 self.trades_history.append(pos)
                 self.log(f"✅ REAL {type} Order CONFIRMED for {symbol} @ {price:.2f}", "SUCCESS")
+                # WhatsApp Alert: Order Placed (LIVE)
+                if self.wa_alerter:
+                    self.wa_alerter.order_placed(symbol, type, price, qty, self.mode)
                 return True
             else:
                 # Order was REJECTED by broker - DO NOT add to positions
@@ -671,6 +694,9 @@ class TradingSession:
             self.positions.append(pos)
             self.trades_history.append(pos)
             self.log(f"📄 PAPER {type} Order for {symbol} @ {price:.2f}", "SUCCESS")
+            # WhatsApp Alert: Order Placed (PAPER)
+            if self.wa_alerter:
+                self.wa_alerter.order_placed(symbol, type, price, qty, self.mode)
             return True
 
     def _execute_live_order(self, pos, symbol, order_type, qty, price, retry_count=0):
@@ -1177,6 +1203,18 @@ class TradingSession:
         # ----------------------------------------------------
         self._persist_trade_to_db(pos)
 
+        # ----------------------------------------------------
+        # WHATSAPP ALERT (non-blocking)
+        # ----------------------------------------------------
+        if self.wa_alerter:
+            reason_lower = reason.lower() if reason else ''
+            if 'tp' in reason_lower or 'target' in reason_lower:
+                self.wa_alerter.tp_hit(pos['symbol'], pos['entry'], price, pos['pnl'], self.mode)
+            elif 'sl' in reason_lower or 'stop' in reason_lower:
+                self.wa_alerter.sl_hit(pos['symbol'], pos['entry'], price, pos['pnl'], self.mode)
+            else:
+                self.wa_alerter.trade_closed(pos['symbol'], reason, pos['pnl'], self.mode)
+
         # Real Order Exit (Close position on Angel One)
         if self.mode == "LIVE":
             # Cancel pending SL and TP orders first (prevent double execution)
@@ -1616,6 +1654,11 @@ class TradingSession:
             self.thread.join(timeout=5)
         
         self.log("Session Stopped", "WARNING")
+        
+        # WhatsApp Alert: Session Stopped
+        if self.wa_alerter:
+            closed_count = len([t for t in self.trades_history if t.get('status') == 'CLOSED'])
+            self.wa_alerter.session_stopped(self.pnl, closed_count)
 
     def get_state(self):
         # Calculate live unrealized P&L from open positions

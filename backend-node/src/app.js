@@ -548,176 +548,87 @@ app.get('/analytics', verifyToken, async (req, res) => {
 
 app.get('/orderbook', verifyToken, async (req, res) => {
     try {
-        const engineService = require('./services/engineService');
-        const userId = String(req.user.id);
+        const { Trade } = require('./models');
+        const { Op } = require('sequelize');
+        const userId = req.user.id;
 
         // Get date filters
         const { startDate, endDate } = req.query;
 
-        // Get live trades from Python session
-        const engineStatus = await engineService.getStatus(userId);
-        const liveTradesRaw = engineStatus.trades_history || [];
+        // =========================================================
+        // SOURCE OF TRUTH: DB has all closed/completed trades
+        // (saved directly by the engine via _persist_trade_to_db)
+        // =========================================================
+        let whereClause = { user_id: userId };
 
-        // Map Python trades to expected format (including tp, sl, date, time)
-        let liveTrades = liveTradesRaw.map(t => ({
-            id: t.id,
-            date: t.date || '',
-            time: t.time || '',
-            timestamp: `${t.date || ''} ${t.time || ''}`.trim(),
-            symbol: t.symbol,
-            mode: t.type,
-            quantity: t.qty,
-            entry_price: t.entry,
-            tp: t.tp || 0,
-            sl: t.sl || 0,
-            pnl: t.pnl || 0,
-            status: t.status,
-            trade_mode: t.mode  // PAPER or LIVE
-        }));
-
-        // Apply date filters if provided
-        if (startDate) {
-            liveTrades = liveTrades.filter(t => t.date >= startDate);
-        }
-        if (endDate) {
-            liveTrades = liveTrades.filter(t => t.date <= endDate);
+        if (startDate || endDate) {
+            whereClause.timestamp = {};
+            if (startDate) whereClause.timestamp[Op.gte] = `${startDate} 00:00:00`;
+            if (endDate) whereClause.timestamp[Op.lte] = `${endDate} 23:59:59`;
         }
 
-        // Also try to get DB trades
-        let dbTrades = [];
+        const dbTrades = await Trade.findAll({
+            where: whereClause,
+            order: [['timestamp', 'DESC']]
+        });
+
+        const trades = dbTrades.map(t => {
+            const tJson = t.toJSON();
+            let dateStr = '';
+            let timeStr = '';
+
+            if (tJson.timestamp) {
+                const parts = tJson.timestamp.split(' ');
+                dateStr = parts[0] || '';
+                timeStr = parts[1] || '';
+            } else {
+                const createdAt = new Date(tJson.createdAt);
+                dateStr = createdAt.toISOString().split('T')[0];
+                timeStr = createdAt.toTimeString().split(' ')[0];
+            }
+
+            return {
+                ...tJson,
+                date: dateStr,
+                time: timeStr,
+                tp: tJson.tp || 0,
+                sl: tJson.sl || 0
+            };
+        });
+
+        // =========================================================
+        // OPEN POSITIONS: Only from live engine (these aren't in DB yet)
+        // =========================================================
+        let openPositions = [];
         try {
-            const { Trade } = require('./models');
-            const { Op } = require('sequelize');
+            const engineService = require('./services/engineService');
+            const engineStatus = await engineService.getStatus(String(userId));
 
-            let whereClause = { user_id: req.user.id };
-
-            // Apply date filters for DB trades
-            if (startDate || endDate) {
-                whereClause.timestamp = {};
-                // Since timestamp is string "YYYY-MM-DD HH:MM:SS", we can use string comparison
-                if (startDate) whereClause.timestamp[Op.gte] = `${startDate} 00:00:00`;
-                if (endDate) whereClause.timestamp[Op.lte] = `${endDate} 23:59:59`;
+            if (engineStatus && engineStatus.active !== false) {
+                openPositions = (engineStatus.positions || [])
+                    .filter(p => p.status === 'OPEN')
+                    .map(p => ({
+                        id: `live_${p.id || p.symbol}_${p.time || ''}`,
+                        date: p.date || '',
+                        time: p.time || '',
+                        timestamp: `${p.date || ''} ${p.time || ''}`.trim(),
+                        symbol: p.symbol,
+                        mode: p.type,
+                        quantity: p.qty,
+                        entry_price: p.entry,
+                        tp: p.tp || 0,
+                        sl: p.sl || 0,
+                        pnl: p.pnl || 0,
+                        status: 'OPEN',
+                        trade_mode: p.mode  // PAPER or LIVE
+                    }));
             }
-
-            dbTrades = await Trade.findAll({
-                where: whereClause,
-                order: [['timestamp', 'DESC']] // Sort by trade date, not creation date
-            });
-            dbTrades = dbTrades.map(t => {
-                const tJson = t.toJSON();
-                // Parse date and time from timestamp string if available
-                let dateStr = '';
-                let timeStr = '';
-
-                if (tJson.timestamp) {
-                    const parts = tJson.timestamp.split(' ');
-                    dateStr = parts[0] || '';
-                    timeStr = parts[1] || '';
-                } else {
-                    // Fallback to createdAt if timestamp is missing
-                    const createdAt = new Date(tJson.createdAt);
-                    dateStr = createdAt.toISOString().split('T')[0];
-                    timeStr = createdAt.toTimeString().split(' ')[0];
-                }
-
-                return {
-                    ...tJson,
-                    date: dateStr,
-                    time: timeStr,
-                    tp: tJson.tp || 0,
-                    sl: tJson.sl || 0
-                };
-            });
-        } catch (e) {
-            // DB/model might not exist, that's ok
+        } catch (engErr) {
+            // Engine not available, that's ok — we just won't have live positions
         }
 
-        // Combine (Favors DB trades over Live trades if ID matches or is duplicate)
-        // Issue: Deleted trades might still be in 'liveTrades' from Python memory.
-        // If we delete from DB, we don't want them showing up from Python.
-        // However, Python engine doesn't know about DB deletions.
-        // STRATEGY: 
-        // 1. If we have DB trades, assume they are the source of truth for historical/completed trades.
-        // 2. Filter out 'liveTrades' that are already in 'dbTrades' (by ID or Symbol+Time).
-        // 3. BUT, if a trade was DELETED from DB, it might still be in 'liveTrades'.
-        //    We can't easily know if it was deleted or just hasn't been saved yet.
-        //    
-        //    Fix: Use DB trades as primary. Only add Live trades if they represent *active* or *very recent* unsaved trades.
-        //    Actually, imported trades ONLY exist in DB. Live trades are only from current session.
-
-        // Create a map of DB trades for easy lookup
-        const dbTradeIds = new Set(dbTrades.map(t => t.id));
-        const dbTradeKeys = new Set(dbTrades.map(t => `${t.symbol}|${t.timestamp}`));
-
-        // Filter live trades:
-        // Exclude if it has an ID that is in DB (already handled)
-        // Exclude if Symbol+Time is in DB (already saved)
-        // Exclude if it has a fake/temp ID but matches a saved trade
-        const uniqueLiveTrades = liveTrades.filter(t => {
-            // If live trade has a real UUID and it's not in DB ids, it might be a deleted trade re-appearing?
-            // Python usually keeps trades in memory.
-            // If user deleted it from DB, we should technically hide it. 
-            // But we don't track "deleted IDs".
-            // 
-            // Best effort: Deduplicate based on content.
-            // If a live trade matches a DB trade, skip the live one (show the DB one).
-            const key = `${t.symbol}|${t.timestamp}`;
-            if (dbTradeKeys.has(key)) return false;
-
-            // If live trade has ID (e.g. from DB load in Python) and that ID is NOT in DB result,
-            // it implies it was deleted from DB?
-            // If Python loaded stats from DB on startup, its 'trades_history' might have old IDs.
-            // If we now browse orderbook and see it missing from DB, we should probably ignore the Python copy 
-            // if we assume DB is master.
-            // However, for *active* day trading, Python has the latest.
-
-            // Compromise: If trade is "COMPLETED" and older than 1 minute, assume it SHOULD be in DB. 
-            // If it's not in DB, it was deleted.
-            // (This is a heuristic).
-
-            // For now, strict dedupe is safer.
-            return true;
-        });
-
-        // Actually, the simpler fix for "Deleted trades come back" is:
-        // The user says "entries should be treated like normal".
-        // If they import CSV, it goes to DB.
-        // If they delete, it deletes from DB.
-        // Python engine knows nothing about CSV imports. 
-        // So Imported trades are SAFE in DB.
-
-        // The problem is likely "Live" trades from the current session that were saved to DB, then deleted from DB, 
-        // but are STILL in Python memory.
-        // We should filtering out `liveTrades` that overlap with the user's deletion intent.
-        // But we don't know deletion intent.
-
-        // ALTERNATIVE: Just merge them by ID if available. 
-        // If Python sends a trade with ID 'X', and DB doesn't have 'X', 
-        // it means either (A) it's new/unsaved, or (B) it was deleted.
-        // 
-        // Valid approach:
-        // Use a "deduplication" based on unique properties (Symbol, Time, Type, Price).
-        // If we find duplicates, prioritize DB version.
-
-        const combined = [...dbTrades];
-        const existingSignatures = new Set(dbTrades.map(t => `${t.symbol}-${t.timestamp}-${t.mode}-${t.entry_price}`));
-
-        liveTrades.forEach(t => {
-            const signature = `${t.symbol}-${t.timestamp}-${t.mode}-${t.entry_price}`;
-            if (!existingSignatures.has(signature)) {
-                combined.push(t);
-                existingSignatures.add(signature);
-            }
-        });
-
-        const allTrades = combined.sort((a, b) => {
-            const dateA = new Date(a.date + ' ' + a.time);
-            const dateB = new Date(b.date + ' ' + b.time);
-            // Fallback if date parsing fails
-            if (isNaN(dateA)) return 1;
-            if (isNaN(dateB)) return -1;
-            return dateB - dateA;
-        });
+        // Combine: open positions first, then closed trades from DB
+        const allTrades = [...openPositions, ...trades];
 
         res.json({ status: 'success', data: allTrades });
     } catch (e) {

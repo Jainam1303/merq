@@ -74,6 +74,18 @@ class PythonEngineService {
             return { active: false, status: 'offline', error: err.message };
         }
     }
+
+    // 3b. Get ALL active sessions (for admin panel)
+    async getAllSessions() {
+        try {
+            const headers = this._getHeaders({});
+            const res = await this.client.get('/engine/all_sessions', { headers, timeout: 10000 });
+            return res.data;
+        } catch (err) {
+            console.error('Get all sessions failed:', err.message);
+            return { sessions: [], trades: [] };
+        }
+    }
     // 4. Run Backtest
     async runBacktest(payload) {
         try {

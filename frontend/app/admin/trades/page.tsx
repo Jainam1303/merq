@@ -120,6 +120,7 @@ export default function TradesPage() {
                         <SelectContent>
                             <SelectItem value="all">All</SelectItem>
                             <SelectItem value="COMPLETED">Completed</SelectItem>
+                            <SelectItem value="CLOSED">Closed</SelectItem>
                             <SelectItem value="OPEN">Open</SelectItem>
                             <SelectItem value="CANCELLED">Cancelled</SelectItem>
                         </SelectContent>

@@ -303,6 +303,159 @@ export function Analytics() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* PnL Heatmap */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        PnL Heatmap (Last 90 Days)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {(() => {
+                        // Build 90-day heatmap data
+                        const heatmapDays = 90;
+                        const heatmapEnd = new Date();
+                        const heatmapStart = subDays(heatmapEnd, heatmapDays - 1);
+                        const allDays = eachDayOfInterval({ start: heatmapStart, end: heatmapEnd });
+
+                        // Map daily PnL lookup
+                        const pnlMap = new Map<string, number>();
+                        (dailyPnl || []).forEach((d: any) => {
+                            pnlMap.set(d.day, d.pnl);
+                        });
+
+                        // Find max absolute PnL for color scaling
+                        const pnlValues = allDays.map(d => pnlMap.get(format(d, 'yyyy-MM-dd')) ?? 0);
+                        const maxAbsPnl = Math.max(...pnlValues.map(Math.abs), 1);
+
+                        // Get color for a PnL value
+                        const getColor = (pnl: number) => {
+                            if (pnl === 0) return 'bg-muted/40';
+                            const intensity = Math.min(Math.abs(pnl) / maxAbsPnl, 1);
+                            if (pnl > 0) {
+                                if (intensity > 0.75) return 'bg-green-500';
+                                if (intensity > 0.5) return 'bg-green-400';
+                                if (intensity > 0.25) return 'bg-green-300 dark:bg-green-600/70';
+                                return 'bg-green-200 dark:bg-green-700/50';
+                            } else {
+                                if (intensity > 0.75) return 'bg-red-500';
+                                if (intensity > 0.5) return 'bg-red-400';
+                                if (intensity > 0.25) return 'bg-red-300 dark:bg-red-600/70';
+                                return 'bg-red-200 dark:bg-red-700/50';
+                            }
+                        };
+
+                        // Group days into weeks (columns)
+                        const weeks: Date[][] = [];
+                        let currentWeek: Date[] = [];
+
+                        // Pad the first week to start on Sunday
+                        const startDow = allDays[0].getDay();
+                        for (let i = 0; i < startDow; i++) {
+                            currentWeek.push(null as any); // empty padding
+                        }
+
+                        allDays.forEach(day => {
+                            if (day.getDay() === 0 && currentWeek.length > 0) {
+                                weeks.push(currentWeek);
+                                currentWeek = [];
+                            }
+                            currentWeek.push(day);
+                        });
+                        if (currentWeek.length > 0) {
+                            // Pad the last week
+                            while (currentWeek.length < 7) {
+                                currentWeek.push(null as any);
+                            }
+                            weeks.push(currentWeek);
+                        }
+
+                        const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+                        return (
+                            <div>
+                                <div className="flex gap-[2px]">
+                                    {/* Day labels */}
+                                    <div className="flex flex-col gap-[2px] mr-2 pt-5">
+                                        {dayLabels.map((label, i) => (
+                                            <div key={label} className="h-[14px] flex items-center">
+                                                {i % 2 === 1 ? (
+                                                    <span className="text-[10px] text-muted-foreground leading-none">{label}</span>
+                                                ) : null}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Weeks grid */}
+                                    <div className="flex gap-[2px] overflow-x-auto flex-1">
+                                        {weeks.map((week, wi) => (
+                                            <div key={wi} className="flex flex-col gap-[2px]">
+                                                {/* Month label on first week of month */}
+                                                <div className="h-4 flex items-end">
+                                                    {(() => {
+                                                        // Show month label if first day of this week is different month than previous
+                                                        const firstReal = week.find(d => d !== null);
+                                                        if (!firstReal) return null;
+                                                        const prevWeek = wi > 0 ? weeks[wi - 1] : null;
+                                                        const prevFirstReal = prevWeek?.find(d => d !== null);
+                                                        if (!prevFirstReal || firstReal.getMonth() !== prevFirstReal.getMonth()) {
+                                                            return <span className="text-[10px] text-muted-foreground leading-none">{format(firstReal, 'MMM')}</span>;
+                                                        }
+                                                        return null;
+                                                    })()}
+                                                </div>
+                                                {week.map((day, di) => {
+                                                    if (!day) {
+                                                        return <div key={`empty-${di}`} className="w-[14px] h-[14px]" />;
+                                                    }
+                                                    const dateKey = format(day, 'yyyy-MM-dd');
+                                                    const pnl = pnlMap.get(dateKey) ?? 0;
+                                                    const colorClass = getColor(pnl);
+                                                    return (
+                                                        <div
+                                                            key={dateKey}
+                                                            className={`w-[14px] h-[14px] rounded-[3px] ${colorClass} transition-all hover:ring-2 hover:ring-primary/50 hover:scale-125 cursor-pointer relative group`}
+                                                            title={`${format(day, 'dd MMM yyyy')}: ₹${pnl.toLocaleString('en-IN')}`}
+                                                        >
+                                                            {/* Tooltip */}
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+                                                                <div className="bg-popover text-popover-foreground border border-border rounded-md px-2 py-1 text-xs whitespace-nowrap shadow-lg">
+                                                                    <p className="font-medium">{format(day, 'dd MMM yyyy')}</p>
+                                                                    <p className={pnl > 0 ? 'text-green-500' : pnl < 0 ? 'text-red-500' : 'text-muted-foreground'}>
+                                                                        {pnl === 0 ? 'No trades' : `₹${pnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Legend */}
+                                <div className="flex items-center justify-end gap-2 mt-4">
+                                    <span className="text-xs text-muted-foreground">Loss</span>
+                                    <div className="flex gap-[2px]">
+                                        <div className="w-[12px] h-[12px] rounded-[2px] bg-red-500" />
+                                        <div className="w-[12px] h-[12px] rounded-[2px] bg-red-400" />
+                                        <div className="w-[12px] h-[12px] rounded-[2px] bg-red-200 dark:bg-red-700/50" />
+                                        <div className="w-[12px] h-[12px] rounded-[2px] bg-muted/40" />
+                                        <div className="w-[12px] h-[12px] rounded-[2px] bg-green-200 dark:bg-green-700/50" />
+                                        <div className="w-[12px] h-[12px] rounded-[2px] bg-green-400" />
+                                        <div className="w-[12px] h-[12px] rounded-[2px] bg-green-500" />
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">Profit</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </CardContent>
+            </Card>
         </div>
     );
 }
+

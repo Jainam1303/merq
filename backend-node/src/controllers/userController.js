@@ -108,7 +108,8 @@ exports.updateProfile = async (req, res) => {
         const allowedFields = [
             'email', 'phone',
             'angel_api_key', 'angel_client_code', 'angel_password', 'angel_totp',
-            'backtest_api_key', 'backtest_client_code', 'backtest_password', 'backtest_totp'
+            'backtest_api_key', 'backtest_client_code', 'backtest_password', 'backtest_totp',
+            'whatsapp_phone', 'whatsapp_api_key'
         ];
 
         // API Key fields that should NOT be overwritten with empty strings

@@ -89,6 +89,11 @@ export default function UserDetailPage() {
                     <div>
                         <h1 className="text-3xl font-bold tracking-tight">{user.username}</h1>
                         <p className="text-muted-foreground">{user.email}</p>
+                        {user.client_id && (
+                            <p className="text-xs font-mono text-muted-foreground mt-1">
+                                Client ID: <span className="font-semibold text-foreground">{user.client_id}</span>
+                            </p>
+                        )}
                     </div>
                 </div>
                 <div className="space-x-2">

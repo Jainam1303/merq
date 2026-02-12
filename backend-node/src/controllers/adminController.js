@@ -176,6 +176,7 @@ exports.getUsers = async (req, res) => {
             const bestSub = subs[0];
             return {
                 id: userData.id,
+                client_id: userData.client_id || null,
                 username: userData.username,
                 email: userData.email,
                 phone: userData.phone,
@@ -219,24 +220,81 @@ exports.getUserDetail = async (req, res) => {
 
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Get user trades (last 50)
-        const trades = await Trade.findAll({
+        // Get user trades from DB (last 50)
+        const dbTrades = await Trade.findAll({
             where: { user_id: id },
             order: [['createdAt', 'DESC']],
             limit: 50
         });
 
-        // Get trade stats
-        const tradeStats = await Trade.findOne({
-            where: { user_id: id },
-            attributes: [
-                [fn('COUNT', col('id')), 'total_trades'],
-                [fn('COALESCE', fn('SUM', col('pnl')), 0), 'total_pnl'],
-                [fn('COUNT', literal("CASE WHEN pnl > 0 THEN 1 END")), 'winning_trades'],
-                [fn('COUNT', literal("CASE WHEN pnl < 0 THEN 1 END")), 'losing_trades'],
-            ],
-            raw: true
+        // Get user trades from engine (live session)
+        let engineTrades = [];
+        try {
+            const engineService = require('../services/engineService');
+            const engineState = await engineService.getStatus(id);
+            if (engineState && engineState.active !== false) {
+                // Closed trades from engine
+                const closedTrades = (engineState.trades_history || []).map(t => ({
+                    id: `engine_${t.id || t.symbol}_${t.time || ''}`,
+                    user_id: parseInt(id),
+                    symbol: t.symbol,
+                    mode: t.type || 'BUY',
+                    quantity: t.qty || 1,
+                    entry_price: t.entry || 0,
+                    exit_price: t.exit || 0,
+                    tp: t.tp || 0,
+                    sl: t.sl || 0,
+                    pnl: t.pnl || 0,
+                    status: t.status || 'CLOSED',
+                    timestamp: `${t.date || ''} ${t.time || ''}`.trim(),
+                    is_simulated: (engineState.mode || '').toUpperCase() === 'PAPER',
+                    strategy: t.strategy || 'ORB',
+                    createdAt: t.date ? new Date(`${t.date}T${t.time || '00:00:00'}`) : new Date(),
+                    source: 'engine'
+                }));
+                // Open positions from engine
+                const openPositions = (engineState.positions || []).map(p => ({
+                    id: `engine_pos_${p.id || p.symbol}`,
+                    user_id: parseInt(id),
+                    symbol: p.symbol,
+                    mode: p.type || 'BUY',
+                    quantity: p.qty || 1,
+                    entry_price: p.entry || 0,
+                    exit_price: 0,
+                    tp: p.tp || 0,
+                    sl: p.sl || 0,
+                    pnl: p.pnl || 0,
+                    status: 'OPEN',
+                    timestamp: `${p.date || ''} ${p.time || ''}`.trim(),
+                    is_simulated: (engineState.mode || '').toUpperCase() === 'PAPER',
+                    strategy: p.strategy || 'ORB',
+                    createdAt: p.date ? new Date(`${p.date}T${p.time || '00:00:00'}`) : new Date(),
+                    source: 'engine'
+                }));
+                engineTrades = [...closedTrades, ...openPositions];
+            }
+        } catch (engErr) {
+            console.error('[UserDetail] Engine fetch error (non-fatal):', engErr.message);
+        }
+
+        // Merge: DB trades + engine-only trades (deduplicate)
+        const dbTradeKeys = new Set();
+        dbTrades.forEach(t => {
+            dbTradeKeys.add(`${t.symbol}_${(t.timestamp || '').trim()}`);
         });
+        const uniqueEngineTrades = engineTrades.filter(t => {
+            const key = `${t.symbol}_${(t.timestamp || '').trim()}`;
+            return !dbTradeKeys.has(key);
+        });
+        const allTrades = [...dbTrades.map(t => ({ ...t.toJSON(), source: 'db' })), ...uniqueEngineTrades]
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+            .slice(0, 50);
+
+        // Compute trade stats from combined data
+        const allPnls = allTrades.map(t => parseFloat(t.pnl) || 0);
+        const totalPnl = allPnls.reduce((s, p) => s + p, 0);
+        const winningTrades = allPnls.filter(p => p > 0).length;
+        const losingTrades = allPnls.filter(p => p < 0).length;
 
         // Get payments
         let payments = [];
@@ -261,12 +319,12 @@ exports.getUserDetail = async (req, res) => {
 
         res.json({
             user: user.toJSON(),
-            trades,
+            trades: allTrades,
             trade_stats: {
-                total_trades: parseInt(tradeStats?.total_trades) || 0,
-                total_pnl: parseFloat(tradeStats?.total_pnl) || 0,
-                winning_trades: parseInt(tradeStats?.winning_trades) || 0,
-                losing_trades: parseInt(tradeStats?.losing_trades) || 0,
+                total_trades: allTrades.length,
+                total_pnl: totalPnl,
+                winning_trades: winningTrades,
+                losing_trades: losingTrades,
             },
             payments,
             notes
@@ -421,7 +479,14 @@ exports.getGlobalTrades = async (req, res) => {
         let whereClause = {};
         if (user_id) whereClause.user_id = user_id;
         if (symbol) whereClause.symbol = { [Op.iLike]: `%${symbol}%` };
-        if (status && status !== 'all') whereClause.status = status;
+        if (status && status !== 'all') {
+            // Treat COMPLETED and CLOSED as equivalent
+            if (status === 'COMPLETED' || status === 'CLOSED') {
+                whereClause.status = { [Op.in]: ['COMPLETED', 'CLOSED'] };
+            } else {
+                whereClause.status = status;
+            }
+        }
         if (mode === 'paper') whereClause.is_simulated = true;
         if (mode === 'live') whereClause.is_simulated = false;
 
@@ -435,7 +500,9 @@ exports.getGlobalTrades = async (req, res) => {
             }
         }
 
-        const { count, rows: trades } = await Trade.findAndCountAll({
+        // Fetch from DB — this is the single source of truth
+        // (closed trades are saved directly by the engine via _persist_trade_to_db)
+        const { count, rows: dbTrades } = await Trade.findAndCountAll({
             where: whereClause,
             include: [{ model: User, attributes: ['username'] }],
             order: [['createdAt', 'DESC']],
@@ -443,7 +510,12 @@ exports.getGlobalTrades = async (req, res) => {
             offset
         });
 
-        // Aggregate stats (without include to avoid column ambiguity)
+        const trades = dbTrades.map(t => {
+            const data = t.toJSON();
+            return { ...data, username: data.User?.username || 'Unknown', source: 'db' };
+        });
+
+        // Compute stats from DB
         const stats = await Trade.findOne({
             where: whereClause,
             attributes: [
@@ -457,20 +529,20 @@ exports.getGlobalTrades = async (req, res) => {
             raw: true
         });
 
+        const totalCount = parseInt(stats?.total) || 0;
+        const totalWinners = parseInt(stats?.winners) || 0;
+
         res.json({
-            trades: trades.map(t => {
-                const data = t.toJSON();
-                return { ...data, username: data.User?.username || 'Unknown' };
-            }),
+            trades,
             stats: {
-                total: parseInt(stats?.total) || 0,
+                total: totalCount,
                 total_pnl: parseFloat(stats?.total_pnl) || 0,
-                winners: parseInt(stats?.winners) || 0,
+                winners: totalWinners,
                 losers: parseInt(stats?.losers) || 0,
                 live_count: parseInt(stats?.live_count) || 0,
                 paper_count: parseInt(stats?.paper_count) || 0,
-                win_rate: stats?.total > 0
-                    ? ((parseInt(stats.winners) / parseInt(stats.total)) * 100).toFixed(1)
+                win_rate: totalCount > 0
+                    ? ((totalWinners / totalCount) * 100).toFixed(1)
                     : '0.0'
             },
             total: count,

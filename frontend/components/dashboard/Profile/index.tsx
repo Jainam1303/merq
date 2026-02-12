@@ -250,6 +250,34 @@ export function Profile() {
 
                 {/* Security Tab */}
                 <TabsContent value="security" className="mt-6 space-y-6">
+                    {/* Client ID Card */}
+                    {(formData as any).client_id && (
+                        <Card className="border-primary/20 bg-primary/5">
+                            <CardContent className="p-4 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                        <User className="h-5 w-5" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground font-medium">Your Client ID</p>
+                                        <p className="text-lg font-bold font-mono tracking-wider">{(formData as any).client_id}</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText((formData as any).client_id);
+                                        toast.success("Client ID copied!");
+                                    }}
+                                >
+                                    📋 Copy
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    )}
+
                     <Card>
                         <CardHeader>
                             <CardTitle>Personal Information & Security</CardTitle>
@@ -503,6 +531,53 @@ export function Profile() {
                                 </div>
                             </div>
                             <Button onClick={() => handleUpdate('Backtest Credentials')} disabled={saving}>Save Backtest Keys</Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* WhatsApp Alert Settings */}
+                    <Card className="border-green-200 dark:border-green-800/50">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                📱 WhatsApp Alerts
+                            </CardTitle>
+                            <CardDescription>
+                                Get real-time trading alerts on WhatsApp — order placed, TP hit, SL hit, session start/stop.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/50 rounded-lg p-4">
+                                <p className="text-sm font-semibold text-green-700 dark:text-green-400 mb-2">How to set up (Free):</p>
+                                <ol className="text-sm text-green-600 dark:text-green-400 space-y-1 list-decimal list-inside">
+                                    <li>Open <a href="https://www.callmebot.com/blog/free-api-whatsapp-messages/" target="_blank" rel="noopener noreferrer" className="underline font-medium">CallMeBot Setup Page</a></li>
+                                    <li>Send the activation message to CallMeBot's WhatsApp number</li>
+                                    <li>You'll receive an API key — paste it below</li>
+                                    <li>Enter your phone number with country code (e.g. 919876543210)</li>
+                                </ol>
+                            </div>
+                            <div className="grid gap-6 md:grid-cols-2">
+                                <div className="space-y-2">
+                                    <Label>WhatsApp Phone Number</Label>
+                                    <Input
+                                        name="whatsapp_phone"
+                                        value={(formData as any).whatsapp_phone || ''}
+                                        onChange={handleChange}
+                                        placeholder="919876543210"
+                                        autoComplete="off"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Include country code, no + or spaces</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>CallMeBot API Key</Label>
+                                    <Input
+                                        name="whatsapp_api_key"
+                                        value={(formData as any).whatsapp_api_key || ''}
+                                        onChange={handleChange}
+                                        placeholder="Your API key from CallMeBot"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                            </div>
+                            <Button onClick={() => handleUpdate('WhatsApp Settings')} disabled={saving}>Save WhatsApp Settings</Button>
                         </CardContent>
                     </Card>
                 </TabsContent>

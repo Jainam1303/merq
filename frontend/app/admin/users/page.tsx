@@ -96,6 +96,7 @@ export default function UsersPage() {
                 <Table>
                     <TableHeader>
                         <TableRow>
+                            <TableHead>Client ID</TableHead>
                             <TableHead>User</TableHead>
                             <TableHead>Email</TableHead>
                             <TableHead>Plan</TableHead>
@@ -107,15 +108,16 @@ export default function UsersPage() {
                     <TableBody>
                         {loading ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center h-24">Loading...</TableCell>
+                                <TableCell colSpan={7} className="text-center h-24">Loading...</TableCell>
                             </TableRow>
                         ) : users.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} className="text-center h-24">No users found.</TableCell>
+                                <TableCell colSpan={7} className="text-center h-24">No users found.</TableCell>
                             </TableRow>
                         ) : (
                             users.map((user) => (
                                 <TableRow key={user.id}>
+                                    <TableCell className="font-mono text-xs text-muted-foreground">{user.client_id || '—'}</TableCell>
                                     <TableCell className="font-medium">{user.username}</TableCell>
                                     <TableCell>{user.email || '-'}</TableCell>
                                     <TableCell>

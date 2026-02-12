@@ -91,6 +91,26 @@ def get_status(user_id: str):
         "logs": []
     }
 
+@app.get("/engine/all_sessions")
+def get_all_sessions():
+    """Return trades and status from ALL active sessions (for admin panel)"""
+    result = []
+    for user_id, session in session_manager.sessions.items():
+        try:
+            state = session.get_state()
+            # Include both open positions and closed trades
+            for trade in state.get('trades_history', []):
+                trade['user_id'] = user_id
+                trade['session_mode'] = state.get('mode', 'PAPER')
+                result.append(trade)
+            for pos in state.get('positions', []):
+                pos['user_id'] = user_id
+                pos['session_mode'] = state.get('mode', 'PAPER')
+                result.append(pos)
+        except Exception as e:
+            print(f"Error getting state for user {user_id}: {e}")
+    return {"sessions": list(session_manager.sessions.keys()), "trades": result}
+
 @app.post("/engine/update_position")
 def update_position(data: dict):
     user_id = data.get("user_id")
