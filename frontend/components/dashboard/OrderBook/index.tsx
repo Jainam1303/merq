@@ -83,14 +83,18 @@ export function OrderBook() {
       const res = await fetchJson(url);
       if (res.status === 'success') {
         const mapped = res.data.map((t: any) => {
+          const isClosed = ['COMPLETED', 'CLOSED', 'CLOSED_SL', 'CLOSED_TP', 'CLOSED_MANUAL'].includes(t.status);
+
           let exitPrice = 0;
           // Try direct exit_price from DB first
           if (t.exit_price && parseFloat(t.exit_price) > 0) {
             exitPrice = parseFloat(t.exit_price);
           } else if (t.exit && parseFloat(t.exit) > 0) {
             exitPrice = parseFloat(t.exit);
-          } else if (t.status === 'COMPLETED' || t.status === 'CLOSED' || t.status === 'CLOSED_SL' || t.status === 'CLOSED_TP' || t.status === 'CLOSED_MANUAL' || t.pnl !== 0) {
-            // Calculate exit from PnL if not directly available
+          }
+
+          // Fallback: Calculate exit from PnL for closed trades with no exit
+          if (exitPrice === 0 && isClosed) {
             const pnl = parseFloat(t.pnl || 0);
             const qty = parseInt(t.quantity || t.qty || 1);
             const entry = parseFloat(t.entry_price || t.entry || 0);
@@ -116,11 +120,8 @@ export function OrderBook() {
             sl: parseFloat(t.sl || 0),
             exit: exitPrice,
             pnl: parseFloat(t.pnl || 0),
-            status: (t.status === 'COMPLETED' || t.status === 'CLOSED') ? 'CLOSED' :
-              t.status === 'CANCELLED' ? 'Cancelled' :
-                t.status === 'CLOSED_SL' ? 'CLOSED' :
-                  t.status === 'CLOSED_TP' ? 'CLOSED' :
-                    t.status === 'CLOSED_MANUAL' ? 'CLOSED' : t.status,
+            status: isClosed ? 'CLOSED' :
+              t.status === 'CANCELLED' ? 'Cancelled' : t.status,
             is_simulated: t.is_simulated === true || t.trade_mode === 'PAPER'
           };
         });
@@ -438,7 +439,7 @@ export function OrderBook() {
                       <TableCell className="text-right font-mono text-profit">₹{trade.tp.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-mono text-loss">₹{trade.sl.toFixed(2)}</TableCell>
                       <TableCell className="text-right font-mono">
-                        {trade.exit > 0 ? `₹${trade.exit.toFixed(2)}` : '-'}
+                        {trade.exit > 0 ? `₹${trade.exit.toFixed(2)}` : (trade.status === 'CLOSED' && trade.entry > 0) ? `₹${trade.entry.toFixed(2)}` : '-'}
                       </TableCell>
                       <TableCell className={cn(
                         "text-right font-mono font-medium",
@@ -448,6 +449,8 @@ export function OrderBook() {
                           <>
                             {trade.pnl > 0 ? '+' : ''}₹{trade.pnl.toFixed(2)}
                           </>
+                        ) : trade.status === 'CLOSED' ? (
+                          '₹0.00'
                         ) : (
                           '-'
                         )}
