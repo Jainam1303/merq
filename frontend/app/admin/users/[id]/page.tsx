@@ -132,8 +132,8 @@ export default function UserDetailPage() {
                 </Card>
                 <Card>
                     <CardHeader className="uppercase text-xs font-bold text-muted-foreground pb-2">Total P&L</CardHeader>
-                    <CardContent className={`text-2xl font-bold ${stats.total_pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        ₹{stats.total_pnl?.toFixed(2)}
+                    <CardContent className={`text-2xl font-bold ${Number(stats.total_pnl || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        ₹{Number(stats.total_pnl || 0).toFixed(2)}
                     </CardContent>
                 </Card>
                 <Card>
@@ -194,10 +194,10 @@ export default function UserDetailPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>{t.quantity}</TableCell>
-                                            <TableCell>{t.entry_price}</TableCell>
-                                            <TableCell>{t.exit_price || '-'}</TableCell>
-                                            <TableCell className={t.pnl >= 0 ? "text-emerald-500 font-bold" : "text-red-500 font-bold"}>
-                                                {t.pnl?.toFixed(2)}
+                                            <TableCell>₹{Number(t.entry_price || 0).toFixed(2)}</TableCell>
+                                            <TableCell>{Number(t.exit_price || 0) > 0 ? `₹${Number(t.exit_price).toFixed(2)}` : '-'}</TableCell>
+                                            <TableCell className={Number(t.pnl || 0) >= 0 ? "text-emerald-500 font-bold" : "text-red-500 font-bold"}>
+                                                ₹{Number(t.pnl || 0).toFixed(2)}
                                             </TableCell>
                                             <TableCell>{t.status}</TableCell>
                                         </TableRow>

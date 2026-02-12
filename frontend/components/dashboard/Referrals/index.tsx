@@ -253,7 +253,7 @@ export function Referrals() {
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Total Earnings</p>
-                                <p className="text-2xl font-bold">₹{stats?.total_earnings?.toFixed(2) || '0.00'}</p>
+                                <p className="text-2xl font-bold">₹{Number(stats?.total_earnings || 0).toFixed(2)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -267,7 +267,7 @@ export function Referrals() {
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Pending Payout</p>
-                                <p className="text-2xl font-bold">₹{stats?.pending_earnings?.toFixed(2) || '0.00'}</p>
+                                <p className="text-2xl font-bold">₹{Number(stats?.pending_earnings || 0).toFixed(2)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -318,7 +318,7 @@ export function Referrals() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right font-mono">
-                                                    ₹{ref.total_commission.toFixed(2)}
+                                                    ₹{Number(ref.total_commission || 0).toFixed(2)}
                                                 </TableCell>
                                             </TableRow>
                                         ))}

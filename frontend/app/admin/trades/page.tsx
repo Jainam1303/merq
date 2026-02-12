@@ -89,8 +89,8 @@ export default function TradesPage() {
                 </Card>
                 <Card className="p-4 flex flex-col justify-center">
                     <span className="text-xs text-muted-foreground uppercase font-bold">Total P&L</span>
-                    <span className={`text-2xl font-bold ${stats.total_pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                        ₹{stats.total_pnl?.toFixed(2) || '0.00'}
+                    <span className={`text-2xl font-bold ${Number(stats.total_pnl || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        ₹{Number(stats.total_pnl || 0).toFixed(2)}
                     </span>
                 </Card>
                 <Card className="p-4 flex flex-col justify-center">
@@ -189,10 +189,10 @@ export default function TradesPage() {
                                         </span>
                                     </TableCell>
                                     <TableCell>{t.quantity}</TableCell>
-                                    <TableCell>{t.entry_price}</TableCell>
-                                    <TableCell>{t.exit_price || '-'}</TableCell>
-                                    <TableCell className={`font-bold ${t.pnl >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                                        {t.pnl?.toFixed(2)}
+                                    <TableCell>₹{Number(t.entry_price || 0).toFixed(2)}</TableCell>
+                                    <TableCell>{Number(t.exit_price || 0) > 0 ? `₹${Number(t.exit_price).toFixed(2)}` : '-'}</TableCell>
+                                    <TableCell className={`font-bold ${Number(t.pnl || 0) >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                                        ₹{Number(t.pnl || 0).toFixed(2)}
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline" className="text-[10px] scale-90">{t.status}</Badge>

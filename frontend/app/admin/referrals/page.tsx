@@ -129,7 +129,7 @@ export default function AdminReferralsPage() {
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Total Commissions</p>
-                                <p className="text-2xl font-bold">₹{summary?.total_earnings?.toFixed(2) || '0.00'}</p>
+                                <p className="text-2xl font-bold">₹{Number(summary?.total_earnings || 0).toFixed(2)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -142,7 +142,7 @@ export default function AdminReferralsPage() {
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Pending Payouts</p>
-                                <p className="text-2xl font-bold">₹{summary?.pending_earnings?.toFixed(2) || '0.00'}</p>
+                                <p className="text-2xl font-bold">₹{Number(summary?.pending_earnings || 0).toFixed(2)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -155,7 +155,7 @@ export default function AdminReferralsPage() {
                             </div>
                             <div>
                                 <p className="text-xs text-muted-foreground">Total Paid Out</p>
-                                <p className="text-2xl font-bold">₹{summary?.paid_earnings?.toFixed(2) || '0.00'}</p>
+                                <p className="text-2xl font-bold">₹{Number(summary?.paid_earnings || 0).toFixed(2)}</p>
                             </div>
                         </div>
                     </CardContent>

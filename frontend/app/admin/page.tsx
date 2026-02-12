@@ -94,9 +94,9 @@ export default function AdminDashboard() {
                 />
                 <StatCard
                     title="Today's P&L"
-                    value={`₹${stats.today_pnl?.toFixed(2)}`}
+                    value={`₹${Number(stats.today_pnl || 0).toFixed(2)}`}
                     icon={DollarSign}
-                    className={stats.today_pnl >= 0 ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-500" : "border-red-500/20 bg-red-500/5 text-red-500"}
+                    className={Number(stats.today_pnl || 0) >= 0 ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-500" : "border-red-500/20 bg-red-500/5 text-red-500"}
                 />
             </div>
 
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="p-4 border rounded-lg bg-card/50">
                                 <div className="text-sm font-medium text-muted-foreground">Monthly Revenue</div>
-                                <div className="text-2xl font-bold">₹{stats.monthly_revenue?.toFixed(2)}</div>
+                                <div className="text-2xl font-bold">₹{Number(stats.monthly_revenue || 0).toFixed(2)}</div>
                             </div>
                             <div className="p-4 border rounded-lg bg-card/50">
                                 <div className="text-sm font-medium text-muted-foreground">Active Users</div>

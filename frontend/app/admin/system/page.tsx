@@ -76,7 +76,7 @@ export default function SystemPage() {
                         <Activity className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{(health.uptime / 3600).toFixed(2)} Hrs</div>
+                        <div className="text-2xl font-bold">{(Number(health.uptime || 0) / 3600).toFixed(2)} Hrs</div>
                         <p className="text-xs text-muted-foreground">Node {health.node_version}</p>
                     </CardContent>
                 </Card>
