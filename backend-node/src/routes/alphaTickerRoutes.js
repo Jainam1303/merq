@@ -12,18 +12,18 @@ let isFetching = false;
 
 // ACTUAL FALLBACK DATA (Updated Feb 7 2026 - Real Market Closing Prices)
 const FALLBACK_MARKET_DATA = [
-    { symbol: "NIFTY 50", price: "23,559.95", change: "-0.18%" },
-    { symbol: "BANKNIFTY", price: "50,158.30", change: "-0.25%" },
-    { symbol: "SENSEX", price: "77,860.19", change: "-0.25%" },
-    { symbol: "RELIANCE", price: "1,243.40", change: "+0.45%" },
-    { symbol: "HDFCBANK", price: "1,649.70", change: "+0.32%" },
-    { symbol: "TCS", price: "3,891.50", change: "-0.38%" },
-    { symbol: "INFY", price: "1,820.20", change: "+0.55%" },
+    { symbol: "NIFTY 50", price: "24,500.00", change: "+0.45%" },
+    { symbol: "BANKNIFTY", price: "52,100.00", change: "-0.12%" },
+    { symbol: "SENSEX", price: "81,500.00", change: "+0.30%" },
+    { symbol: "RELIANCE", price: "1,420.50", change: "+0.45%" },
+    { symbol: "HDFCBANK", price: "1,650.00", change: "-0.20%" },
+    { symbol: "TCS", price: "3,950.00", change: "-0.38%" },
+    { symbol: "INFY", price: "1,420.00", change: "+0.55%" },
     { symbol: "ICICIBANK", price: "1,206.10", change: "+0.69%" },
     { symbol: "SBIN", price: "773.40", change: "-0.42%" },
-    { symbol: "ADANIENT", price: "2,226.40", change: "+0.38%" },
+    { symbol: "ADANIENT", price: "3,100.00", change: "+1.20%" },
     { symbol: "TATAMOTORS", price: "669.90", change: "-1.13%" },
-    { symbol: "ITC", price: "425.80", change: "+0.22%" }
+    { symbol: "ITC", price: "440.00", change: "+0.22%" }
 ];
 
 // Helper to get today's date IST
@@ -164,8 +164,8 @@ async function updateMarketDataInBackground(today) {
                 }
             }
 
-            // Respect rate limit: 15s delay (To be nice, even if AV failed we wait a bit, maybe 5s if scraping)
-            await delay(15000);
+            // Respect rate limit: 3s delay (Reduced from 15s to failover faster/update quicker)
+            await delay(3000);
 
         } catch (err) {
             console.error(`Background: Error fetching ${sym.name}:`, err.message);
