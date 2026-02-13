@@ -212,18 +212,18 @@ const fetchJson = async (endpoint, options = {}) => {
 };
 
 const MARKET_DATA = [
-  { symbol: "NIFTY 50", price: "23,559.95", change: "-0.18%" },
-  { symbol: "BANKNIFTY", price: "50,158.30", change: "-0.25%" },
-  { symbol: "SENSEX", price: "77,860.19", change: "-0.25%" },
-  { symbol: "RELIANCE", price: "1,243.40", change: "+0.45%" },
-  { symbol: "HDFCBANK", price: "1,649.70", change: "+0.32%" },
-  { symbol: "TCS", price: "3,891.50", change: "-0.38%" },
-  { symbol: "INFY", price: "1,820.20", change: "+0.55%" },
-  { symbol: "ICICIBANK", price: "1,206.10", change: "+0.69%" },
-  { symbol: "SBIN", price: "773.40", change: "-0.42%" },
-  { symbol: "ADANIENT", price: "2,226.40", change: "+0.38%" },
-  { symbol: "TATAMOTORS", price: "669.90", change: "-1.13%" },
-  { symbol: "ITC", price: "425.80", change: "+0.22%" }
+  { symbol: "NIFTY 50", price: "24,500.00", change: "+0.45%" },
+  { symbol: "BANKNIFTY", price: "52,100.00", change: "-0.12%" },
+  { symbol: "SENSEX", price: "81,500.00", change: "+0.30%" },
+  { symbol: "FINNIFTY", price: "23,500.00", change: "+0.10%" },
+  { symbol: "INDIA VIX", price: "12.45", change: "-2.30%" },
+  { symbol: "MIDCAP NIFTY", price: "11,000.00", change: "+0.75%" },
+  { symbol: "RELIANCE", price: "2,980.50", change: "+0.45%" },
+  { symbol: "HDFCBANK", price: "1,650.00", change: "-0.20%" },
+  { symbol: "INFY", price: "1,420.00", change: "+0.55%" },
+  { symbol: "TCS", price: "3,950.00", change: "-0.38%" },
+  { symbol: "ADANIENT", price: "3,100.00", change: "+1.20%" },
+  { symbol: "ITC", price: "440.00", change: "+0.22%" }
 ];
 
 const TESTIMONIALS = [
@@ -246,14 +246,14 @@ function TickerMarquee() {
     const fetchClosingPrices = async () => {
       try {
         // Fetch fresh closing prices from Backend API (updates dynamically)
-        console.log('Fetching closing prices from Alpha Vantage API...');
-        let res = await fetch('/api/market-ticker');
+        console.log('Fetching closing prices from Market Data API...');
+        let res = await fetch('/api/market_data');
 
         // If proxy fails (e.g., 403), try direct backend URL
         if (!res.ok) {
           console.log(`Proxy returned ${res.status}, trying direct backend...`);
           const directUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
-          res = await fetch(`${directUrl}/market-ticker`);
+          res = await fetch(`${directUrl}/market_data`);
         }
 
         if (!res.ok) {
