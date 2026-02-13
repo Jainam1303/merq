@@ -239,9 +239,9 @@ async function runAllBacktests(targetTimeframe = null) {
     console.log('   STAR PERFORMERS - Auto Backtest Engine');
     console.log('═══════════════════════════════════════════\n');
 
-    // Sync DB
-    await sequelize.sync({ alter: true });
-    console.log('✅ Database synced\n');
+    // Sync ONLY the StarPerformer table to avoid issues with other tables (like User unique constraints)
+    await StarPerformer.sync({ alter: true });
+    console.log('✅ StarPerformer Table synced\n');
 
     const timeframes = targetTimeframe ? [targetTimeframe] : Object.keys(TIMEFRAMES);
     let totalProcessed = 0;
