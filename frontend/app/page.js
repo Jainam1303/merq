@@ -218,7 +218,7 @@ const MARKET_DATA = [
   { symbol: "FINNIFTY", price: "23,500.00", change: "+0.10%" },
   { symbol: "INDIA VIX", price: "12.45", change: "-2.30%" },
   { symbol: "MIDCAP NIFTY", price: "11,000.00", change: "+0.75%" },
-  { symbol: "RELIANCE", price: "2,980.50", change: "+0.45%" },
+  { symbol: "RELIANCE", price: "1,420.50", change: "+0.45%" },
   { symbol: "HDFCBANK", price: "1,650.00", change: "-0.20%" },
   { symbol: "INFY", price: "1,420.00", change: "+0.55%" },
   { symbol: "TCS", price: "3,950.00", change: "-0.38%" },
@@ -246,14 +246,14 @@ function TickerMarquee() {
     const fetchClosingPrices = async () => {
       try {
         // Fetch fresh closing prices from Backend API (updates dynamically)
-        console.log('Fetching closing prices from Market Data API...');
-        let res = await fetch('/api/market_data');
+        console.log('Fetching closing prices from Alpha Vantage API...');
+        let res = await fetch('/api/market-ticker');
 
         // If proxy fails (e.g., 403), try direct backend URL
         if (!res.ok) {
           console.log(`Proxy returned ${res.status}, trying direct backend...`);
           const directUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
-          res = await fetch(`${directUrl}/market_data`);
+          res = await fetch(`${directUrl}/market-ticker`);
         }
 
         if (!res.ok) {
