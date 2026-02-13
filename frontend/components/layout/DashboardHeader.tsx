@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Menu,
@@ -35,6 +35,25 @@ interface DashboardHeaderProps {
   isSystemRunning?: boolean;
 }
 
+interface TickerItem {
+  symbol: string;
+  price: string;
+  change: string;
+  isGainer: boolean;
+}
+
+// Static fallback data in case API is unreachable
+const FALLBACK_TICKERS: TickerItem[] = [
+  { symbol: "NIFTY 50", price: "24,350.50", change: "+0.45%", isGainer: true },
+  { symbol: "BANKNIFTY", price: "52,100.20", change: "-0.12%", isGainer: false },
+  { symbol: "SENSEX", price: "80,123.45", change: "+0.30%", isGainer: true },
+  { symbol: "FINNIFTY", price: "23,456.78", change: "+0.10%", isGainer: true },
+  { symbol: "INDIA VIX", price: "12.45", change: "-2.30%", isGainer: false },
+  { symbol: "MIDCAP NIFTY", price: "10,987.65", change: "+0.75%", isGainer: true },
+];
+
+const TICKER_REFRESH_INTERVAL = 30 * 1000; // 30 seconds
+
 export function DashboardHeader({
   isSidebarOpen,
   onToggleSidebar,
@@ -46,11 +65,43 @@ export function DashboardHeader({
   isSystemRunning = false,
 }: DashboardHeaderProps) {
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [tickers, setTickers] = useState<TickerItem[]>(FALLBACK_TICKERS);
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
     document.documentElement.classList.toggle('dark');
   };
+
+  // Fetch live market data from Yahoo Finance backend
+  const fetchMarketData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/market_data');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (Array.isArray(data) && data.length > 0) {
+        const mapped: TickerItem[] = data.map((item: any) => ({
+          symbol: item.symbol || 'UNKNOWN',
+          price: item.price || '0.00',
+          change: item.change || '0.00%',
+          isGainer: item.isGainer ?? (item.change && !item.change.startsWith('-')),
+        }));
+        setTickers(mapped);
+      }
+    } catch (err) {
+      console.warn('[Marquee] Failed to fetch market data, using fallback:', err);
+      // Keep existing tickers (either previous live data or fallback)
+    }
+  }, []);
+
+  useEffect(() => {
+    // Initial fetch
+    fetchMarketData();
+
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchMarketData, TICKER_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchMarketData]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
@@ -175,30 +226,19 @@ export function DashboardHeader({
         </div>
       </div>
 
-      {/* Marquee Ticker */}
+      {/* Live Marquee Ticker */}
       <div className="border-t border-border bg-muted/30 overflow-hidden py-1">
         <div className="flex animate-marquee whitespace-nowrap hover:[animation-play-state:paused]">
           {[...Array(2)].map((_, i) => (
             <div key={i} className="flex gap-8 px-4">
-              <span className="flex items-center gap-2 text-sm font-medium">
-                NIFTY 50 <span className="text-profit">24,350.50 (+0.45%)</span>
-              </span>
-              <span className="flex items-center gap-2 text-sm font-medium">
-                BANKNIFTY <span className="text-loss">52,100.20 (-0.12%)</span>
-              </span>
-              <span className="flex items-center gap-2 text-sm font-medium">
-                SENSEX <span className="text-profit">80,123.45 (+0.30%)</span>
-              </span>
-              <span className="flex items-center gap-2 text-sm font-medium">
-                FINNIFTY <span className="text-profit">23,456.78 (+0.10%)</span>
-              </span>
-              <span className="flex items-center gap-2 text-sm font-medium">
-                INDIA VIX <span className="text-loss">12.45 (-2.30%)</span>
-              </span>
-              <span className="flex items-center gap-2 text-sm font-medium">
-                MIDCAP NIFTY <span className="text-profit">10,987.65 (+0.75%)</span>
-              </span>
-              {/* Add more indices as needed */}
+              {tickers.map((ticker, j) => (
+                <span key={`${i}-${j}`} className="flex items-center gap-2 text-sm font-medium">
+                  {ticker.symbol}{' '}
+                  <span className={ticker.isGainer ? "text-profit" : "text-loss"}>
+                    {ticker.price} ({ticker.change})
+                  </span>
+                </span>
+              ))}
             </div>
           ))}
         </div>

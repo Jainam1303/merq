@@ -283,9 +283,19 @@ app.post('/create_order', verifyToken, userController.createOrder);
 app.post('/verify_payment', verifyToken, userController.verifyPayment);
 
 // Basic error logging for Yahoo Finance
-const MARKET_DATA_VERSION = "1.0.8";
+const MARKET_DATA_VERSION = "1.1.0";
+
+// Server-side cache for market data (avoids excessive Yahoo Finance calls)
+let marketDataCache = null;
+let marketDataCacheTime = 0;
+const MARKET_DATA_CACHE_TTL = 60 * 1000; // 60 seconds cache
 
 app.get('/market_data', async (req, res) => {
+    // Return cached data if fresh
+    if (marketDataCache && (Date.now() - marketDataCacheTime) < MARKET_DATA_CACHE_TTL) {
+        return res.json(marketDataCache);
+    }
+
     let yahooFinance;
     try {
         // Load library dynamically to prevent server crash if missing/incompatible
@@ -301,6 +311,9 @@ app.get('/market_data', async (req, res) => {
             { ticker: "^NSEI", label: "NIFTY 50", base: 24500 },
             { ticker: "^NSEBANK", label: "BANKNIFTY", base: 52100 },
             { ticker: "^BSESN", label: "SENSEX", base: 81500 },
+            { ticker: "NIFTY_FIN_SERVICE.NS", label: "FINNIFTY", base: 23500 },
+            { ticker: "^INDIAVIX", label: "INDIA VIX", base: 13 },
+            { ticker: "NIFTY_MID_SELECT.NS", label: "MIDCAP NIFTY", base: 11000 },
             { ticker: "RELIANCE.NS", label: "RELIANCE", base: 2980 },
             { ticker: "HDFCBANK.NS", label: "HDFCBANK", base: 1650 },
             { ticker: "INFY.NS", label: "INFY", base: 1420 },
@@ -310,7 +323,6 @@ app.get('/market_data', async (req, res) => {
 
         const results = await Promise.all(symbolsMap.map(async (s) => {
             try {
-                // Extended timeout and options for stability on some servers
                 const quote = await yahooFinance.quote(s.ticker, { validateResult: false });
                 const price = quote.regularMarketPrice || quote.postMarketPrice || quote.bid || 0;
                 const prevClose = quote.regularMarketPreviousClose || price;
@@ -333,6 +345,9 @@ app.get('/market_data', async (req, res) => {
         const validResults = results.filter(r => r !== null);
 
         if (validResults.length > 0) {
+            // Cache the successful response
+            marketDataCache = validResults;
+            marketDataCacheTime = Date.now();
             return res.json(validResults);
         }
 
@@ -341,11 +356,19 @@ app.get('/market_data', async (req, res) => {
     } catch (e) {
         console.error("Yahoo Finance Final Error:", e.message);
 
+        // If we have stale cache, return it instead of simulated
+        if (marketDataCache) {
+            return res.json(marketDataCache);
+        }
+
         // Fallback to simulation
         const baseData = [
             { symbol: "NIFTY 50", base: 24500 },
             { symbol: "BANKNIFTY", base: 52100 },
             { symbol: "SENSEX", base: 81500 },
+            { symbol: "FINNIFTY", base: 23500 },
+            { symbol: "INDIA VIX", base: 13 },
+            { symbol: "MIDCAP NIFTY", base: 11000 },
             { symbol: "RELIANCE", base: 2980 },
             { symbol: "HDFCBANK", base: 1650 }
         ];

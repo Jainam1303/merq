@@ -11,7 +11,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User as UserIcon, Shield } from "lucide-react";
+import { LogOut, User as UserIcon, Shield, Sun, Moon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { fetchJson } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,6 +27,21 @@ export default function AdminLayout({
     const [authorized, setAuthorized] = useState(false);
     const [checking, setChecking] = useState(true);
     const [adminName, setAdminName] = useState("Admin");
+    const [isDarkMode, setIsDarkMode] = useState(true);
+
+    // Initialize theme from DOM on mount
+    useEffect(() => {
+        const isDark = document.documentElement.classList.contains('dark');
+        setIsDarkMode(isDark);
+    }, []);
+
+    const toggleTheme = () => {
+        const newDark = !isDarkMode;
+        setIsDarkMode(newDark);
+        document.documentElement.classList.toggle('dark', newDark);
+        document.documentElement.classList.toggle('light', !newDark);
+        localStorage.setItem('theme', newDark ? 'dark' : 'light');
+    };
 
     // Auth guard: verify the user is actually an admin
     useEffect(() => {
@@ -78,30 +94,40 @@ export default function AdminLayout({
                     <div className="text-sm text-muted-foreground">
                         <span className="font-medium text-foreground">MerQPrime</span> · Admin Console
                     </div>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button className="flex items-center gap-2 rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                                <span className="text-sm text-muted-foreground hidden md:inline">{adminName}</span>
-                                <Avatar className="h-8 w-8">
-                                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
-                                        {adminName.substring(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                                <UserIcon className="mr-2 h-4 w-4" />
-                                User Dashboard
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
-                                <LogOut className="mr-2 h-4 w-4" />
-                                Logout
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-3">
+                        {/* Theme Toggle */}
+                        <Button variant="ghost" size="icon" onClick={toggleTheme} title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
+                            {isDarkMode ? (
+                                <Sun className="h-5 w-5" />
+                            ) : (
+                                <Moon className="h-5 w-5" />
+                            )}
+                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="flex items-center gap-2 rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+                                    <span className="text-sm text-muted-foreground hidden md:inline">{adminName}</span>
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                                            {adminName.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => router.push('/dashboard')}>
+                                    <UserIcon className="mr-2 h-4 w-4" />
+                                    User Dashboard
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:text-red-600">
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    Logout
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
                 </header>
                 <main className="flex-1 overflow-y-auto p-6">
                     {children}

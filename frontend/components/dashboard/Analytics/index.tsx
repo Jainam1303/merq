@@ -252,6 +252,7 @@ export function Analytics() {
                                     <Tooltip
                                         cursor={{ fill: 'transparent' }}
                                         contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                                        formatter={(value: any) => [`₹${parseFloat(value).toFixed(2)}`, 'P&L']}
                                     />
                                     <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                                         {filteredDailyPnl.map((entry: any, index: number) => (
