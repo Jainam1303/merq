@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -296,36 +297,35 @@ app.get('/market_data', async (req, res) => {
         return res.json(marketDataCache);
     }
 
-    let yahooFinance;
     try {
-        // Load library dynamically to prevent server crash if missing/incompatible
-        yahooFinance = require('yahoo-finance2').default || require('yahoo-finance2');
-    } catch (err) {
-        console.error("Critical: Failed to load yahoo-finance2 library:", err.message);
-    }
-
-    try {
-        if (!yahooFinance) throw new Error("Yahoo Finance Library not loaded");
-
         const symbolsMap = [
-            { ticker: "^NSEI", label: "NIFTY 50", base: 24500 },
-            { ticker: "^NSEBANK", label: "BANKNIFTY", base: 52100 },
-            { ticker: "^BSESN", label: "SENSEX", base: 81500 },
-            { ticker: "NIFTY_FIN_SERVICE.NS", label: "FINNIFTY", base: 23500 },
-            { ticker: "^INDIAVIX", label: "INDIA VIX", base: 13 },
-            { ticker: "NIFTY_MID_SELECT.NS", label: "MIDCAP NIFTY", base: 11000 },
-            { ticker: "RELIANCE.NS", label: "RELIANCE", base: 2980 },
-            { ticker: "HDFCBANK.NS", label: "HDFCBANK", base: 1650 },
-            { ticker: "INFY.NS", label: "INFY", base: 1420 },
-            { ticker: "TCS.NS", label: "TCS", base: 3950 },
-            { ticker: "ADANIENT.NS", label: "ADANIENT", base: 3100 }
+            { ticker: "^NSEI", label: "NIFTY 50" },
+            { ticker: "^NSEBANK", label: "BANKNIFTY" },
+            { ticker: "^BSESN", label: "SENSEX" },
+            { ticker: "NIFTY_FIN_SERVICE.NS", label: "FINNIFTY" },
+            { ticker: "^INDIAVIX", label: "INDIA VIX" },
+            { ticker: "NIFTY_MID_SELECT.NS", label: "MIDCAP NIFTY" },
+            { ticker: "RELIANCE.NS", label: "RELIANCE" },
+            { ticker: "HDFCBANK.NS", label: "HDFCBANK" },
+            { ticker: "INFY.NS", label: "INFY" },
+            { ticker: "TCS.NS", label: "TCS" },
+            { ticker: "ADANIENT.NS", label: "ADANIENT" }
         ];
 
         const results = await Promise.all(symbolsMap.map(async (s) => {
             try {
-                const quote = await yahooFinance.quote(s.ticker, { validateResult: false });
-                const price = quote.regularMarketPrice || quote.postMarketPrice || quote.bid || 0;
-                const prevClose = quote.regularMarketPreviousClose || price;
+                // Use Yahoo Finance Chart API (public v8) for reliable data without library issues
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${s.ticker}?interval=1d&range=1d`;
+                const response = await axios.get(url, {
+                    headers: { 'User-Agent': 'Mozilla/5.0' }, // Simple UA usually suffices
+                    timeout: 5000
+                });
+
+                const meta = response.data.chart?.result?.[0]?.meta;
+                if (!meta) return null;
+
+                const price = meta.regularMarketPrice || meta.chartPreviousClose || 0;
+                const prevClose = meta.chartPreviousClose || price;
                 const changePct = prevClose !== 0 ? ((price - prevClose) / prevClose) * 100 : 0;
 
                 return {
@@ -333,7 +333,7 @@ app.get('/market_data', async (req, res) => {
                     price: price.toLocaleString('en-IN', { minimumFractionDigits: 2 }),
                     change: `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`,
                     isGainer: changePct >= 0,
-                    source: 'YAHOO_LIVE',
+                    source: 'YAHOO_V8_API',
                     v: MARKET_DATA_VERSION
                 };
             } catch (err) {
@@ -351,7 +351,7 @@ app.get('/market_data', async (req, res) => {
             return res.json(validResults);
         }
 
-        throw new Error("Yahoo returned no valid data for these symbols");
+        throw new Error("Yahoo/Axios returned no valid data for these symbols");
 
     } catch (e) {
         console.error("Yahoo Finance Final Error:", e.message);
