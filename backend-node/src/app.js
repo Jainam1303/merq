@@ -51,6 +51,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const adminController = require('./controllers/adminController');
 const referralRoutes = require('./routes/referralRoutes');
 const referralController = require('./controllers/referralController');
+const starPerformerRoutes = require('./routes/starPerformerRoutes');
 
 // API Versioning Prefix
 app.use('/api/auth', authRoutes);
@@ -65,6 +66,10 @@ app.use('/admin', adminRoutes); // Legacy alias
 // Referral Routes
 app.use('/api/referral', referralRoutes);
 app.use('/referral', referralRoutes); // Legacy alias
+
+// Star Performers (Public)
+app.use('/api/star-performers', starPerformerRoutes);
+app.use('/star-performers', starPerformerRoutes); // Legacy alias
 
 // Admin Referral Endpoints (under admin auth)
 const { verifyAdmin } = require('./middleware/adminMiddleware');

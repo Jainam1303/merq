@@ -11,6 +11,7 @@ import { Analytics } from "@/components/dashboard/Analytics";
 import { OrderBook } from "@/components/dashboard/OrderBook";
 import { Referrals } from "@/components/dashboard/Referrals";
 import { Profile } from "@/components/dashboard/Profile";
+import { StarPerformers } from "@/components/dashboard/StarPerformers";
 import { MobileDashboard } from "@/components/mobile";
 import { fetchJson } from "@/lib/api";
 import { toast } from "sonner";
@@ -137,6 +138,8 @@ export default function DashboardNewPage() {
                 return <Backtesting />;
             case 'backtest-history':
                 return <BacktestHistory />;
+            case 'star-performers':
+                return <StarPerformers />;
             case 'analytics':
                 return <Analytics />;
             case 'order-book':
@@ -155,6 +158,7 @@ export default function DashboardNewPage() {
             case 'live-trading': return 'Live Trading';
             case 'backtesting': return 'Backtesting';
             case 'backtest-history': return 'Backtest History';
+            case 'star-performers': return 'Star Performers';
             case 'analytics': return 'Analytics';
             case 'order-book': return 'Order Book';
             case 'referrals': return 'Refer & Earn';

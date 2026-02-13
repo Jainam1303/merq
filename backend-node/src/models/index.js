@@ -11,6 +11,7 @@ const AuditLog = require('./AuditLog');
 const Announcement = require('./Announcement');
 const AdminNote = require('./AdminNote');
 const ReferralEarning = require('./ReferralEarning');
+const StarPerformer = require('./StarPerformer');
 
 // User <-> Subscription
 User.hasMany(Subscription, { foreignKey: 'user_id' });
@@ -76,5 +77,6 @@ module.exports = {
     AuditLog,
     Announcement,
     AdminNote,
-    ReferralEarning
+    ReferralEarning,
+    StarPerformer
 };
