@@ -59,15 +59,38 @@ async function fetchFromGoogleFinance(symbolName, googleSymbol) {
         });
 
         // Regex to find the price (Class often used is YMlKec)
+        // 1. Price scraping (Class YMlKec fxKbKc is reliable for main price)
         const priceMatch = data.match(/<div class="YMlKec fxKbKc">([^<]+)<\/div>/);
-        // Clean regex for change which is trickier, hardcode 0.00% if failing
-        const changeMatch = data.match(/<div class="JwB6zf" data-is-positive="[^"]+">([^<]+)<\/div>/) || data.match(/<span class="NydbP nZnLmg">([^<]+)<\/span>/);
 
-        if (priceMatch && priceMatch[1]) {
+        // 2. Change % scraping (Direct scraper fails often, so we calculate from Previous Close)
+        let changeStr = '0.00%';
+
+        if (priceMatch) {
+            const currentPrice = parseFloat(priceMatch[1].replace(/[^0-9.]/g, ''));
+
+            // Find "Previous close" in the page to calculate change
+            // Structure: <div>Previous close</div> ... <div class="P6K39c">1,386.00</div>
+            const prevCloseIdx = data.indexOf('Previous close');
+            if (prevCloseIdx !== -1) {
+                // Look in the next 600 chars for the value class P6K39c
+                const prevContext = data.substring(prevCloseIdx, prevCloseIdx + 600);
+                const prevMatch = prevContext.match(/<div class="P6K39c">([^<]+)<\/div>/);
+
+                if (prevMatch) {
+                    const prevPrice = parseFloat(prevMatch[1].replace(/[^0-9.]/g, ''));
+                    if (!isNaN(prevPrice) && prevPrice !== 0) {
+                        const changePct = ((currentPrice - prevPrice) / prevPrice) * 100;
+                        changeStr = `${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`;
+                    }
+                }
+            }
+        }
+
+        if (priceMatch) {
             return {
                 symbol: symbolName,
                 price: priceMatch[1].replace('₹', '').trim(),
-                change: changeMatch ? changeMatch[1] : '0.00%',
+                change: changeStr,
                 lastUpdated: getTodayDateIST(),
                 source: 'google_finance'
             };
