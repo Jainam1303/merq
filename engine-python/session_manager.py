@@ -408,19 +408,21 @@ class TradingSession:
         """Called when WebSocket connects - subscribe to symbols"""
         self.log("WebSocket Connected", "SUCCESS")
         
-        # Subscribe to all symbols
-        tokens = list(self.symbol_tokens.values())
+        # Subscribe to all symbols (filter out _TS helper keys)
+        tokens = [v for k, v in self.symbol_tokens.items() if not k.endswith('_TS')]
         if not tokens:
-            self.log("No tokens to subscribe", "WARNING")
+            self.log("No tokens to subscribe! Check symbol token loading.", "ERROR")
             return
         
         # Mode: 1=LTP, 2=Quote, 3=SnapQuote
         # Exchange Type: 1=NSE, 2=NFO, 3=BSE
+        # Use mode 2 (Quote) to get both LTP and VWAP data
         token_list = [{"exchangeType": 1, "tokens": tokens}]
         
         try:
-            self.sws.subscribe("live_feed", 1, token_list)  # LTP mode
-            self.log(f"Subscribed to {len(tokens)} symbols", "SUCCESS")
+            self.sws.subscribe("live_feed", 2, token_list)  # Quote mode for LTP + VWAP
+            self.log(f"✅ Subscribed to {len(tokens)} symbols (Quote Mode)", "SUCCESS")
+            self.log(f"Tokens: {tokens[:10]}{'...' if len(tokens) > 10 else ''}", "DEBUG")
         except Exception as e:
             self.log(f"Subscribe Error: {e}", "ERROR")
 
@@ -428,20 +430,33 @@ class TradingSession:
         """Called when live tick data arrives"""
         if not self.active: return
         try:
-            # Message format: {subscription_mode, exchange_type, token, ltp, ...}
-            token = str(message.get('token'))
-            ltp = message.get('last_traded_price', 0) / 100  # Angel sends price * 100
-            vwap = message.get('average_traded_price', 0) / 100 # VWAP
+            # Message format: {subscription_mode, exchange_type, token, last_traded_price, ...}
+            # Angel SmartWebSocketV2 sends prices multiplied by 100
+            if not isinstance(message, dict):
+                return
             
-            # Find symbol for this token
+            token = str(message.get('token', ''))
+            if not token:
+                return
+            
+            raw_ltp = message.get('last_traded_price', 0)
+            ltp = raw_ltp / 100 if raw_ltp else 0  # Angel sends price * 100
+            raw_vwap = message.get('average_traded_price', 0)
+            vwap = raw_vwap / 100 if raw_vwap else 0  # VWAP
+            
+            # Find symbol for this token (skip _TS helper keys)
             symbol = None
             for sym, tok in self.symbol_tokens.items():
-                if tok == token:
+                if tok == token and not sym.endswith('_TS'):
                     symbol = sym
                     break
             
             if not symbol or ltp <= 0:
                 return
+            
+            # Log first tick for each symbol (confirmation that data is flowing)
+            if symbol not in self.ltp_cache:
+                self.log(f"📊 First tick: {symbol} LTP=₹{ltp:.2f} VWAP=₹{vwap:.2f}", "DEBUG")
             
             # Track previous LTP for crossover detection
             prev_ltp = self.prev_ltp_cache.get(symbol, 0)
@@ -457,11 +472,19 @@ class TradingSession:
             self._check_signal(symbol, ltp, vwap, prev_ltp)
                 
         except Exception as e:
-            # Don't spam logs for every tick error
-            pass
+            # Log first few errors, then throttle
+            if not hasattr(self, '_ws_error_count'):
+                self._ws_error_count = 0
+            self._ws_error_count += 1
+            if self._ws_error_count <= 5:
+                self.log(f"Tick Processing Error ({self._ws_error_count}): {e}", "ERROR")
+            elif self._ws_error_count == 6:
+                self.log("Throttling tick error logs (too many errors)", "WARNING")
 
     def _on_ws_error(self, wsapp, error):
         self.log(f"WebSocket Error: {error}", "ERROR")
+        import traceback
+        self.log(f"WS Error Details: {traceback.format_exc()}", "DEBUG")
 
     def _on_ws_close(self, wsapp):
         self.log("WebSocket Disconnected", "WARNING")
