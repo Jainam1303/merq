@@ -597,6 +597,26 @@ class TradingSession:
             # 2. Block new signals
             return
 
+        # ==========================================
+        # SIGNAL CUTOFF TIME CHECK
+        # ==========================================
+        # After this time, stop finding NEW signals but keep
+        # existing positions alive for TP/SL monitoring
+        signal_cutoff_str = self.config.get('signalCutoffTime', '')
+        if signal_cutoff_str:
+            try:
+                ch, cm = map(int, signal_cutoff_str.split(':'))
+                signal_cutoff = datetime.time(ch, cm)
+                if current_time >= signal_cutoff:
+                    # Log once per day when cutoff activates
+                    cutoff_key = f"_cutoff_logged_{current_date}"
+                    if not hasattr(self, cutoff_key):
+                        setattr(self, cutoff_key, True)
+                        self.log(f"🔶 Signal Cutoff Active ({signal_cutoff_str}). No new signals will be generated. Existing positions will continue TP/SL monitoring.", "WARNING")
+                    return
+            except:
+                pass
+
         # (TEST strategy logic has been moved to strategies/test.py)
 
         # ==========================================

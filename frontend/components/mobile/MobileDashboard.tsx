@@ -59,6 +59,7 @@ interface ConfigData {
     interval: string;
     startTime: string;
     stopTime: string;
+    signalCutoffTime: string;
     capital: string;
 }
 
@@ -82,6 +83,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
         interval: '15',
         startTime: '09:15',
         stopTime: '15:15',
+        signalCutoffTime: '14:45',
         capital: '100000'
     });
 
@@ -330,6 +332,7 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 interval: intervalMap[config.interval] || 'FIVE_MINUTE',
                 startTime: config.startTime,
                 stopTime: config.stopTime,
+                signalCutoffTime: config.signalCutoffTime,
                 capital: config.capital,
                 apiKey: credentials.apiKey,
                 clientCode: credentials.clientCode,

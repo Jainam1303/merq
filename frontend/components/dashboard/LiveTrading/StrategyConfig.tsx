@@ -32,6 +32,7 @@ export interface ConfigData {
   interval: string;
   startTime: string;
   stopTime: string;
+  signalCutoffTime: string;
   capital: string;
 }
 
@@ -339,8 +340,8 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
           </div>
         </div>
 
-        {/* Timeframe, Time Range, and Capital - Responsive Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        {/* Timeframe, Time Range, Signal Cutoff, and Capital - Responsive Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
           {/* Timeframe */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Timeframe</Label>
@@ -387,6 +388,21 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
             />
           </div>
 
+          {/* Signal Cutoff Time */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+              Signal Cutoff
+            </Label>
+            <Input
+              type="time"
+              value={config.signalCutoffTime}
+              disabled={disabled}
+              onChange={(e) => onConfigChange({ ...config, signalCutoffTime: e.target.value })}
+              className="border-amber-500/30 focus:border-amber-500 focus:ring-amber-500/20"
+            />
+          </div>
+
           {/* Initial Capital */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Initial Capital</Label>
@@ -403,10 +419,13 @@ export function StrategyConfig({ config, onConfigChange, disabled = false }: Str
           </div>
         </div>
 
-        {/* Auto Square-Off Notice */}
+        {/* Auto Square-Off & Signal Cutoff Notice */}
         <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
           <p className="text-xs text-amber-400 leading-relaxed">
             <span className="font-semibold">⚠️ Important:</span> All active positions will be auto squared off at <span className="font-bold">3:05 PM</span> if not squared off by the Algo or User manually. After <span className="font-bold">3:15 PM</span>, the Broker will square off remaining positions between <span className="font-bold">3:15 PM - 3:30 PM</span>.
+          </p>
+          <p className="text-xs text-amber-400/80 leading-relaxed mt-1">
+            <span className="font-semibold">🔶 Signal Cutoff:</span> The algo will <span className="font-bold">stop finding new signals</span> after the Signal Cutoff time, but existing open positions will continue to be monitored for TP/SL until squared off.
           </p>
         </div>
       </CardContent>

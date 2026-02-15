@@ -10,6 +10,7 @@ interface ConfigData {
     interval: string;
     startTime: string;
     stopTime: string;
+    signalCutoffTime: string;
     capital: string;
 }
 
@@ -282,6 +283,23 @@ export function MobileSettingsView({
                                 className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm min-h-[44px]"
                             />
                         </div>
+                    </div>
+
+                    {/* Signal Cutoff Time */}
+                    <div>
+                        <label className="text-xs text-zinc-500 mb-1.5 flex items-center gap-1.5">
+                            <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+                            Signal Cutoff Time
+                        </label>
+                        <input
+                            type="time"
+                            value={config.signalCutoffTime}
+                            onChange={(e) => onConfigChange({ ...config, signalCutoffTime: e.target.value })}
+                            className="w-full px-3 py-2 rounded-lg bg-zinc-50 dark:bg-zinc-800 border border-amber-300 dark:border-amber-700 text-sm min-h-[44px] focus:border-amber-500 focus:ring-1 focus:ring-amber-500/20"
+                        />
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400/70 mt-1.5">
+                            Algo stops finding new signals after this time. Open positions continue TP/SL monitoring.
+                        </p>
                     </div>
 
 

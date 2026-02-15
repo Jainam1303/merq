@@ -13,6 +13,7 @@ exports.startBot = async (req, res) => {
             interval,
             startTime,
             stopTime,
+            signalCutoffTime,
             capital,
             simulated
         } = req.body;
@@ -45,6 +46,7 @@ exports.startBot = async (req, res) => {
             interval: interval || 'FIVE_MINUTE',
             startTime: startTime || '09:15',
             stopTime: stopTime || '15:15',
+            signalCutoffTime: signalCutoffTime || '14:45',
             capital: capital || '100000',
             simulated: simulated !== undefined ? simulated : true
         };

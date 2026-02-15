@@ -36,6 +36,7 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
     interval: '15',
     startTime: '09:15',
     stopTime: '15:15',
+    signalCutoffTime: '14:45',
     capital: '100000'
   });
 
@@ -81,6 +82,7 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
               interval: intervalMapRev[remoteConfig.interval] || '15',
               startTime: remoteConfig.startTime || '09:15',
               stopTime: remoteConfig.stopTime || '15:15',
+              signalCutoffTime: remoteConfig.signalCutoffTime || '14:45',
               capital: remoteConfig.capital || '100000'
             });
           }
@@ -291,6 +293,7 @@ export function LiveTrading({ tradingMode = 'PAPER', onSystemStatusChange }: Liv
         interval: intervalMap[config.interval] || 'FIVE_MINUTE',
         startTime: config.startTime,
         stopTime: config.stopTime,
+        signalCutoffTime: config.signalCutoffTime,
         capital: config.capital,
         apiKey: credentials.apiKey,
         clientCode: credentials.clientCode,
