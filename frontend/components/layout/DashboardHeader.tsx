@@ -4,14 +4,10 @@ import {
   Menu,
   Sun,
   Moon,
-  ChevronDown,
   User,
   Settings,
   LogOut,
   TrendingUp,
-  BookOpen,
-  BarChart3,
-  History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -129,34 +125,7 @@ export function DashboardHeader({
         </div>
 
         {/* Features Dropdown - Desktop (Centered) */}
-        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-1">
-                Features
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-48">
-              <DropdownMenuItem onClick={() => onTabChange('live-trading')}>
-                <TrendingUp className="mr-2 h-4 w-4" />
-                Live Trading
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onTabChange('order-book')}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Order Book
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onTabChange('backtesting')}>
-                <History className="mr-2 h-4 w-4" />
-                Backtest
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onTabChange('analytics')}>
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Analytics
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+
 
         {/* Right section */}
         <div className="flex items-center gap-3">
