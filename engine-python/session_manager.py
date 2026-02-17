@@ -353,6 +353,17 @@ class TradingSession:
         market_close = datetime.time(15, 30)
         return market_open <= current_time <= market_close
 
+    def _cleanup_old_websocket(self):
+        """Close any existing WebSocket connection before creating a new one"""
+        if self.sws:
+            try:
+                self.sws.close_connection()
+            except Exception:
+                pass
+            self.sws = None
+            # Give Angel One time to release the connection slot
+            time.sleep(2)
+
     def _start_websocket(self):
         """Initialize and connect Angel One WebSocket for live data"""
         try:
@@ -363,6 +374,9 @@ class TradingSession:
                 # Run standby loop instead of WebSocket
                 self._run_standby_loop()
                 return
+            
+            # Close any existing connection first to avoid 429 rate limit
+            self._cleanup_old_websocket()
             
             api_key = self.credentials.get('apiKey')
             client_code = self.credentials.get('clientCode')
@@ -481,12 +495,12 @@ class TradingSession:
             elif self._ws_error_count == 6:
                 self.log("Throttling tick error logs (too many errors)", "WARNING")
 
-    def _on_ws_error(self, wsapp, error):
+    def _on_ws_error(self, wsapp, error, *args):
         self.log(f"WebSocket Error: {error}", "ERROR")
         import traceback
         self.log(f"WS Error Details: {traceback.format_exc()}", "DEBUG")
 
-    def _on_ws_close(self, wsapp):
+    def _on_ws_close(self, wsapp, *args):
         self.log("WebSocket Disconnected", "WARNING")
         # Attempt reconnect if still active
         if self.active and not self.stop_event.is_set():
@@ -504,6 +518,9 @@ class TradingSession:
             time.sleep(delay)
             
             try:
+                # Close old connection first to avoid 429 rate limit
+                self._cleanup_old_websocket()
+                
                 # Re-login to get fresh tokens
                 api_key = self.credentials.get('apiKey')
                 client_code = self.credentials.get('clientCode')
