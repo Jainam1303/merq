@@ -118,31 +118,41 @@ class LiveORB(BaseLiveStrategy):
                 self.log(f"Skipping {symbol}: No token available", "WARNING")
                 continue
             
-            try:
-                time.sleep(1.0) # Rate limit delay for Angel One API
-                params = {
-                    "exchange": "NSE",
-                    "symboltoken": token,
-                    "interval": "FIVE_MINUTE",
-                    "fromdate": f"{today.strftime('%Y-%m-%d')} 09:15",
-                    "todate": f"{today.strftime('%Y-%m-%d')} 09:30"
-                }
-                res = smartApi.getCandleData(params)
-                if res and res.get('status') and res.get('data'):
-                    df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-                    or_high = float(df['high'].max())
-                    or_low = float(df['low'].min())
-                    self.orb_levels[symbol] = {
-                        'or_high': or_high, 'or_low': or_low, 
-                        'or_mid': (or_high + or_low) / 2, 'collecting': False
+            # Retry up to 3 times for each symbol
+            for attempt in range(3):
+                try:
+                    time.sleep(0.5) # Rate limit delay for Angel One API (3 req/sec limit)
+                    
+                    params = {
+                        "exchange": "NSE",
+                        "symboltoken": token,
+                        "interval": "FIVE_MINUTE",
+                        "fromdate": f"{today.strftime('%Y-%m-%d')} 09:15",
+                        "todate": f"{today.strftime('%Y-%m-%d')} 09:30"
                     }
-                    self.log(f"ORB Level for {symbol}: High={or_high}, Low={or_low}")
-                else:
-                    self.log(f"Failed to fetch ORB for {symbol} (Market data unavailable or closed)", "WARNING")
-                    # Keep default 'collecting=True' or set to invalid to prevent trading?
-                    # Safer to leave as is, so on_tick returns None
-            except Exception as e:
-                self.log(f"Error fetching ORB for {symbol}: {e}", "ERROR")
+                    res = smartApi.getCandleData(params)
+                    
+                    if res and res.get('status') and res.get('data'):
+                        df = pd.DataFrame(res['data'], columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+                        or_high = float(df['high'].max())
+                        or_low = float(df['low'].min())
+                        self.orb_levels[symbol] = {
+                            'or_high': or_high, 'or_low': or_low, 
+                            'or_mid': (or_high + or_low) / 2, 'collecting': False
+                        }
+                        self.log(f"ORB Level for {symbol}: High={or_high}, Low={or_low}")
+                        break # Success, move to next symbol
+                        
+                    else:
+                        if attempt == 2: # Last attempt
+                            self.log(f"Failed to fetch ORB for {symbol} after 3 attempts. Last Response: {res}", "WARNING")
+                        else:
+                            time.sleep(1.0) # Wait before retry
+                            
+                except Exception as e:
+                    if attempt == 2:
+                        self.log(f"Error fetching ORB for {symbol}: {e}", "ERROR")
+                    time.sleep(1.0)
 
     def on_tick(self, symbol, ltp, prev_ltp, vwap, current_time):
         # 1. Update Levels if Collecting
