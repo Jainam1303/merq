@@ -521,18 +521,37 @@ export function StarPerformers() {
                 </Card>
             )}
 
-            {/* Performance Cards Grid */}
+            {/* Performance Cards Grouped by Strategy */}
             {!loading && performers.length > 0 && (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    {performers.map((performer, index) => (
-                        <PerformanceCard
-                            key={performer.id}
-                            data={performer}
-                            rank={index + 1}
-                            onDeploy={handleDeploy}
-                            expanded={expandedId === performer.id}
-                            onToggle={() => setExpandedId(expandedId === performer.id ? null : performer.id)}
-                        />
+                <div className="space-y-10">
+                    {Object.entries(performers.reduce((acc, p) => {
+                        const strat = p.strategy_label || 'Unknown Strategy';
+                        if (!acc[strat]) acc[strat] = [];
+                        acc[strat].push(p);
+                        return acc;
+                    }, {} as Record<string, StarPerformerData[]>)).map(([strategyName, strategyPerformers]) => (
+                        <div key={strategyName} className="space-y-4">
+                            <div className="flex items-center gap-2 border-b border-border pb-2">
+                                <Zap className="h-5 w-5 text-yellow-500" />
+                                <h2 className="text-xl font-bold">{strategyName}</h2>
+                                <Badge variant="secondary" className="ml-2 text-xs">
+                                    {strategyPerformers.length} Stocks
+                                </Badge>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                {strategyPerformers.map((performer, index) => (
+                                    <PerformanceCard
+                                        key={performer.id}
+                                        data={performer}
+                                        rank={index + 1}
+                                        onDeploy={handleDeploy}
+                                        expanded={expandedId === performer.id}
+                                        onToggle={() => setExpandedId(expandedId === performer.id ? null : performer.id)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     ))}
                 </div>
             )}

@@ -24,21 +24,16 @@ const { StarPerformer } = require('./src/models');
 
 // Popular Indian stocks to auto-backtest
 const SYMBOLS = [
-    { symbol: 'RELIANCE-EQ', token: '2885', exchange: 'NSE', label: 'RELIANCE' },
-    { symbol: 'TCS-EQ', token: '11536', exchange: 'NSE', label: 'TCS' },
-    { symbol: 'INFY-EQ', token: '1594', exchange: 'NSE', label: 'INFY' },
-    { symbol: 'HDFCBANK-EQ', token: '1333', exchange: 'NSE', label: 'HDFCBANK' },
-    { symbol: 'ICICIBANK-EQ', token: '4963', exchange: 'NSE', label: 'ICICIBANK' },
-    { symbol: 'SBIN-EQ', token: '3045', exchange: 'NSE', label: 'SBIN' },
-    { symbol: 'TATAMOTORS-EQ', token: '3456', exchange: 'NSE', label: 'TATAMOTORS' },
-    { symbol: 'ITC-EQ', token: '1660', exchange: 'NSE', label: 'ITC' },
-    { symbol: 'BHARTIARTL-EQ', token: '10604', exchange: 'NSE', label: 'BHARTIARTL' },
-    { symbol: 'LT-EQ', token: '11483', exchange: 'NSE', label: 'L&T' },
-    { symbol: 'AXISBANK-EQ', token: '5900', exchange: 'NSE', label: 'AXISBANK' },
-    { symbol: 'WIPRO-EQ', token: '3787', exchange: 'NSE', label: 'WIPRO' },
-    { symbol: 'ADANIENT-EQ', token: '25', exchange: 'NSE', label: 'ADANIENT' },
-    { symbol: 'MARUTI-EQ', token: '10999', exchange: 'NSE', label: 'MARUTI' },
-    { symbol: 'BAJFINANCE-EQ', token: '317', exchange: 'NSE', label: 'BAJFINANCE' },
+    { symbol: 'LLOYDSENGG-EQ', token: null, exchange: 'NSE', label: 'LLOYDSENGG' },
+    { symbol: 'UJJIVANSFB-EQ', token: null, exchange: 'NSE', label: 'UJJIVANSFB' },
+    { symbol: 'NBCC-EQ', token: null, exchange: 'NSE', label: 'NBCC' },
+    { symbol: 'BOMDYEING-EQ', token: null, exchange: 'NSE', label: 'BOMDYEING' },
+    { symbol: 'MANAPPURAM-EQ', token: null, exchange: 'NSE', label: 'MANAPPURAM' },
+    { symbol: 'ADANIPOWER-EQ', token: null, exchange: 'NSE', label: 'ADANIPOWER' },
+    { symbol: 'IOB-EQ', token: null, exchange: 'NSE', label: 'IOB' },
+    { symbol: 'RVNL-EQ', token: null, exchange: 'NSE', label: 'RVNL' },
+    { symbol: 'INOXWIND-EQ', token: null, exchange: 'NSE', label: 'INOXWIND' },
+    { symbol: 'JSWSTEEL-EQ', token: null, exchange: 'NSE', label: 'JSWSTEEL' },
 ];
 
 // Timeframe presets
