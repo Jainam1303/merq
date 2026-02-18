@@ -330,6 +330,7 @@ export function StarPerformers() {
     const [performers, setPerformers] = useState<StarPerformerData[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTimeframe, setActiveTimeframe] = useState('30d');
+    const [activeStrategy, setActiveStrategy] = useState('all');
     const [sortBy, setSortBy] = useState('return');
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -339,6 +340,15 @@ export function StarPerformers() {
         { key: '30d', label: '30 Days', icon: '📅' },
         { key: '90d', label: '90 Days', icon: '📊' },
         { key: '120d', label: '120 Days', icon: '🏆' },
+    ];
+
+    const strategyTabs = [
+        { key: 'all', label: 'All Strategies', icon: '🎯' },
+        { key: 'orb', label: 'Alpha I (ORB)', icon: '🔥' },
+        { key: 'ema', label: 'Alpha II (EMA)', icon: '📈' },
+        { key: 'pullback', label: 'Alpha III (Pullback)', icon: '↩️' },
+        { key: 'engulfing', label: 'Alpha IV (Engulfing)', icon: '🕯️' },
+        { key: 'timebased', label: 'Alpha V (Time)', icon: '⏰' },
     ];
 
     const sortOptions = [
@@ -351,7 +361,9 @@ export function StarPerformers() {
     const fetchPerformers = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetchJson(`/star-performers?timeframe=${activeTimeframe}&sort=${sortBy}`);
+            let url = `/star-performers?timeframe=${activeTimeframe}&sort=${sortBy}`;
+            if (activeStrategy !== 'all') url += `&strategy=${activeStrategy}`;
+            const res = await fetchJson(url);
             if (res.status === 'success') {
                 setPerformers(res.data || []);
                 setLastUpdated(res.last_updated);
@@ -361,7 +373,7 @@ export function StarPerformers() {
         } finally {
             setLoading(false);
         }
-    }, [activeTimeframe, sortBy]);
+    }, [activeTimeframe, activeStrategy, sortBy]);
 
     useEffect(() => {
         fetchPerformers();
@@ -459,6 +471,25 @@ export function StarPerformers() {
                     </Card>
                 </div>
             )}
+
+            {/* Strategy Filter */}
+            <div className="flex flex-wrap gap-1.5 bg-secondary/50 p-1.5 rounded-lg">
+                {strategyTabs.map(tab => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveStrategy(tab.key)}
+                        className={cn(
+                            "px-3 py-1.5 rounded-md text-sm font-medium transition-all",
+                            activeStrategy === tab.key
+                                ? "bg-primary text-primary-foreground shadow-sm"
+                                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                        )}
+                    >
+                        <span className="mr-1">{tab.icon}</span>
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
 
             {/* Timeframe Tabs + Sort */}
             <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">

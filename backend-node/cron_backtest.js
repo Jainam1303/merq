@@ -47,8 +47,10 @@ const TIMEFRAMES = {
 // Strategies to test
 const STRATEGIES = [
     { value: 'orb', label: 'MerQ Alpha I', description: 'Opening Range Breakout' },
-    // Add more strategies later:
-    // { value: 'ema', label: 'MerQ Alpha II', description: 'EMA Crossover' },
+    { value: 'ema', label: 'MerQ Alpha II', description: 'EMA Crossover' },
+    { value: 'pullback', label: 'MerQ Alpha III', description: 'EMA Pullback' },
+    { value: 'engulfing', label: 'MerQ Alpha IV', description: 'Engulfing Pattern' },
+    { value: 'timebased', label: 'MerQ Alpha V', description: 'Time Based Strategy' },
 ];
 
 const STARTING_CAPITAL = 100000;
