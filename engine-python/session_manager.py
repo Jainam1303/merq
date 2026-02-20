@@ -3,13 +3,14 @@ import requests
 import time
 import pandas as pd
 from logzero import logger
-from strategies import orb, ema_crossover, test, ema_pullback_strategy, engulfing_strategy, time_based_strategy
+from strategies import orb, ema_crossover, test, ema_pullback_strategy, engulfing_strategy, time_based_strategy, vwap_volume_failure
 from strategies.orb import LiveORB
 from strategies.ema_crossover import LiveEMA
 from strategies.test import LiveTest
 from strategies.ema_pullback_strategy import LiveEMAPullback
 from strategies.engulfing_strategy import LiveEngulfing
 from strategies.time_based_strategy import LiveTimeBased
+from strategies.vwap_volume_failure import LiveVWAPFailure
 from SmartApi import SmartConnect
 from SmartApi.smartWebSocketV2 import SmartWebSocketV2
 import pyotp
@@ -148,6 +149,7 @@ class TradingSession:
                 'PULLBACK': LiveEMAPullback, # Alpha III
                 'ENGULFING': LiveEngulfing,  # Alpha IV
                 'TIMEBASED': LiveTimeBased,  # Alpha V
+                'VWAPFAILURE': LiveVWAPFailure, # Alpha VI
                 'TEST': LiveTest             # Debug/Testing
             }
             

@@ -237,6 +237,7 @@ def login_and_run_backtest(data):
                     "pullback": "strategies.ema_pullback_strategy",   # Alpha III
                     "engulfing": "strategies.engulfing_strategy",     # Alpha IV
                     "timebased": "strategies.time_based_strategy",    # Alpha V
+                    "vwapfailure": "strategies.vwap_volume_failure",  # Alpha VI
                     "test": "strategies.test"                         # Debug
                 }
                 
