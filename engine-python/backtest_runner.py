@@ -252,7 +252,7 @@ def login_and_run_backtest(data):
                 
                 # AGGREGATE RESULTS
                 total_pnl = sum(t['pnl'] for t in trades)
-                win_count = len([t for t in trades if t['result'] == 'TARGET' or t['result'] == 'SIGNAL_EXIT' or (t['result'] == 'SL' and t['pnl'] > 0)])
+                win_count = len([t for t in trades if t['pnl'] > 0])
                 total_trades = len(trades)
                 win_rate = (win_count / total_trades * 100) if total_trades > 0 else 0
                 

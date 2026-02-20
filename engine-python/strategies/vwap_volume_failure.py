@@ -391,16 +391,23 @@ def backtest(df):
     """
     MerQ Alpha VI - VWAP + Volume Failure Scalping Backtest
     
-    Simulates the exact strategy logic on historical 3-minute (or available) data:
-    - VWAP calculated intraday
-    - Volume spike detection
+    Works with ANY timeframe (3m, 5m, 15m, 30m, 60m).
+    Adapts volume spike detection and pattern recognition to the data provided.
+    
+    - VWAP calculated intraday (per-day, index-aligned)
+    - Volume spike detection (adaptive rolling window)
     - Failure candle pattern
     - Daily trade limits & DD control
     """
     trades = []
     
-    if df.empty or len(df) < 30:
+    if df.empty or len(df) < 5:
         return trades
+    
+    # ===============================
+    # MAKE A CLEAN COPY
+    # ===============================
+    df = df.copy()
     
     # ===============================
     # CONFIGURATION
@@ -409,11 +416,11 @@ def backtest(df):
     MAX_TRADES_PER_DAY = 3
     MAX_CONSECUTIVE_LOSSES = 2
     DAILY_DD_CAP_PCT = -0.008         # -0.8% daily
-    VOLUME_SPIKE_MULTIPLIER = 1.5
+    VOLUME_SPIKE_MULTIPLIER = 1.3     # Slightly relaxed for larger timeframes
     TARGET_PCT = 0.003                 # 0.3%
     RISK_PCT = 0.003                   # 0.3% risk
     OPENING_RANGE_MAX_PCT = 0.01       # 1%
-    FAILURE_BODY_RATIO = 0.7           # Failure candle body < 70% of spike body
+    FAILURE_BODY_RATIO = 0.85          # Failure candle body < 85% of spike body
     
     # Ensure float types
     for col in ['open', 'high', 'low', 'close', 'volume']:
@@ -424,52 +431,69 @@ def backtest(df):
         df['volume'] = 1000  # Default volume if not available
 
     df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df = df.sort_values('timestamp').reset_index(drop=True)
     df['date'] = df['timestamp'].dt.date
     df['hour'] = df['timestamp'].dt.hour
     df['minute'] = df['timestamp'].dt.minute
     
     # ===============================
     # CALCULATE ROLLING AVG VOLUME
+    # (min_periods=2 so we get values quickly)
     # ===============================
-    df['avg_volume'] = df['volume'].rolling(20, min_periods=5).mean()
+    df['avg_volume'] = df['volume'].rolling(20, min_periods=2).mean()
+    # Fill any remaining NaN with overall mean
+    overall_avg_vol = df['volume'].mean()
+    df['avg_volume'] = df['avg_volume'].fillna(overall_avg_vol)
     
     # ===============================
     # INTRADAY VWAP CALCULATION
+    # (Index-aligned to prevent mismatches)
     # ===============================
-    # Group by date and calculate cumulative VWAP per day
-    vwap_values = []
-    for date, day_df in df.groupby('date'):
-        cum_vol = day_df['volume'].cumsum()
-        cum_vol_price = (day_df['close'] * day_df['volume']).cumsum()
+    df['vwap'] = np.nan
+    for date, day_idx in df.groupby('date').groups.items():
+        day_mask = df.index.isin(day_idx)
+        day_vol = df.loc[day_mask, 'volume']
+        day_close = df.loc[day_mask, 'close']
+        cum_vol = day_vol.cumsum()
+        cum_vol_price = (day_close * day_vol).cumsum()
         day_vwap = cum_vol_price / cum_vol
-        day_vwap = day_vwap.fillna(method='ffill')
-        vwap_values.extend(day_vwap.values)
+        df.loc[day_mask, 'vwap'] = day_vwap
     
-    df['vwap'] = vwap_values
+    df['vwap'] = df['vwap'].ffill()
     
     # ===============================
-    # ADX / TREND FILTER (Simplified)
-    # Using directional movement to detect trend days
+    # DERIVED COLUMNS
     # ===============================
-    # Calculate if day is trending using price range vs body ratio
     df['body'] = abs(df['close'] - df['open'])
-    df['range'] = df['high'] - df['low']
+    df['candle_range'] = df['high'] - df['low']
+    
+    # ===============================
+    # DETECT TIMEFRAME (for adaptive opening range filter)
+    # ===============================
+    if len(df) >= 2:
+        td = (df['timestamp'].iloc[1] - df['timestamp'].iloc[0]).total_seconds() / 60
+        candle_minutes = max(1, int(td))
+    else:
+        candle_minutes = 5
+    
+    # Opening range = first ~15 minutes of the day
+    or_candle_count = max(1, int(15 / candle_minutes))
     
     # ===============================
     # BACKTEST ENGINE
     # ===============================
     position = None
-    daily_trade_count = {}      # {date: count}
-    daily_consecutive_losses = {}  # {date: count}
-    daily_pnl_tracker = {}      # {date: cumulative pnl}
+    daily_trade_count = {}
+    daily_consecutive_losses = {}
+    daily_pnl_tracker = {}
     last_date = None
-    skip_dates = set()          # Dates to skip (trend days, etc.)
+    skip_dates = set()
     
     # Pre-calculate trend day filter (opening range > 1%)
     for date, day_df in df.groupby('date'):
-        if len(day_df) < 5:
+        if len(day_df) < or_candle_count:
             continue
-        first_candles = day_df.head(5)  # First ~15 min
+        first_candles = day_df.head(or_candle_count)
         or_high = first_candles['high'].max()
         or_low = first_candles['low'].min()
         open_price = first_candles.iloc[0]['open']
@@ -486,17 +510,28 @@ def backtest(df):
         current_date = row['date']
         hour = row['hour']
         minute = row['minute']
-        close = row['close']
-        high = row['high']
-        low = row['low']
-        open_ = row['open']
-        vwap_val = row['vwap']
-        avg_vol = row['avg_volume'] if pd.notna(row['avg_volume']) else 10000
+        close = float(row['close'])
+        high = float(row['high'])
+        low = float(row['low'])
+        open_ = float(row['open'])
+        vwap_val = float(row['vwap']) if pd.notna(row['vwap']) else 0
+        avg_vol = float(row['avg_volume']) if pd.notna(row['avg_volume']) else overall_avg_vol
         
         # ===============================
         # DAILY RESET
         # ===============================
         if current_date != last_date:
+            # Close any overnight position
+            if position:
+                if position['type'] == 'BUY':
+                    pnl = (close - position['entry']) * position['qty']
+                else:
+                    pnl = (position['entry'] - close) * position['qty']
+                trades.append({
+                    "type": position['type'], "result": "DAY_EXIT", 
+                    "pnl": pnl, "date": row['timestamp']
+                })
+                position = None
             daily_trade_count[current_date] = 0
             daily_consecutive_losses[current_date] = 0
             daily_pnl_tracker[current_date] = 0.0
@@ -505,18 +540,19 @@ def backtest(df):
         # ===============================
         # TIME FILTER: 10:00 AM - 2:30 PM
         # ===============================
-        if hour < 10 or (hour == 14 and minute > 30) or hour > 14:
+        in_trade_window = (hour >= 10) and (hour < 14 or (hour == 14 and minute <= 30))
+        past_window = (hour > 14 or (hour == 14 and minute > 30))
+        
+        if not in_trade_window:
             # Auto close position at end of window
-            if position and (hour > 14 or (hour == 14 and minute > 30)):
+            if position and past_window:
                 if position['type'] == 'BUY':
                     pnl = (close - position['entry']) * position['qty']
                 else:
                     pnl = (position['entry'] - close) * position['qty']
                 trades.append({
-                    "type": position['type'], 
-                    "result": "TIME_EXIT", 
-                    "pnl": pnl, 
-                    "date": row['timestamp']
+                    "type": position['type'], "result": "TIME_EXIT", 
+                    "pnl": pnl, "date": row['timestamp']
                 })
                 daily_pnl_tracker[current_date] = daily_pnl_tracker.get(current_date, 0) + pnl
                 position = None
@@ -529,70 +565,32 @@ def backtest(df):
             continue
         
         # ===============================
-        # DAILY LIMITS CHECK  
-        # ===============================
-        if daily_trade_count.get(current_date, 0) >= MAX_TRADES_PER_DAY:
-            # Still process exits
-            if position:
-                pass  # Let exit logic run below
-            else:
-                continue
-        
-        if daily_consecutive_losses.get(current_date, 0) >= MAX_CONSECUTIVE_LOSSES:
-            if position:
-                pass
-            else:
-                continue
-        
-        # DD Cap check
-        if INITIAL_CAPITAL > 0 and daily_pnl_tracker.get(current_date, 0) / INITIAL_CAPITAL <= DAILY_DD_CAP_PCT:
-            if position:
-                pass
-            else:
-                continue
-        
-        # ===============================
-        # EXIT LOGIC (always process)
+        # EXIT LOGIC (always process first)
         # ===============================
         if position:
             if position['type'] == 'BUY':
-                # SL Hit
                 if low <= position['sl']:
                     pnl = (position['sl'] - position['entry']) * position['qty']
-                    trades.append({
-                        "type": "BUY", "result": "SL", "pnl": pnl, 
-                        "date": row['timestamp']
-                    })
+                    trades.append({"type": "BUY", "result": "SL", "pnl": pnl, "date": row['timestamp']})
                     daily_pnl_tracker[current_date] = daily_pnl_tracker.get(current_date, 0) + pnl
                     daily_consecutive_losses[current_date] = daily_consecutive_losses.get(current_date, 0) + 1
                     position = None
-                # Target Hit
                 elif high >= position['target']:
                     pnl = (position['target'] - position['entry']) * position['qty']
-                    trades.append({
-                        "type": "BUY", "result": "TARGET", "pnl": pnl, 
-                        "date": row['timestamp']
-                    })
+                    trades.append({"type": "BUY", "result": "TARGET", "pnl": pnl, "date": row['timestamp']})
                     daily_pnl_tracker[current_date] = daily_pnl_tracker.get(current_date, 0) + pnl
-                    daily_consecutive_losses[current_date] = 0  # Reset on win
+                    daily_consecutive_losses[current_date] = 0
                     position = None
-                    
             elif position['type'] == 'SELL':
                 if high >= position['sl']:
                     pnl = (position['entry'] - position['sl']) * position['qty']
-                    trades.append({
-                        "type": "SELL", "result": "SL", "pnl": pnl, 
-                        "date": row['timestamp']
-                    })
+                    trades.append({"type": "SELL", "result": "SL", "pnl": pnl, "date": row['timestamp']})
                     daily_pnl_tracker[current_date] = daily_pnl_tracker.get(current_date, 0) + pnl
                     daily_consecutive_losses[current_date] = daily_consecutive_losses.get(current_date, 0) + 1
                     position = None
                 elif low <= position['target']:
                     pnl = (position['entry'] - position['target']) * position['qty']
-                    trades.append({
-                        "type": "SELL", "result": "TARGET", "pnl": pnl, 
-                        "date": row['timestamp']
-                    })
+                    trades.append({"type": "SELL", "result": "TARGET", "pnl": pnl, "date": row['timestamp']})
                     daily_pnl_tracker[current_date] = daily_pnl_tracker.get(current_date, 0) + pnl
                     daily_consecutive_losses[current_date] = 0
                     position = None
@@ -603,7 +601,7 @@ def backtest(df):
         if position is not None:
             continue
         
-        # Re-check daily limits after potential exit
+        # Daily limits check
         if daily_trade_count.get(current_date, 0) >= MAX_TRADES_PER_DAY:
             continue
         if daily_consecutive_losses.get(current_date, 0) >= MAX_CONSECUTIVE_LOSSES:
@@ -611,7 +609,7 @@ def backtest(df):
         if INITIAL_CAPITAL > 0 and daily_pnl_tracker.get(current_date, 0) / INITIAL_CAPITAL <= DAILY_DD_CAP_PCT:
             continue
         
-        if pd.isna(vwap_val) or vwap_val <= 0 or pd.isna(avg_vol):
+        if vwap_val <= 0 or avg_vol <= 0:
             continue
         
         # ENSURE both spike and failure candles are from the SAME date
@@ -620,11 +618,15 @@ def backtest(df):
         if spike_date != current_date or prev_date != current_date:
             continue
         
+        # Also ensure spike and failure are within trade window (10:00-14:30)
+        spike_hour = int(spike_row['hour'])
+        prev_hour = int(prev_row['hour'])
+        if spike_hour < 10 or prev_hour < 10:
+            continue
+        
         # Spike candle characteristics
         spike_open = float(spike_row['open'])
         spike_close = float(spike_row['close'])
-        spike_high = float(spike_row['high'])
-        spike_low = float(spike_row['low'])
         spike_volume = float(spike_row['volume'])
         spike_body = abs(spike_close - spike_open)
         
@@ -636,46 +638,43 @@ def backtest(df):
         fail_volume = float(prev_row['volume'])
         fail_body = abs(fail_close - fail_open)
         
-        # Position size
-        qty = INITIAL_CAPITAL / close if close > 0 else 1
+        # Skip if spike has no body (doji)
+        if spike_body <= 0:
+            continue
         
         # ==========================================
         # LONG SETUP
         # ==========================================
-        # 1. Price below VWAP
-        # 2. Spike candle: Large RED candle with volume spike
-        # 3. Failure candle: Smaller body, lower volume, didn't continue down
-        
         spike_is_bearish = spike_close < spike_open
-        failure_didnt_continue_down = fail_close >= fail_open  # Not another red candle, or at least not bigger
+        # Failure: smaller body OR opposite color (exhaustion signs)
+        failure_shows_exhaustion_long = (fail_body < spike_body * FAILURE_BODY_RATIO) or (fail_close >= fail_open)
         
         if (close < vwap_val and                                                # Below VWAP
-            spike_is_bearish and                                                 # Spike is bearish (red)
+            spike_is_bearish and                                                 # Spike bearish
             spike_volume > avg_vol * VOLUME_SPIKE_MULTIPLIER and                # Volume spike
-            spike_body > 0 and                                                   # Has meaningful body
-            fail_body < spike_body * FAILURE_BODY_RATIO and                     # Exhaustion (smaller body)
             fail_volume < spike_volume and                                       # Lower volume
-            failure_didnt_continue_down):                                        # Failed to continue
+            failure_shows_exhaustion_long):                                      # Shows exhaustion
             
-            entry = fail_high  # Entry above failure candle high
-            sl = fail_low      # SL at failure candle low
+            # Entry at close of current candle (confirmation)
+            entry = close
+            sl = fail_low       # SL at failure candle low
             
             # Target: VWAP or fixed %
             vwap_dist = vwap_val - entry
             fixed_dist = entry * TARGET_PCT
             
-            if vwap_dist > 0 and vwap_dist < entry * 0.005:
+            if vwap_dist > 0 and vwap_dist < entry * 0.006:
                 tp = vwap_val
             else:
                 tp = entry + fixed_dist
             
             risk = entry - sl
-            if risk > 0:
-                # Risk-size position
+            if risk > 0 and tp > entry:
                 risk_amount = INITIAL_CAPITAL * RISK_PCT
                 risk_qty = risk_amount / risk
+                qty = INITIAL_CAPITAL / close if close > 0 else 1
                 qty = min(qty, risk_qty)
-                qty = max(1, qty)
+                qty = max(1, int(qty))
                 
                 position = {
                     'type': 'BUY', 'entry': entry, 'sl': sl, 
@@ -688,39 +687,49 @@ def backtest(df):
         # ==========================================
         elif position is None:
             spike_is_bullish = spike_close > spike_open
-            failure_didnt_continue_up = fail_close <= fail_open
+            failure_shows_exhaustion_short = (fail_body < spike_body * FAILURE_BODY_RATIO) or (fail_close <= fail_open)
             
             if (close > vwap_val and                                                # Above VWAP
-                spike_is_bullish and                                                 # Spike is bullish (green)
+                spike_is_bullish and                                                 # Spike bullish
                 spike_volume > avg_vol * VOLUME_SPIKE_MULTIPLIER and                # Volume spike
-                spike_body > 0 and                                                   # Has meaningful body
-                fail_body < spike_body * FAILURE_BODY_RATIO and                     # Exhaustion
                 fail_volume < spike_volume and                                       # Lower volume
-                failure_didnt_continue_up):                                           # Failed to continue
+                failure_shows_exhaustion_short):                                     # Shows exhaustion
                 
-                entry = fail_low    # Entry below failure candle low
+                entry = close       # Entry at close of current candle
                 sl = fail_high      # SL at failure candle high
                 
                 vwap_dist = entry - vwap_val
                 fixed_dist = entry * TARGET_PCT
                 
-                if vwap_dist > 0 and vwap_dist < entry * 0.005:
+                if vwap_dist > 0 and vwap_dist < entry * 0.006:
                     tp = vwap_val
                 else:
                     tp = entry - fixed_dist
                 
                 risk = sl - entry
-                if risk > 0:
+                if risk > 0 and tp < entry:
                     risk_amount = INITIAL_CAPITAL * RISK_PCT
                     risk_qty = risk_amount / risk
                     qty_sell = INITIAL_CAPITAL / close if close > 0 else 1
                     qty_sell = min(qty_sell, risk_qty)
-                    qty_sell = max(1, qty_sell)
+                    qty_sell = max(1, int(qty_sell))
                     
                     position = {
                         'type': 'SELL', 'entry': entry, 'sl': sl, 
                         'target': tp, 'qty': qty_sell
                     }
                     daily_trade_count[current_date] = daily_trade_count.get(current_date, 0) + 1
+    
+    # Close any remaining position at end
+    if position and len(df) > 0:
+        last = df.iloc[-1]
+        if position['type'] == 'BUY':
+            pnl = (float(last['close']) - position['entry']) * position['qty']
+        else:
+            pnl = (position['entry'] - float(last['close'])) * position['qty']
+        trades.append({
+            "type": position['type'], "result": "END_EXIT", 
+            "pnl": pnl, "date": last['timestamp']
+        })
     
     return trades
