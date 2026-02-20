@@ -22,7 +22,7 @@ const strategyOptions = [
   { value: 'PULLBACK', label: 'MerQ Alpha III', description: 'EMA Pullback Trend Strategy' },
   { value: 'ENGULFING', label: 'MerQ Alpha IV', description: 'Bullish/Bearish Engulfing Pattern' },
   { value: 'TIMEBASED', label: 'MerQ Alpha V', description: 'Fixed Time Entry (10AM, 2PM)' },
-  { value: 'VWAPFAILURE', label: 'MerQ Alpha VI', description: 'VWAP + Volume Failure Scalping' },
+  { value: 'VWAPFAILURE', label: 'MerQ Alpha VI', description: 'Enhanced EMA Pullback (9/21/50)' },
   { value: 'TEST', label: 'TEST Mode', description: 'Immediate BUY for testing orders' },
 ];
 import { toast } from "sonner";

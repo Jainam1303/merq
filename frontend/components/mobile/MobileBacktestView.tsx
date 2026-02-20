@@ -13,7 +13,7 @@ const strategies = [
     { label: "MerQ Alpha III", value: "pullback", description: "EMA Pullback Trend Strategy" },
     { label: "MerQ Alpha IV", value: "engulfing", description: "Bullish/Bearish Engulfing Pattern" },
     { label: "MerQ Alpha V", value: "timebased", description: "Fixed Time Entry (10AM, 2PM)" },
-    { label: "MerQ Alpha VI", value: "vwapfailure", description: "VWAP + Volume Failure Scalping" },
+    { label: "MerQ Alpha VI", value: "vwapfailure", description: "Enhanced EMA Pullback (9/21/50)" },
     { label: "TEST", value: "test", description: "Immediate BUY for testing orders" },
 ];
 
