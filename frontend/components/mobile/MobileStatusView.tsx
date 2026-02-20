@@ -337,6 +337,7 @@ export function MobileStatusView({
                             { value: 'PULLBACK', label: 'MerQ Alpha III', desc: 'EMA Pullback Trend Strategy' },
                             { value: 'ENGULFING', label: 'MerQ Alpha IV', desc: 'Bullish/Bearish Engulfing Pattern' },
                             { value: 'TIMEBASED', label: 'MerQ Alpha V', desc: 'Fixed Time Entry (10AM, 2PM)' },
+                            { value: 'VWAPFAILURE', label: 'MerQ Alpha VI', desc: 'VWAP + Volume Failure Scalping' },
                             { value: 'TEST', label: 'TEST Mode', desc: 'Immediate BUY for testing orders' },
                         ].map((s) => (
                             <button

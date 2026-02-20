@@ -29,6 +29,7 @@ const strategies = [
     { label: "MerQ Alpha III", value: "pullback", description: "EMA Pullback" },
     { label: "MerQ Alpha IV", value: "engulfing", description: "Engulfing Pattern" },
     { label: "MerQ Alpha V", value: "timebased", description: "Time-Based Entry" },
+    { label: "MerQ Alpha VI", value: "vwapfailure", description: "VWAP + Volume Failure Scalping" },
     { label: "TEST", value: "test", description: "Debug Strategy" },
 ];
 
