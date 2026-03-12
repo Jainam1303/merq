@@ -349,6 +349,8 @@ export function StarPerformers() {
         { key: 'pullback', label: 'Alpha III (Pullback)', icon: '↩️' },
         { key: 'engulfing', label: 'Alpha IV (Engulfing)', icon: '🕯️' },
         { key: 'timebased', label: 'Alpha V (Time)', icon: '⏰' },
+        { key: 'vwapfailure', label: 'Alpha VI (VWAP Failure)', icon: '📉' },
+        { key: 'orb_new', label: 'Alpha VII (ORB_NEW)', icon: '✨' },
     ];
 
     const sortOptions = [

@@ -23,6 +23,7 @@ const strategyOptions = [
   { value: 'ENGULFING', label: 'MerQ Alpha IV', description: 'Bullish/Bearish Engulfing Pattern' },
   { value: 'TIMEBASED', label: 'MerQ Alpha V', description: 'Fixed Time Entry (10AM, 2PM)' },
   { value: 'VWAPFAILURE', label: 'MerQ Alpha VI', description: 'Enhanced EMA Pullback (9/21/50)' },
+  { value: 'ORB_NEW', label: 'MerQ Alpha VII', description: 'ORB Improved Version' },
   { value: 'TEST', label: 'TEST Mode', description: 'Immediate BUY for testing orders' },
 ];
 import { toast } from "sonner";

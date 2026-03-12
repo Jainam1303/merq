@@ -153,6 +153,7 @@ export function MobileSettingsView({
                         { value: 'ENGULFING', label: 'MerQ Alpha IV', desc: 'Bullish/Bearish Engulfing Pattern' },
                         { value: 'TIMEBASED', label: 'MerQ Alpha V', desc: 'Fixed Time Entry (10AM, 2PM)' },
                         { value: 'VWAPFAILURE', label: 'MerQ Alpha VI', desc: 'Enhanced EMA Pullback (9/21/50)' },
+                        { value: 'ORB_NEW', label: 'MerQ Alpha VII', desc: 'ORB Improved Version' },
                         { value: 'TEST', label: 'TEST Mode', desc: 'Immediate BUY for testing orders' },
                     ].map((strategy) => (
                         <button

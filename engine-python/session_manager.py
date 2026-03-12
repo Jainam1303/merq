@@ -3,8 +3,9 @@ import requests
 import time
 import pandas as pd
 from logzero import logger
-from strategies import orb, ema_crossover, test, ema_pullback_strategy, engulfing_strategy, time_based_strategy, vwap_volume_failure
+from strategies import orb, ema_crossover, test, ema_pullback_strategy, engulfing_strategy, time_based_strategy, vwap_volume_failure, orb_new
 from strategies.orb import LiveORB
+from strategies.orb_new import LiveORB as LiveORBNew
 from strategies.ema_crossover import LiveEMA
 from strategies.test import LiveTest
 from strategies.ema_pullback_strategy import LiveEMAPullback
@@ -150,6 +151,7 @@ class TradingSession:
                 'ENGULFING': LiveEngulfing,  # Alpha IV
                 'TIMEBASED': LiveTimeBased,  # Alpha V
                 'VWAPFAILURE': LiveVWAPFailure, # Alpha VI
+                'ORB_NEW': LiveORBNew,       # Alpha VII
                 'TEST': LiveTest             # Debug/Testing
             }
             

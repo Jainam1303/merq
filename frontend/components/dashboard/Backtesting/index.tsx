@@ -30,6 +30,7 @@ const strategies = [
     { label: "MerQ Alpha IV", value: "engulfing", description: "Engulfing Pattern" },
     { label: "MerQ Alpha V", value: "timebased", description: "Time-Based Entry" },
     { label: "MerQ Alpha VI", value: "vwapfailure", description: "Enhanced EMA Pullback (9/21/50)" },
+    { label: "MerQ Alpha VII", value: "orb_new", description: "ORB Improved Version" },
     { label: "TEST", value: "test", description: "Debug Strategy" },
 ];
 

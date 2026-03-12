@@ -68,7 +68,16 @@ export function BacktestHistory() {
                     </TableHeader>
                     <TableBody>
                         {paginatedHistory.map((h) => {
-                            const strategyLabel = h.strategy === 'orb' ? 'MerQ Alpha I' : h.strategy === 'ema' ? 'MerQ Alpha II' : h.strategy?.toUpperCase() || 'Unknown';
+                            const strategyMap: Record<string, string> = {
+                                'orb': 'MerQ Alpha I',
+                                'ema': 'MerQ Alpha II',
+                                'pullback': 'MerQ Alpha III',
+                                'engulfing': 'MerQ Alpha IV',
+                                'timebased': 'MerQ Alpha V',
+                                'vwapfailure': 'MerQ Alpha VI',
+                                'orb_new': 'MerQ Alpha VII'
+                            };
+                            const strategyLabel = strategyMap[h.strategy] || h.strategy?.toUpperCase() || 'Unknown';
                             return (
                                 <TableRow key={h.id}>
                                     <TableCell className="text-muted-foreground text-xs">{new Date(h.createdAt).toLocaleString()}</TableCell>

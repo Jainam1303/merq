@@ -51,6 +51,8 @@ const STRATEGIES = [
     { value: 'pullback', label: 'MerQ Alpha III', description: 'EMA Pullback' },
     { value: 'engulfing', label: 'MerQ Alpha IV', description: 'Engulfing Pattern' },
     { value: 'timebased', label: 'MerQ Alpha V', description: 'Time Based Strategy' },
+    { value: 'vwapfailure', label: 'MerQ Alpha VI', description: 'Enhanced EMA Pullback (9/21/50)' },
+    { value: 'orb_new', label: 'MerQ Alpha VII', description: 'ORB Improved Version' },
 ];
 
 const STARTING_CAPITAL = 100000;
