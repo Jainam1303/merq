@@ -9,4 +9,5 @@ export { MobileAnalyticsView } from './MobileAnalyticsView';
 export { MobileOrderBookView } from './MobileOrderBookView';
 export { MobilePlansView } from './MobilePlansView';
 export { MobileProfileSettingsView } from './MobileProfileSettingsView';
+export { MobileScannerView } from './MobileScannerView';
 export { MobileDashboard } from './MobileDashboard';

@@ -8,8 +8,8 @@ import {
   Settings,
   X,
   Play,
-  Gift,
-  Star
+  Star,
+  Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,7 @@ const menuItems = [
   { id: 'backtesting', label: 'Backtesting', icon: Play },
   { id: 'backtest-history', label: 'Backtest History', icon: History },
   { id: 'star-performers', label: 'Star Performers', icon: Star },
+  { id: 'scanner', label: 'Scanner', icon: Search },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
   { id: 'order-book', label: 'Order Book', icon: BookOpen },
   { id: 'referrals', label: 'Refer & Earn', icon: Gift },

@@ -865,9 +865,68 @@ app.post('/update_trade', verifyToken, (req, res) => {
 app.use('/', alphaTickerRoutes); // Alpha Vantage ticker for landing page (Reliable Daily Updates)
 app.use('/', tradingRoutes); // Handles /start, /stop, /status
 
+// ── Scanner Routes ──
+const scannerEngineService = require('./services/engineService');
+
+// List available scanners (public)
+app.get('/scanner/list', async (req, res) => {
+    try {
+        const result = await scannerEngineService.listScanners();
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ status: 'error', message: e.message });
+    }
+});
+
+// Run a scanner (requires auth + broker creds)
+app.post('/scanner/run', verifyToken, async (req, res) => {
+    try {
+        const { scanner_id } = req.body;
+        const userId = req.user.id;
+
+        // Get user's broker credentials from profile
+        const { User } = require('./models');
+        const user = await User.findByPk(userId);
+
+        if (!user) {
+            return res.status(404).json({ status: 'error', message: 'User not found' });
+        }
+
+        const brokerCreds = {
+            apiKey: user.angel_api_key,
+            clientCode: user.angel_client_code,
+            password: user.angel_password,
+            totp: user.angel_totp
+        };
+
+        if (!brokerCreds.apiKey || !brokerCreds.clientCode) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Broker credentials not configured. Go to Settings to add your Angel One API keys.'
+            });
+        }
+
+        const result = await scannerEngineService.runScanner(scanner_id, brokerCreds);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ status: 'error', message: e.message });
+    }
+});
+
+// Get scanner progress
+app.get('/scanner/progress/:scannerId', verifyToken, async (req, res) => {
+    try {
+        const result = await scannerEngineService.getScannerProgress(req.params.scannerId);
+        res.json(result);
+    } catch (e) {
+        res.json({ status: 'unknown', current: 0, total: 0 });
+    }
+});
+
 // Health check root
 app.get('/', (req, res) => {
     res.json({ message: 'MerQPrime Node Backend Running', status: 'active' });
 });
 
 module.exports = app;
+

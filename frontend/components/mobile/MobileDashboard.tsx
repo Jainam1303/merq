@@ -14,6 +14,7 @@ import {
     MobileAnalyticsView,
     MobileOrderBookView,
     MobilePlansView,
+    MobileScannerView,
     type MobileTab
 } from '@/components/mobile';
 import { MobileHeader } from './MobileHeader';
@@ -474,6 +475,8 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
                 );
             case 'logs':
                 return <MobileLogsView logs={logs} />;
+            case 'scanner':
+                return <MobileScannerView />;
             case 'backtest':
                 return <MobileBacktestView />;
             case 'analytics':

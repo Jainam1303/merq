@@ -1,9 +1,9 @@
 "use client";
 import React from 'react';
-import { Home, LineChart, ScrollText, Settings, Power, BarChart3, BookOpen, CreditCard, TrendingUp as TrendingUpIcon } from 'lucide-react';
+import { Search, Home, LineChart, ScrollText, Settings, Power, BarChart3, BookOpen, CreditCard, TrendingUp as TrendingUpIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type MobileTab = 'status' | 'trades' | 'logs' | 'backtest' | 'analytics';
+export type MobileTab = 'status' | 'trades' | 'scanner' | 'backtest' | 'analytics' | 'logs';
 
 interface MobileNavigationProps {
     activeTab: MobileTab;
@@ -21,9 +21,9 @@ export function MobileNavigation({
     const tabs: { id: MobileTab; label: string; icon: typeof Home }[] = [
         { id: 'status', label: 'Home', icon: Home },
         { id: 'trades', label: 'Trades', icon: LineChart },
+        { id: 'scanner', label: 'Scanner', icon: Search },
         { id: 'backtest', label: 'Backtest', icon: TrendingUpIcon },
         { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-        { id: 'logs', label: 'Logs', icon: ScrollText },
     ];
 
     return (

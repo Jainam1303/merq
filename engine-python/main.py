@@ -290,5 +290,39 @@ def execute_test_order(data: dict):
         }
 
 
+import scanner as scanner_module
+
+@app.get("/engine/scanner/list")
+def list_scanners():
+    """Return available scanners with metadata"""
+    return {
+        "status": "success",
+        "scanners": list(scanner_module.SCANNERS.values())
+    }
+
+@app.post("/engine/scanner/run")
+def run_scanner(data: dict, background_tasks: BackgroundTasks):
+    """Run a stock scanner"""
+    scanner_id = data.get("scanner_id", "vcp")
+    credentials = data.get("broker_credentials", {})
+    
+    if scanner_id not in scanner_module.SCANNERS:
+        raise HTTPException(status_code=400, detail=f"Unknown scanner: {scanner_id}")
+    
+    if not credentials.get("apiKey") and not credentials.get("api_key"):
+        raise HTTPException(status_code=400, detail="Broker credentials required to run scanner")
+    
+    try:
+        results = scanner_module.run_scanner(scanner_id, credentials)
+        return results
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/engine/scanner/progress/{scanner_id}")
+def scanner_progress(scanner_id: str):
+    """Get progress of a running scan"""
+    return scanner_module.get_scan_progress(scanner_id)
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5002)

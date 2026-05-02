@@ -145,6 +145,52 @@ class PythonEngineService {
             return { status: 'dismissed', message: 'Position removed from tracking' };
         }
     }
+
+    // ── Scanner Methods ──
+
+    // 8. List available scanners
+    async listScanners() {
+        try {
+            const headers = this._getHeaders({});
+            const res = await this.client.get('/engine/scanner/list', { headers });
+            return res.data;
+        } catch (err) {
+            console.error('List Scanners Failed:', err.message);
+            return { status: 'error', scanners: [] };
+        }
+    }
+
+    // 9. Run a scanner
+    async runScanner(scannerId, brokerCredentials) {
+        try {
+            const payload = {
+                scanner_id: scannerId,
+                broker_credentials: brokerCredentials
+            };
+            const res = await this.client.post('/engine/scanner/run', payload, {
+                headers: this._getHeaders(payload),
+                timeout: 600000 // 10 min timeout — scanning 50 stocks takes time
+            });
+            return res.data;
+        } catch (err) {
+            console.error('Run Scanner Failed:', err.message);
+            if (err.code === 'ECONNREFUSED') {
+                throw new Error('Python Engine Offline. Please check if engine is running.');
+            }
+            throw new Error(err.response?.data?.detail || err.message || 'Scanner failed');
+        }
+    }
+
+    // 10. Get scanner progress
+    async getScannerProgress(scannerId) {
+        try {
+            const headers = this._getHeaders({});
+            const res = await this.client.get(`/engine/scanner/progress/${scannerId}`, { headers, timeout: 5000 });
+            return res.data;
+        } catch (err) {
+            return { status: 'unknown', current: 0, total: 0 };
+        }
+    }
 }
 
 module.exports = new PythonEngineService();

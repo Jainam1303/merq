@@ -12,6 +12,7 @@ import { OrderBook } from "@/components/dashboard/OrderBook";
 import { Referrals } from "@/components/dashboard/Referrals";
 import { Profile } from "@/components/dashboard/Profile";
 import { StarPerformers } from "@/components/dashboard/StarPerformers";
+import { Scanner } from "@/components/dashboard/Scanner";
 import { MobileDashboard } from "@/components/mobile";
 import { fetchJson } from "@/lib/api";
 import { toast } from "sonner";
@@ -146,6 +147,8 @@ export default function DashboardNewPage() {
                 return <OrderBook />;
             case 'referrals':
                 return <Referrals />;
+            case 'scanner':
+                return <Scanner />;
             case 'profile':
                 return <Profile />;
             default:
@@ -160,6 +163,7 @@ export default function DashboardNewPage() {
             case 'backtest-history': return 'Backtest History';
             case 'star-performers': return 'Star Performers';
             case 'analytics': return 'Analytics';
+            case 'scanner': return 'Stock Scanner';
             case 'order-book': return 'Order Book';
             case 'referrals': return 'Refer & Earn';
             case 'profile': return 'Profile & Settings';
