@@ -8,6 +8,7 @@ import {
   Settings,
   X,
   Play,
+  Gift,
   Star,
   Search
 } from "lucide-react";
