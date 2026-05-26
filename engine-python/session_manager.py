@@ -788,16 +788,20 @@ class TradingSession:
                 self.log(f"⚠️ Using fallback symbol logic: {trading_symbol}", "WARNING")
             
             # Build order params - SmartAPI v2 format
+            # SEBI Market Order Bypass: Use Marketable Limit Order with 0.2% buffer
+            limit_price = price * 1.002 if order_type == "BUY" else price * 0.998
+            limit_price = round(limit_price * 20) / 20  # Round to nearest 0.05
+            
             order_params = {
                 "variety": "NORMAL",
                 "tradingsymbol": trading_symbol,
                 "symboltoken": str(token),
                 "transactiontype": order_type,  # BUY or SELL
                 "exchange": "NSE",
-                "ordertype": "MARKET",
+                "ordertype": "LIMIT",
                 "producttype": "INTRADAY",  # MIS for intraday
                 "duration": "DAY",
-                "price": "0",
+                "price": f"{limit_price:.2f}",
                 "squareoff": "0",
                 "stoploss": "0",
                 "quantity": str(qty)
@@ -1310,16 +1314,24 @@ class TradingSession:
                 self.log(f"⚠️ Using fallback symbol logic for exit: {trading_symbol}", "WARNING")
             exit_type = "SELL" if pos['type'] == "BUY" else "BUY"
             
+            # SEBI Market Order Bypass: Use Marketable Limit Order with 0.2% buffer
+            current_price = float(pos.get('exit', 0))
+            if current_price <= 0:
+                current_price = float(pos.get('entry', 0))
+            
+            limit_price = current_price * 1.002 if exit_type == "BUY" else current_price * 0.998
+            limit_price = round(limit_price * 20) / 20  # Round to nearest 0.05
+            
             order_params = {
                 "variety": "NORMAL",
                 "tradingsymbol": trading_symbol,
                 "symboltoken": str(token),
                 "transactiontype": exit_type,
                 "exchange": "NSE",
-                "ordertype": "MARKET",
+                "ordertype": "LIMIT",
                 "producttype": "INTRADAY",
                 "duration": "DAY",
-                "price": "0",
+                "price": f"{limit_price:.2f}",
                 "squareoff": "0",
                 "stoploss": "0",
                 "quantity": str(pos['qty'])
