@@ -775,7 +775,7 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
                       Save Client Details
                     </button>
                     <button
-                      onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/broker/angel/login`}
+                      onClick={() => window.location.href = '/api/broker/angel/login'}
                       className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 rounded-lg transition-colors font-medium text-sm"
                     >
                       Connect to Angel One via OAuth

@@ -438,7 +438,7 @@ export function Profile() {
                             <div className="flex gap-4 items-center">
                                 <Button onClick={() => handleUpdate('Angel One Credentials')} disabled={saving}>Save Client Details</Button>
                                 <Button 
-                                    onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/broker/angel/login`} 
+                                    onClick={() => window.location.href = '/api/broker/angel/login'}
                                     className="bg-blue-600 hover:bg-blue-700 text-white"
                                 >
                                     Connect to Angel One via OAuth
