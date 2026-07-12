@@ -58,7 +58,7 @@ const starPerformerRoutes = require('./routes/starPerformerRoutes');
 // API Versioning Prefix
 app.use('/api/auth', authRoutes);
 const brokerAuthRoutes = require('./routes/brokerAuthRoutes');
-app.use('/api/broker', brokerAuthRoutes);
+app.use('/broker', brokerAuthRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
 app.use('/api/test', verifyToken, testOrderRoutes); // Test order execution
 app.use('/test', verifyToken, testOrderRoutes); // Legacy alias for Next.js proxy
@@ -885,22 +885,28 @@ app.get('/scanner/list', async (req, res) => {
 // Run a scanner (requires auth + broker creds)
 app.post('/scanner/run', verifyToken, async (req, res) => {
     try {
-        const { scanner_id } = req.body;
+        const { scanner_id, filter_sentiment } = req.body;
         const userId = req.user.id;
 
         // Get user's broker credentials from profile
-        const { User } = require('./models');
+        const { User, StockSentiment } = require('./models');
         const user = await User.findByPk(userId);
-
         if (!user) {
             return res.status(404).json({ status: 'error', message: 'User not found' });
         }
+
+        const sentiments = await StockSentiment.findAll({ raw: true });
+        const sentimentMap = {};
+        sentiments.forEach(s => {
+            sentimentMap[s.symbol] = s.score;
+        });
 
         const brokerCreds = {
             apiKey: user.angel_api_key,
             clientCode: user.angel_client_code,
             password: user.angel_password,
-            totp: user.angel_totp
+            totp: user.angel_totp,
+            access_token: user.angel_access_token
         };
 
         if (!brokerCreds.apiKey || !brokerCreds.clientCode) {
@@ -910,7 +916,7 @@ app.post('/scanner/run', verifyToken, async (req, res) => {
             });
         }
 
-        const result = await scannerEngineService.runScanner(scanner_id, brokerCreds);
+        const result = await scannerEngineService.runScanner(scanner_id, brokerCreds, { sentimentMap, filterSentiment: filter_sentiment });
         res.json(result);
     } catch (e) {
         res.status(500).json({ status: 'error', message: e.message });
@@ -924,6 +930,44 @@ app.get('/scanner/progress/:scannerId', verifyToken, async (req, res) => {
         res.json(result);
     } catch (e) {
         res.json({ status: 'unknown', current: 0, total: 0 });
+    }
+});
+// Sentiments API
+app.get('/sentiments', verifyToken, async (req, res) => {
+    try {
+        const { StockSentiment } = require('./models');
+        const sentiments = await StockSentiment.findAll({
+            order: [['last_updated', 'DESC']]
+        });
+        res.json(sentiments);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Internal API for Python Worker to push sentiments
+app.post('/internal/sentiments', async (req, res) => {
+    try {
+        const { secret, sentiments } = req.body;
+        // Simple shared secret check
+        if (secret !== (process.env.INTERNAL_API_SECRET || 'super_secret_python_worker')) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+        
+        const { StockSentiment } = require('./models');
+        
+        for (const data of sentiments) {
+            const [sentiment, created] = await StockSentiment.findOrCreate({
+                where: { symbol: data.symbol },
+                defaults: data
+            });
+            if (!created) {
+                await sentiment.update(data);
+            }
+        }
+        res.json({ status: 'success', count: sentiments.length });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
     }
 });
 

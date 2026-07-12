@@ -66,6 +66,7 @@ export function Scanner() {
     const [isScanning, setIsScanning] = useState(false);
     const [progress, setProgress] = useState<ScanProgress | null>(null);
     const [expandedConditions, setExpandedConditions] = useState<string | null>(null);
+    const [filterSentiment, setFilterSentiment] = useState(true);
     const [sortField, setSortField] = useState<string>("sr");
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
     const progressInterval = useRef<NodeJS.Timeout | null>(null);
@@ -136,7 +137,7 @@ export function Scanner() {
         try {
             const data = await fetchJson("/scanner/run", {
                 method: "POST",
-                body: JSON.stringify({ scanner_id: scannerId })
+                body: JSON.stringify({ scanner_id: scannerId, filter_sentiment: filterSentiment })
             });
 
             if (data.status === "success") {
@@ -273,6 +274,20 @@ export function Scanner() {
                                 </div>
                             )}
 
+                            {/* Sentiment Filter */}
+                            <div className="flex items-center gap-2 mb-4">
+                                <input
+                                    type="checkbox"
+                                    id={`sentiment-${scanner.id}`}
+                                    checked={filterSentiment}
+                                    onChange={(e) => setFilterSentiment(e.target.checked)}
+                                    className="rounded border-border text-primary focus:ring-primary/50"
+                                />
+                                <label htmlFor={`sentiment-${scanner.id}`} className="text-xs font-medium text-muted-foreground cursor-pointer">
+                                    Filter out Bearish/Neutral Sentiment
+                                </label>
+                            </div>
+
                             {/* Run Button */}
                             <button
                                 onClick={() => runScan(scanner.id)}
@@ -348,7 +363,7 @@ export function Scanner() {
                         </div>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => runScan(results.scanner_id)}
+                                onClick={() => runScan(results.scanner_id, filterSentiment)}
                                 disabled={isScanning}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
                             >
@@ -389,6 +404,10 @@ export function Scanner() {
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground"
                                         onClick={() => handleSort("volume")}>
                                         Volume
+                                    </th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground"
+                                        onClick={() => handleSort("sentiment")}>
+                                        Sentiment
                                     </th>
                                     {results.scanner_id === "vcp" && (
                                         <>
@@ -443,6 +462,19 @@ export function Scanner() {
                                         </td>
                                         <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
                                             {formatVolume(stock.volume)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            {stock.sentiment !== undefined ? (
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                                                    stock.sentiment > 0.3 ? "bg-emerald-500/10 text-emerald-400" :
+                                                    stock.sentiment < -0.3 ? "bg-red-500/10 text-red-400" :
+                                                    "bg-secondary text-muted-foreground"
+                                                }`}>
+                                                    {stock.sentiment > 0.3 ? "Bullish" : stock.sentiment < -0.3 ? "Bearish" : "Neutral"}
+                                                </span>
+                                            ) : (
+                                                <span className="text-muted-foreground text-xs">N/A</span>
+                                            )}
                                         </td>
                                         {results.scanner_id === "vcp" && (
                                             <>

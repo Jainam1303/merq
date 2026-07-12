@@ -228,11 +228,21 @@ def login_smart_api(credentials):
         client_code = credentials.get("client_code") or credentials.get("clientCode")
         password = credentials.get("password")
         totp_key = credentials.get("totp")
+        access_token = credentials.get("access_token")
         
-        if not all([api_key, client_code, password, totp_key]):
-            raise ValueError("Missing broker credentials")
-        
+        if not api_key or not client_code:
+            raise ValueError("Missing API key or Client Code")
+            
         smart_api = SmartConnect(api_key=api_key)
+        
+        if access_token:
+            smart_api.access_token = access_token
+            logger.info("Using OAuth access token for scanner")
+            return smart_api
+            
+        if not all([password, totp_key]):
+            raise ValueError("Missing broker credentials (password/totp or access_token)")
+            
         totp = pyotp.TOTP(totp_key).now()
         session_data = smart_api.generateSession(client_code, password, totp)
         
@@ -350,7 +360,7 @@ def load_stock_universe():
 # MAIN SCANNER RUNNER
 # ═══════════════════════════════════════════
 
-def run_scanner(scanner_id, broker_credentials):
+def run_scanner(scanner_id, broker_credentials, sentiment_map={}, filter_sentiment=False):
     """
     Main scanner runner
     1. Login to SmartAPI
@@ -423,12 +433,19 @@ def run_scanner(scanner_id, broker_credentials):
                 match, indicators = scan_ipo_base(df, len(df))
             
             if match:
+                sentiment = sentiment_map.get(symbol, 0.0)
+                if filter_sentiment and sentiment < 0.05:
+                    # Skip if filtering by sentiment and score is not bullish
+                    continue
+                    
                 results.append({
                     "sr": len(results) + 1,
                     "symbol": symbol.replace('-EQ', ''),
                     "name": name,
+                    "sentiment": sentiment,
                     **indicators
                 })
+                logger.info(f"[{scanner_id.upper()}] MATCH: {symbol} (Sentiment: {sentiment})")
             
             # Rate limit: SmartAPI allows ~10 requests/sec
             time.sleep(0.35)

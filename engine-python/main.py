@@ -305,6 +305,8 @@ def run_scanner(data: dict, background_tasks: BackgroundTasks):
     """Run a stock scanner"""
     scanner_id = data.get("scanner_id", "vcp")
     credentials = data.get("broker_credentials", {})
+    sentiment_map = data.get("sentiment_map", {})
+    filter_sentiment = data.get("filter_sentiment", False)
     
     if scanner_id not in scanner_module.SCANNERS:
         raise HTTPException(status_code=400, detail=f"Unknown scanner: {scanner_id}")
@@ -313,7 +315,7 @@ def run_scanner(data: dict, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=400, detail="Broker credentials required to run scanner")
     
     try:
-        results = scanner_module.run_scanner(scanner_id, credentials)
+        results = scanner_module.run_scanner(scanner_id, credentials, sentiment_map, filter_sentiment)
         return results
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

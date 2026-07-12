@@ -161,11 +161,13 @@ class PythonEngineService {
     }
 
     // 9. Run a scanner
-    async runScanner(scannerId, brokerCredentials) {
+    async runScanner(scannerId, brokerCredentials, options = {}) {
         try {
             const payload = {
                 scanner_id: scannerId,
-                broker_credentials: brokerCredentials
+                broker_credentials: brokerCredentials,
+                sentiment_map: options.sentimentMap || {},
+                filter_sentiment: options.filterSentiment || false
             };
             const res = await this.client.post('/engine/scanner/run', payload, {
                 headers: this._getHeaders(payload),
