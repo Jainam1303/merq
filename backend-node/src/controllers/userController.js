@@ -218,18 +218,26 @@ exports.createOrder = async (req, res) => {
         const plan = await Plan.findByPk(plan_id);
         if (!plan) return res.status(404).json({ status: 'error', message: 'Plan not found' });
 
-        const instance = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET
-        });
-
         const options = {
             amount: Math.round(plan.price * 100), // amount in smallest currency unit
             currency: "INR",
             receipt: `order_rcptid_${Date.now()}_${req.user.id}`
         };
 
-        const order = await instance.orders.create(options);
+        let order;
+        if (process.env.RAZORPAY_KEY_ID === 'mock_key' || process.env.RAZORPAY_KEY_ID === 'dummy_key') {
+            order = {
+                id: `order_mock_${Date.now()}`,
+                amount: options.amount,
+                currency: options.currency
+            };
+        } else {
+            const instance = new Razorpay({
+                key_id: process.env.RAZORPAY_KEY_ID,
+                key_secret: process.env.RAZORPAY_KEY_SECRET
+            });
+            order = await instance.orders.create(options);
+        }
 
         // Fetch user for prefill
         const user = await User.findByPk(req.user.id);
@@ -266,7 +274,9 @@ exports.verifyPayment = async (req, res) => {
         console.log(`[VerifyPayment] Recv Sig: ${razorpay_signature}`);
         console.log(`[VerifyPayment] Gen Sig: ${generated_signature}`);
 
-        if (generated_signature !== razorpay_signature) {
+        if (process.env.RAZORPAY_KEY_ID === 'mock_key' || process.env.RAZORPAY_KEY_ID === 'dummy_key') {
+            console.log('[VerifyPayment] Bypassing signature check for mock keys');
+        } else if (generated_signature !== razorpay_signature) {
             console.error('[VerifyPayment] Signature Mismatch');
             return res.json({ status: 'error', message: 'Invalid Signature' });
         }

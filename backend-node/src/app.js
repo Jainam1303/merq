@@ -14,6 +14,8 @@ app.use(cookieParser());
 const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
+    'http://localhost:3003',
+    'http://127.0.0.1:3003',
     'https://merq.vercel.app',
     'https://merqprime.in',
     'https://www.merqprime.in',
@@ -55,6 +57,8 @@ const starPerformerRoutes = require('./routes/starPerformerRoutes');
 
 // API Versioning Prefix
 app.use('/api/auth', authRoutes);
+const brokerAuthRoutes = require('./routes/brokerAuthRoutes');
+app.use('/api/broker', brokerAuthRoutes);
 app.use('/api/val', userRoutes); // Protected User Routes
 app.use('/api/test', verifyToken, testOrderRoutes); // Test order execution
 app.use('/test', verifyToken, testOrderRoutes); // Legacy alias for Next.js proxy

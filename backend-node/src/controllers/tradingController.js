@@ -35,9 +35,9 @@ exports.startBot = async (req, res) => {
         const user = await User.findByPk(req.user.id);
         if (!user) return res.status(404).json({ message: 'User not found' });
 
-        // Validate API Keys
-        if (!user.angel_api_key || !user.angel_client_code || !user.angel_password || !user.angel_totp) {
-            return res.status(400).json({ message: 'Angel One API Keys are missing. Please configure them in Settings > API Keys.' });
+        // Validate API Keys and Access Token
+        if (!user.angel_api_key || !user.angel_client_code || !user.angel_access_token) {
+            return res.status(400).json({ message: 'Broker connection missing. Please connect to Angel One in Profile settings.' });
         }
 
         const strategyConfig = {
@@ -54,8 +54,7 @@ exports.startBot = async (req, res) => {
         const brokerCreds = {
             apiKey: user.angel_api_key,
             clientCode: user.angel_client_code,
-            password: user.angel_password,
-            totp: user.angel_totp,
+            accessToken: user.angel_access_token,
 
             // Backtest credentials if needed (Engine uses same structure usually)
             backtest_api_key: user.backtest_api_key,

@@ -12,7 +12,7 @@ const sequelize = process.env.DATABASE_URL
             }
         }
     })
-    : new Sequelize(
+    : process.env.DB_NAME ? new Sequelize(
         process.env.DB_NAME,
         process.env.DB_USER,
         process.env.DB_PASS,
@@ -22,7 +22,11 @@ const sequelize = process.env.DATABASE_URL
             dialect: 'postgres',
             logging: false,
         }
-    );
+    ) : new Sequelize({
+        dialect: 'sqlite',
+        storage: './database.sqlite',
+        logging: false,
+    });
 
 const connectDB = async () => {
     try {

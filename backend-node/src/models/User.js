@@ -75,8 +75,13 @@ const User = sequelize.define('User', {
     // Broker Credentials (Encrypted)
     angel_api_key: DataTypes.TEXT,
     angel_client_code: DataTypes.STRING(100),
-    angel_password: DataTypes.TEXT,
-    angel_totp: DataTypes.TEXT,
+    angel_password: { type: DataTypes.TEXT, comment: 'DEPRECATED - use OAuth' },
+    angel_totp: { type: DataTypes.TEXT, comment: 'DEPRECATED - use OAuth' },
+    
+    // Angel One OAuth Tokens
+    angel_access_token: DataTypes.TEXT,
+    angel_refresh_token: DataTypes.TEXT,
+    angel_token_expiry: DataTypes.DATE,
 
     // Backtest Credentials
     backtest_api_key: DataTypes.TEXT,
