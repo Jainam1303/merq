@@ -128,27 +128,43 @@ export function Scanner() {
         progressInterval.current = setInterval(async () => {
             try {
                 const prog = await fetchJson(`/scanner/progress/${scannerId}`);
-                if (prog.status === "running" || prog.status === "complete") {
+                
+                if (prog.status === "running" || prog.status === "starting" || prog.status === "completed") {
                     setProgress(prog);
+                }
+
+                if (prog.status === "completed") {
+                    // Fetch final results
+                    clearInterval(progressInterval.current as NodeJS.Timeout);
+                    progressInterval.current = null;
+                    
+                    try {
+                        const data = await fetchJson(`/scanner/results/${scannerId}`);
+                        if (data.status === "success") {
+                            setResults(data);
+                            toast.success(`Found ${data.matches} stocks matching criteria`);
+                        } else {
+                            toast.error(data.message || "Scan failed");
+                        }
+                    } catch (err: any) {
+                        toast.error("Failed to fetch scan results");
+                    } finally {
+                        setIsScanning(false);
+                        setProgress(null);
+                    }
                 }
             } catch (e) { }
         }, 2000);
 
         try {
-            const data = await fetchJson("/scanner/run", {
+            // Start scan in background (returns immediately)
+            await fetchJson("/scanner/run", {
                 method: "POST",
                 body: JSON.stringify({ scanner_id: scannerId, filter_sentiment: filterSentiment })
             });
-
-            if (data.status === "success") {
-                setResults(data);
-                toast.success(`Found ${data.count} stocks matching ${data.scanner} criteria`);
-            } else {
-                toast.error(data.message || "Scan failed");
-            }
+            // Polling handles the rest!
         } catch (e: any) {
-            toast.error(e.message || "Scanner failed. Check if broker credentials are configured.");
-        } finally {
+            toast.error(e.message || "Scanner failed to start");
             setIsScanning(false);
             if (progressInterval.current) {
                 clearInterval(progressInterval.current);

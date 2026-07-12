@@ -17,3 +17,4 @@ backtrader
 pyotp
 psycopg2-binary
 websocket-client
+yfinance==1.5.1

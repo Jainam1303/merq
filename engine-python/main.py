@@ -311,14 +311,24 @@ def run_scanner(data: dict, background_tasks: BackgroundTasks):
     if scanner_id not in scanner_module.SCANNERS:
         raise HTTPException(status_code=400, detail=f"Unknown scanner: {scanner_id}")
     
-    if not credentials.get("apiKey") and not credentials.get("api_key"):
-        raise HTTPException(status_code=400, detail="Broker credentials required to run scanner")
-    
     try:
-        results = scanner_module.run_scanner(scanner_id, credentials, sentiment_map, filter_sentiment)
-        return results
+        # Check if already running to prevent overlap
+        current_progress = scanner_module.get_scan_progress(scanner_id)
+        if current_progress.get("status") == "running":
+            return {"status": "started", "scanner_id": scanner_id, "message": "Scan already running"}
+            
+        background_tasks.add_task(
+            scanner_module.run_scanner, 
+            scanner_id, credentials, sentiment_map, filter_sentiment
+        )
+        return {"status": "started", "scanner_id": scanner_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/engine/scanner/results/{scanner_id}")
+def scanner_results(scanner_id: str):
+    """Get the cached results of a completed scan"""
+    return scanner_module.get_scan_results(scanner_id)
 
 @app.get("/engine/scanner/progress/{scanner_id}")
 def scanner_progress(scanner_id: str):

@@ -1,0 +1,1 @@
+const { User } = require('./src/models'); User.findAll().then(users => { users.forEach(u => console.log('ID:', u.id, 'API_KEY:', u.angel_api_key, 'CLIENT_CODE:', u.angel_client_code)); process.exit(0); });

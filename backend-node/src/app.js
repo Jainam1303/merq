@@ -901,22 +901,7 @@ app.post('/scanner/run', verifyToken, async (req, res) => {
             sentimentMap[s.symbol] = s.score;
         });
 
-        const brokerCreds = {
-            apiKey: user.angel_api_key,
-            clientCode: user.angel_client_code,
-            password: user.angel_password,
-            totp: user.angel_totp,
-            access_token: user.angel_access_token
-        };
-
-        if (!brokerCreds.apiKey || !brokerCreds.clientCode) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Broker credentials not configured. Go to Settings to add your Angel One API keys.'
-            });
-        }
-
-        const result = await scannerEngineService.runScanner(scanner_id, brokerCreds, { sentimentMap, filterSentiment: filter_sentiment });
+        const result = await scannerEngineService.runScanner(scanner_id, {}, { sentimentMap, filterSentiment: filter_sentiment });
         res.json(result);
     } catch (e) {
         res.status(500).json({ status: 'error', message: e.message });
@@ -930,6 +915,16 @@ app.get('/scanner/progress/:scannerId', verifyToken, async (req, res) => {
         res.json(result);
     } catch (e) {
         res.json({ status: 'unknown', current: 0, total: 0 });
+    }
+});
+
+// Get scanner results
+app.get('/scanner/results/:scannerId', verifyToken, async (req, res) => {
+    try {
+        const result = await scannerEngineService.getScannerResults(req.params.scannerId);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ status: 'error', message: e.message });
     }
 });
 // Sentiments API

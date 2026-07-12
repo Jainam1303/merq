@@ -5,6 +5,7 @@ VCP (Volatility Contraction Pattern) and IPO Base filter conditions.
 """
 
 import pandas as pd
+import yfinance as yf
 import numpy as np
 from SmartApi import SmartConnect
 import pyotp
@@ -55,9 +56,16 @@ SCANNERS = {
 _scan_progress = {}
 
 
-def get_scan_progress(scan_id):
-    """Get current progress of a running scan"""
-    return _scan_progress.get(scan_id, {"status": "idle", "current": 0, "total": 0, "symbol": ""})
+def get_scan_progress(scanner_id):
+    """Get the current progress of a scan"""
+    return _scan_progress.get(scanner_id, {"status": "not_started"})
+
+def get_scan_results(scanner_id):
+    """Get the cached results of a scan"""
+    cached = _scan_cache.get(scanner_id)
+    if cached:
+        return cached['data']
+    return {"status": "error", "message": "Results not found or expired"}
 
 
 # ═══════════════════════════════════════════
@@ -75,7 +83,8 @@ def calculate_atr(df, period=14):
     tr3 = abs(low - close.shift(1))
     
     true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-    atr = true_range.rolling(window=period).mean()
+    # Wilder's Smoothing Method (RMA) used by Chartink and TradingView
+    atr = true_range.ewm(alpha=1/period, adjust=False).mean()
     return atr
 
 
@@ -118,7 +127,8 @@ def scan_vcp(df):
         
         # 52-week high (252 trading days)
         lookback = min(252, len(df))
-        high_52w = df['high'].tail(lookback).max()
+        # Chartink uses max of weekly close, using daily close max as a close proxy
+        high_52w = df['close'].tail(lookback).max()
         
         indicators = {
             "close": round(close, 2),
@@ -139,26 +149,32 @@ def scan_vcp(df):
         
         # 1. ATR contracting: today's ATR < 10 days ago ATR
         if atr_today >= atr_10d_ago:
+            logger.info(f"VCP Failed 1: ATR {atr_today} >= {atr_10d_ago}")
             return False, indicators
         
         # 2. Tight range: ATR / Close < 0.08
         if close <= 0 or (atr_today / close) >= 0.08:
+            logger.info(f"VCP Failed 2: ATR/Close {(atr_today/close) if close>0 else 0} >= 0.08")
             return False, indicators
         
         # 3. Near 52-week high: Close > 75% of 52W high
         if close <= high_52w * 0.75:
+            logger.info(f"VCP Failed 3: Close {close} <= {high_52w * 0.75}")
             return False, indicators
         
         # 4. EMA stack: EMA(50) > EMA(150)
         if ema50 <= ema150:
+            logger.info(f"VCP Failed 4: EMA50 {ema50} <= EMA150 {ema150}")
             return False, indicators
         
         # 5. EMA stack: EMA(150) > EMA(200)
         if ema150 <= ema200:
+            logger.info(f"VCP Failed 5: EMA150 {ema150} <= EMA200 {ema200}")
             return False, indicators
         
         # 6. Price above short-term: Close > EMA(50)
         if close <= ema50:
+            logger.info(f"VCP Failed 6: Close {close} <= EMA50 {ema50}")
             return False, indicators
         
         # 7. Min price: Close > 10
@@ -360,15 +376,10 @@ def load_stock_universe():
 # MAIN SCANNER RUNNER
 # ═══════════════════════════════════════════
 
+
+
 def run_scanner(scanner_id, broker_credentials, sentiment_map={}, filter_sentiment=False):
-    """
-    Main scanner runner
-    1. Login to SmartAPI
-    2. Load stock universe
-    3. Fetch daily data for each stock
-    4. Apply scanner filter
-    5. Return matching stocks
-    """
+    """Execute scan over entire universe using yfinance bulk download (Chunked)"""
     global _scan_cache, _scan_progress
     
     # Check cache first
@@ -379,9 +390,6 @@ def run_scanner(scanner_id, broker_credentials, sentiment_map={}, filter_sentime
             logger.info(f"Returning cached results for {scanner_id}")
             return cached['data']
     
-    # Login
-    smart_api = login_smart_api(broker_credentials)
-    
     # Load universe
     universe = load_stock_universe()
     total_stocks = len(universe)
@@ -391,106 +399,112 @@ def run_scanner(scanner_id, broker_credentials, sentiment_map={}, filter_sentime
         "status": "running",
         "current": 0,
         "total": total_stocks,
-        "symbol": "",
+        "symbol": "Initializing...",
         "matches": 0
     }
     
     results = []
     errors = 0
     
-    logger.info(f"Starting {scanner_id} scan on {total_stocks} stocks...")
+    logger.info(f"Starting {scanner_id} scan on {total_stocks} stocks via yfinance...")
     
-    for i, stock in enumerate(universe):
+    # Prepare tickers
+    tickers = []
+    ticker_to_info = {}
+    for stock in universe:
+        sym = stock.get("symbol", "").replace("-EQ", "")
+        if not sym:
+            continue
+        yf_ticker = f"{sym}.NS"
+        tickers.append(yf_ticker)
+        ticker_to_info[yf_ticker] = stock
+    
+    days_to_fetch = "2y"
+    batch_size = 50
+    
+    for i in range(0, len(tickers), batch_size):
+        batch_tickers = tickers[i:i+batch_size]
+        
         try:
-            symbol = stock.get('symbol', '')
-            token = stock.get('token', '')
-            name = stock.get('name', symbol.replace('-EQ', ''))
+            data = yf.download(batch_tickers, period=days_to_fetch, group_by="ticker", threads=True, progress=False)
+        except Exception as e:
+            logger.error(f"yfinance download failed for batch {i}: {e}")
+            errors += len(batch_tickers)
+            continue
             
-            # Update progress
-            _scan_progress[scanner_id] = {
-                "status": "running",
-                "current": i + 1,
-                "total": total_stocks,
-                "symbol": symbol,
-                "matches": len(results)
-            }
-            
-            # Fetch daily data
-            days_to_fetch = 600 if scanner_id == "ipo_base" else 500
-            df = fetch_daily_data(smart_api, token, days=days_to_fetch)
-            
-            if df is None or df.empty:
-                errors += 1
-                continue
-            
-            # Apply scanner filter
-            match = False
-            indicators = {}
-            
-            if scanner_id == "vcp":
-                match, indicators = scan_vcp(df)
-            elif scanner_id == "ipo_base":
-                match, indicators = scan_ipo_base(df, len(df))
-            
-            if match:
-                sentiment = sentiment_map.get(symbol, 0.0)
-                if filter_sentiment and sentiment < 0.05:
-                    # Skip if filtering by sentiment and score is not bullish
+        for j, yf_ticker in enumerate(batch_tickers):
+            try:
+                stock_info = ticker_to_info[yf_ticker]
+                symbol = stock_info.get('symbol', '').replace('-EQ', '')
+                name = stock_info.get('name', symbol)
+                
+                # Update progress
+                current_idx = i + j + 1
+                _scan_progress[scanner_id] = {
+                    "status": "running",
+                    "current": current_idx,
+                    "total": total_stocks,
+                    "symbol": symbol,
+                    "matches": len(results)
+                }
+                
+                if len(batch_tickers) == 1:
+                    df = data
+                else:
+                    if yf_ticker not in data:
+                        errors += 1
+                        continue
+                    df = data[yf_ticker]
+                    
+                df = df.dropna(how='all')
+                if df.empty or len(df) < 50:
+                    errors += 1
                     continue
                     
-                results.append({
-                    "sr": len(results) + 1,
-                    "symbol": symbol.replace('-EQ', ''),
-                    "name": name,
-                    "sentiment": sentiment,
-                    **indicators
-                })
-                logger.info(f"[{scanner_id.upper()}] MATCH: {symbol} (Sentiment: {sentiment})")
-            
-            # Rate limit: SmartAPI allows ~10 requests/sec
-            time.sleep(0.35)
-            
-        except Exception as e:
-            errors += 1
-            logger.error(f"Error scanning {stock.get('symbol', '?')}: {e}")
-            time.sleep(0.5)
+                df.columns = [c.lower() for c in df.columns]
+                
+                # Apply scanner filter
+                match = False
+                indicators = {}
+                
+                if scanner_id == "vcp":
+                    match, indicators = scan_vcp(df)
+                elif scanner_id == "ipo_base":
+                    match, indicators = scan_ipo_base(df, len(df))
+                
+                if match:
+                    sentiment = sentiment_map.get(symbol, 0.0)
+                    if filter_sentiment and sentiment < 0.05:
+                        continue
+                        
+                    results.append({
+                        "sr": len(results) + 1,
+                        "symbol": symbol,
+                        "name": name,
+                        "sentiment": sentiment,
+                        **indicators
+                    })
+                    logger.info(f"[{scanner_id.upper()}] MATCH: {symbol}")
+                
+            except Exception as e:
+                logger.error(f"Error processing {yf_ticker}: {e}")
+                errors += 1
+                
+    logger.info(f"Scan complete. Found {len(results)} matches, {errors} errors.")
     
-    # Sort results
-    if scanner_id == "vcp":
-        results.sort(key=lambda x: x.get('pct_from_52w', 0), reverse=True)
-    elif scanner_id == "ipo_base":
-        results.sort(key=lambda x: x.get('turnover', 0), reverse=True)
-    
-    # Re-number after sort
-    for i, r in enumerate(results):
-        r['sr'] = i + 1
-    
-    scan_result = {
+    final_data = {
         "status": "success",
-        "scanner": SCANNERS[scanner_id]['name'],
-        "scanner_id": scanner_id,
-        "count": len(results),
-        "total_scanned": total_stocks,
-        "errors": errors,
-        "scan_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "stocks": results
+        "scanner": scanner_id,
+        "matches": len(results),
+        "results": results
     }
     
-    # Cache results
     _scan_cache[cache_key] = {
         "timestamp": time.time(),
-        "data": scan_result
+        "data": final_data
     }
     
-    # Update progress to complete
-    _scan_progress[scanner_id] = {
-        "status": "complete",
-        "current": total_stocks,
-        "total": total_stocks,
-        "symbol": "Done",
-        "matches": len(results)
-    }
+    _scan_progress[scanner_id]["status"] = "completed"
     
-    logger.info(f"Scanner {scanner_id} complete: {len(results)} matches from {total_stocks} stocks ({errors} errors)")
-    
-    return scan_result
+    return final_data
+
