@@ -363,7 +363,7 @@ export function Scanner() {
                         </div>
                         <div className="flex items-center gap-2">
                             <button
-                                onClick={() => runScan(results.scanner_id, filterSentiment)}
+                                onClick={() => runScan(results.scanner_id)}
                                 disabled={isScanning}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
                             >
