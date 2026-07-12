@@ -193,6 +193,18 @@ class PythonEngineService {
             return { status: 'unknown', current: 0, total: 0 };
         }
     }
+
+    // 11. Get scanner results
+    async getScannerResults(scannerId) {
+        try {
+            const headers = this._getHeaders({});
+            const res = await this.client.get(`/engine/scanner/results/${scannerId}`, { headers, timeout: 10000 });
+            return res.data;
+        } catch (err) {
+            console.error('Get Scanner Results Failed:', err.message);
+            throw new Error(err.response?.data?.detail || 'Failed to get scan results');
+        }
+    }
 }
 
 module.exports = new PythonEngineService();

@@ -141,6 +141,14 @@ export function Scanner() {
                     try {
                         const data = await fetchJson(`/scanner/results/${scannerId}`);
                         if (data.status === "success") {
+                            // Backend sometimes returns matches in 'results' instead of 'stocks'
+                            if (data.results && !data.stocks) {
+                                data.stocks = data.results;
+                            }
+                            // Also map count to matches if needed
+                            if (data.count !== undefined && data.matches === undefined) {
+                                data.matches = data.count;
+                            }
                             setResults(data);
                             toast.success(`Found ${data.matches} stocks matching criteria`);
                         } else {
