@@ -207,7 +207,8 @@ export function MobileDashboard({ tradingMode, user, onSystemStatusChange }: Mob
             if (!socketUrl) {
                 if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1'))) {
                     socketUrl = 'http://localhost:3002';
-                    socketUrl = 'https://api.merqprime.in';
+                } else {
+                    socketUrl = '';
                 }
             }
             socket = io(socketUrl, {

@@ -2863,7 +2863,7 @@ export default function Home() {
         if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1'))) {
           socketUrl = 'http://localhost:3002';
         } else {
-          socketUrl = 'https://api.merqprime.in';
+          socketUrl = '';
         }
       }
       socket = io(socketUrl, {
