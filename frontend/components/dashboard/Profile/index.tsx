@@ -185,6 +185,27 @@ export function Profile() {
             const order = await fetchJson('/create_order', { method: 'POST', body: JSON.stringify({ plan_id: plan.id }) });
             if (order.status !== 'success') { toast.error(order.message); return; }
 
+            if (order.key === 'mock_key' || order.key === 'dummy_key') {
+                // Mock Mode Bypass
+                const verifyRes = await fetchJson('/verify_payment', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        razorpay_payment_id: 'mock_pay_' + Date.now(),
+                        razorpay_order_id: order.order_id,
+                        razorpay_signature: 'mock_sig',
+                        plan_id: plan.id
+                    })
+                });
+                if (verifyRes.status === 'success') {
+                    toast.success("Upgrade Successful (Mock Mode)!");
+                    loadProfile();
+                    window.dispatchEvent(new Event('plan-updated'));
+                } else {
+                    toast.error("Mock Verification Failed");
+                }
+                return;
+            }
+
             const options = {
                 key: order.key,
                 amount: order.amount,
@@ -413,48 +434,16 @@ export function Profile() {
                                     <Label>Client Code</Label>
                                     <Input name="angel_client_code" value={formData.angel_client_code} onChange={handleChange} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Password</Label>
-                                    <div className="relative">
-                                        <Input
-                                            name="angel_password"
-                                            type={showAngelPassword ? "text" : "password"}
-                                            value={formData.angel_password}
-                                            onChange={handleChange}
-                                            placeholder="Enter password"
-                                            autoComplete="off"
-                                        />
-                                        <Button
-                                            type="button" variant="ghost" size="icon"
-                                            className="absolute right-0 top-0 h-full px-3"
-                                            onClick={() => setShowAngelPassword(!showAngelPassword)}
-                                        >
-                                            {showAngelPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>TOTP Secret</Label>
-                                    <div className="relative">
-                                        <Input
-                                            name="angel_totp"
-                                            type={showAngelTotp ? "text" : "password"}
-                                            value={formData.angel_totp}
-                                            onChange={handleChange}
-                                            placeholder="Enter TOTP Secret"
-                                            autoComplete="off"
-                                        />
-                                        <Button
-                                            type="button" variant="ghost" size="icon"
-                                            className="absolute right-0 top-0 h-full px-3"
-                                            onClick={() => setShowAngelTotp(!showAngelTotp)}
-                                        >
-                                            {showAngelTotp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                        </Button>
-                                    </div>
-                                </div>
                             </div>
-                            <Button onClick={() => handleUpdate('Angel One Credentials')} disabled={saving}>Save Angel One Keys</Button>
+                            <div className="flex gap-4 items-center">
+                                <Button onClick={() => handleUpdate('Angel One Credentials')} disabled={saving}>Save Client Details</Button>
+                                <Button 
+                                    onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/broker/angel/login`} 
+                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                    Connect to Angel One via OAuth
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
 

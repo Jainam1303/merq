@@ -252,7 +252,7 @@ function TickerMarquee() {
         // If proxy fails (e.g., 403), try direct backend URL
         if (!res.ok) {
           console.log(`Proxy returned ${res.status}, trying direct backend...`);
-          const directUrl = process.env.NEXT_PUBLIC_API_URL || 'https://api.merqprime.in';
+          const directUrl = process.env.NEXT_PUBLIC_API_URL || 'http://34.14.206.195:3002';
           res = await fetch(`${directUrl}/market-ticker`);
         }
 
@@ -770,24 +770,20 @@ function ProfileModal({ isOpen, onClose, user, addToast }) {
                         className="w-full px-4 py-2.5 bg-white dark:bg-zinc-800/50 border border-zinc-300 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white focus:border-blue-500 focus:outline-none transition-colors"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-500 mb-2 uppercase">Password</label>
-                      <PasswordInput
-                        value={apiData.angel_password}
-                        onChange={(e) => setApiData({ ...apiData, angel_password: e.target.value })}
-                        placeholder="Enter Password"
-                        color="blue"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-500 mb-2 uppercase">TOTP Token</label>
-                      <PasswordInput
-                        value={apiData.angel_totp}
-                        onChange={(e) => setApiData({ ...apiData, angel_totp: e.target.value })}
-                        placeholder="Enter TOTP"
-                        color="blue"
-                      />
-                    </div>
+                  </div>
+                  <div className="mt-6 flex flex-wrap gap-4">
+                    <button
+                      onClick={() => handleUpdateProfile('api')}
+                      className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium text-sm"
+                    >
+                      Save Client Details
+                    </button>
+                    <button
+                      onClick={() => window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'}/api/broker/angel/login`}
+                      className="px-6 py-2 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700 rounded-lg transition-colors font-medium text-sm"
+                    >
+                      Connect to Angel One via OAuth
+                    </button>
                   </div>
                 </div>
 
@@ -2871,7 +2867,7 @@ export default function Home() {
         if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1'))) {
           socketUrl = 'http://localhost:3002';
         } else {
-          socketUrl = 'https://api.merqprime.in';
+          socketUrl = 'http://34.14.206.195:3002';
         }
       }
       socket = io(socketUrl, {
