@@ -189,6 +189,9 @@ const fetchJson = async (endpoint, options = {}) => {
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") === -1) {
       const text = await res.text();
+      if (res.status === 502 || res.status === 504 || text.includes('ROUTER_EXTERNAL_TARGET_CONNECTION_ERROR')) {
+         throw new Error("Backend unavailable (502/504)");
+      }
       console.error("Received non-JSON response:", text.substring(0, 500));
       throw new Error("Server Error: Received HTML instead of JSON. Check Backend Logs.");
     }
@@ -248,13 +251,6 @@ function TickerMarquee() {
         // Fetch fresh closing prices from Backend API (updates dynamically)
         console.log('Fetching closing prices from Alpha Vantage API...');
         let res = await fetch('/api/market-ticker');
-
-        // If proxy fails (e.g., 403), try direct backend URL
-        if (!res.ok) {
-          console.log(`Proxy returned ${res.status}, trying direct backend...`);
-          const directUrl = process.env.NEXT_PUBLIC_API_URL || 'http://34.14.206.195:3002';
-          res = await fetch(`${directUrl}/market-ticker`);
-        }
 
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);

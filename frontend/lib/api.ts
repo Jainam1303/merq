@@ -32,6 +32,9 @@ export const fetchJson = async <T = any>(endpoint: string, options: RequestInit 
         const contentType = res.headers.get("content-type");
         if (contentType && contentType.indexOf("application/json") === -1) {
             const text = await res.text();
+            if (res.status === 502 || res.status === 504 || text.includes('ROUTER_EXTERNAL_TARGET_CONNECTION_ERROR')) {
+                throw new Error("Backend unavailable (502/504)");
+            }
             console.error("Received non-JSON response:", text.substring(0, 500));
             throw new Error("Server Error: Received HTML instead of JSON.");
         }
@@ -43,7 +46,10 @@ export const fetchJson = async <T = any>(endpoint: string, options: RequestInit 
 
         return await res.json();
     } catch (err) {
-        console.error(`Fetch JSON failed for ${endpoint}:`, err);
+        const isPolling = endpoint.includes('status') || endpoint.includes('pnl') || endpoint.includes('orderbook') || endpoint.includes('trades');
+        if (!isPolling) {
+            console.error(`Fetch JSON failed for ${endpoint}:`, err);
+        }
         throw err;
     }
 };
