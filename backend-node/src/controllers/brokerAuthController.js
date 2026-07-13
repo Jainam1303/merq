@@ -78,7 +78,7 @@ exports.angelCallback = async (req, res) => {
 
         // Redirect back to the frontend dashboard API settings
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3003';
-        res.redirect(`${frontendUrl}/dashboard/profile?broker_connected=success`);
+        res.redirect(`${frontendUrl}/dashboard?broker_connected=success`);
 
     } catch (error) {
         console.error('Angel Callback Error:', error);
