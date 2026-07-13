@@ -434,15 +434,23 @@ export function Profile() {
                                     <Label>Client Code</Label>
                                     <Input name="angel_client_code" value={formData.angel_client_code} onChange={handleChange} />
                                 </div>
+                                <div className="space-y-2">
+                                    <Label>Password/PIN</Label>
+                                    <Input type="password" name="angel_password" value={formData.angel_password || ''} onChange={handleChange} placeholder="Enter your Angel One PIN" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>TOTP Secret (optional)</Label>
+                                    <Input type="password" name="angel_totp" value={formData.angel_totp || ''} onChange={handleChange} placeholder="Enter TOTP Secret" />
+                                </div>
                             </div>
                             <div className="flex gap-4 items-center">
-                                <Button onClick={() => handleUpdate('Angel One Credentials')} disabled={saving}>Save Client Details</Button>
-                                <Button 
+                                <Button onClick={() => handleUpdate('Angel One Credentials')} disabled={saving}>Save Credentials</Button>
+                                {/* <Button 
                                     onClick={() => window.location.href = '/api/broker/angel/login'}
                                     className="bg-blue-600 hover:bg-blue-700 text-white"
                                 >
                                     Connect to Angel One via OAuth
-                                </Button>
+                                </Button> */}
                             </div>
                         </CardContent>
                     </Card>

@@ -14,6 +14,18 @@ from strategies.time_based_strategy import LiveTimeBased
 from strategies.vwap_volume_failure import LiveVWAPFailure
 from SmartApi import SmartConnect
 from SmartApi.smartWebSocketV2 import SmartWebSocketV2
+
+# Monkey patch for websocket client compatibility
+if hasattr(SmartWebSocketV2, '_on_close'):
+    _original_on_close = getattr(SmartWebSocketV2, '_on_close')
+    def _patched_on_close(self, wsapp, *args):
+        # We need to drop extra arguments passed by websocket-client
+        try:
+            return _original_on_close(self, wsapp)
+        except Exception:
+            return None
+    SmartWebSocketV2._on_close = _patched_on_close
+
 import pyotp
 import datetime
 import os
@@ -106,23 +118,42 @@ class TradingSession:
     def _login_and_run(self):
         """Background thread: login, calculate ORB, then start WebSocket"""
         try:
-            # 1. Login
+                # 1. Login
             try:
                 api_key = self.credentials.get('apiKey')
                 client_code = self.credentials.get('clientCode')
-                access_token = self.credentials.get('accessToken')
+                password = self.credentials.get('password')
+                totp_secret = self.credentials.get('totp')
                 
                 self.smartApi = SmartConnect(api_key=api_key)
                 
-                if access_token:
-                    # OAuth Flow
-                    self.smartApi.access_token = access_token
-                    self.auth_token = access_token
-                    # In a real scenario, we'd fetch the feedToken from a profile call or DB
-                    self.feed_token = "mock_feed_token_if_oauth" 
-                    self.log("Angel One OAuth Login Successful", "SUCCESS")
+                # if access_token:
+                #     # OAuth Flow (commented out as per user request)
+                #     self.smartApi.access_token = access_token
+                #     self.auth_token = access_token
+                #     self.feed_token = self.credentials.get('feedToken')
+                #     self.log("Angel One OAuth Login Successful", "SUCCESS")
+                # else:
+
+                if password and totp_secret:
+                    # Legacy Login Flow
+                    try:
+                        totp = pyotp.TOTP(totp_secret).now()
+                        data = self.smartApi.generateSession(client_code, password, totp)
+                        if data['status']:
+                            self.auth_token = data['data']['jwtToken']
+                            self.feed_token = data['data']['feedToken']
+                            self.log("Angel One Login Successful", "SUCCESS")
+                        else:
+                            self.log(f"Login failed: {data['message']}", "ERROR")
+                            self.active = False
+                            return
+                    except Exception as e:
+                        self.log(f"Session generation failed: {str(e)}", "ERROR")
+                        self.active = False
+                        return
                 else:
-                    self.log("Missing access token for OAuth flow", "ERROR")
+                    self.log("Missing password or totp for legacy login", "ERROR")
                     self.active = False
                     return
                     
